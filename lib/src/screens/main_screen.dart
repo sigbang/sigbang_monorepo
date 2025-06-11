@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
 import 'home_screen.dart';
+import 'feed_screen.dart';
+import 'recipe_detail_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -14,7 +16,7 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> _screens = [
     const HomeScreen(),
-    const SearchScreen(),
+    const FeedScreen(),
     const AddRecipeScreen(),
     const MenuScreen(),
     const ProfileScreen(),
@@ -51,27 +53,27 @@ class _MainScreenState extends State<MainScreen> {
             BottomNavigationBarItem(
               icon: Icon(Icons.home_outlined),
               activeIcon: Icon(Icons.home),
-              label: 'Home',
+              label: '',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.search_outlined),
               activeIcon: Icon(Icons.search),
-              label: 'Search',
+              label: '',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.add_circle_outline),
               activeIcon: Icon(Icons.add_circle),
-              label: 'Add',
+              label: '',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.menu_book_outlined),
               activeIcon: Icon(Icons.menu_book),
-              label: 'Menu',
+              label: '',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_outline),
               activeIcon: Icon(Icons.person),
-              label: 'Profile',
+              label: '',
             ),
           ],
         ),

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
-import '../widgets/recipe_card.dart';
-import '../models/recipe.dart';
+import 'recipe_detail_screen.dart';
+import '../models/recipe_model.dart';
+import '../data/sample_recipes.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,18 +13,15 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
-  String _selectedCountry = '전체';
+  final String _selectedCountry = '전체';
 
   final List<String> _countries = [
     '전체',
     '한국',
-    '일본',
-    '중국',
     '이탈리아',
-    '프랑스',
+    '일본',
     '멕시코',
-    '태국',
-    '인도'
+    '미국',
   ];
 
   final List<String> _themes = [
@@ -37,6 +35,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final sampleRecipes = SampleRecipes.getSampleRecipes();
+    final trendingRecipes = sampleRecipes
+        .take(3)
+        .map((recipe) => {
+              'title': recipe.title,
+              'author': recipe.author,
+              'rating': recipe.rating,
+              'duration': '${recipe.duration}분',
+            })
+        .toList();
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -48,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 // 상단 메시지 영역
                 const Text(
-                  'Get amazing recipes for cooking',
+                  '글로벌 요리 레시피',
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
@@ -65,12 +74,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   child: TextField(
                     controller: _searchController,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       hintText: 'Search',
-                      hintStyle: const TextStyle(color: Colors.grey),
-                      prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                      hintStyle: TextStyle(color: Colors.grey),
+                      prefixIcon: Icon(Icons.search, color: Colors.grey),
                       border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
+                      contentPadding: EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 16,
                       ),
@@ -80,25 +89,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 32),
 
                 // 추천 요리 영역 헤더
-                Row(
+                const Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Trending now',
+                    Text(
+                      '추천 레시피',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: Colors.black87,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {},
-                      child: const Text(
-                        'See all',
-                        style: TextStyle(
-                          color: kYellowColor,
-                          fontSize: 16,
-                        ),
                       ),
                     ),
                   ],
@@ -113,10 +112,22 @@ class _HomeScreenState extends State<HomeScreen> {
                     itemCount: trendingRecipes.length,
                     itemBuilder: (context, index) {
                       final recipe = trendingRecipes[index];
+                      final fullRecipe = sampleRecipes[index];
                       return Container(
                         width: 280,
                         margin: const EdgeInsets.only(right: 16),
-                        child: RecipeCard(recipe: recipe),
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => RecipeDetailScreen(
+                                    recipe: fullRecipe.toJson()),
+                              ),
+                            );
+                          },
+                          child: RecipeCard(recipe: recipe),
+                        ),
                       );
                     },
                   ),
@@ -125,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 // 인기 카테고리 헤더
                 const Text(
-                  'Popular category',
+                  '키워드',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -142,16 +153,23 @@ class _HomeScreenState extends State<HomeScreen> {
                     return CategoryChip(
                       label: category['name']!,
                       isSelected: category['isSelected'] as bool,
-                      onTap: () {},
+                      onTap: () {
+                        setState(() {
+                          for (var cat in categories) {
+                            cat['isSelected'] = false;
+                          }
+                          category['isSelected'] = true;
+                        });
+                      },
                     );
                   }).toList(),
                 ),
                 const SizedBox(height: 32),
 
                 // 선택된 카테고리의 레시피들
-                const Text(
-                  'Breakfast recipes',
-                  style: TextStyle(
+                Text(
+                  '${categories.firstWhere((cat) => cat['isSelected'] == true)['name']} 레시피',
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
@@ -169,10 +187,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     mainAxisSpacing: 16,
                     childAspectRatio: 0.8,
                   ),
-                  itemCount: breakfastRecipes.length,
+                  itemCount: sampleRecipes.length.clamp(0, 4),
                   itemBuilder: (context, index) {
-                    final recipe = breakfastRecipes[index];
-                    return RecipeGridCard(recipe: recipe);
+                    final recipe = sampleRecipes[index];
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                RecipeDetailScreen(recipe: recipe.toJson()),
+                          ),
+                        );
+                      },
+                      child: RecipeGridCard(recipe: {'title': recipe.title}),
+                    );
                   },
                 ),
               ],
@@ -180,26 +209,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Recipe _getSampleRecipe(int index) {
-    return Recipe(
-      id: 'recipe_$index',
-      userId: 'user_$index',
-      mainImageUrl: 'https://via.placeholder.com/300x200',
-      title: '샘플 레시피 ${index + 1}',
-      country: _countries[index % (_countries.length - 1) + 1],
-      description: '맛있는 레시피입니다.',
-      cookTimeMinutes: 30 + (index * 10),
-      difficulty: ['쉬움', '보통', '어려움'][index % 3],
-      ingredients: ['재료 1', '재료 2', '재료 3'],
-      steps: [
-        RecipeStep(stepNumber: 1, description: '첫 번째 단계'),
-        RecipeStep(stepNumber: 2, description: '두 번째 단계'),
-      ],
-      createdAt: DateTime.now().subtract(Duration(days: index)),
-      authorName: '요리사 ${index + 1}',
     );
   }
 
@@ -502,12 +511,10 @@ final List<Map<String, dynamic>> trendingRecipes = [
 ];
 
 final List<Map<String, dynamic>> categories = [
-  {'name': 'breakfast', 'isSelected': true},
+  {'name': 'pasta', 'isSelected': true},
+  {'name': 'dumpling', 'isSelected': false},
   {'name': 'salad', 'isSelected': false},
-  {'name': 'Appetizer', 'isSelected': false},
-  {'name': 'Noodle', 'isSelected': false},
-  {'name': 'Lunch', 'isSelected': false},
-  {'name': 'Dinner', 'isSelected': false},
+  {'name': 'tapas', 'isSelected': false}
 ];
 
 final List<Map<String, dynamic>> breakfastRecipes = [

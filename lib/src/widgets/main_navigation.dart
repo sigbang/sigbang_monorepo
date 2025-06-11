@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../screens/home_screen.dart';
 import '../screens/feed_screen.dart';
 import '../screens/add_recipe_screen.dart';
-import '../screens/saved_screen.dart';
+//import '../screens/saved_screen.dart';
 import '../screens/profile_screen.dart';
 
 class MainNavigation extends StatefulWidget {
@@ -19,7 +19,7 @@ class _MainNavigationState extends State<MainNavigation> {
     const HomeScreen(),
     const FeedScreen(),
     const AddRecipeScreen(),
-    const SavedScreen(),
+    //const SavedScreen(),
     const ProfileScreen(),
   ];
 
