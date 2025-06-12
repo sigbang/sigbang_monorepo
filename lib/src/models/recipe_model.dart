@@ -4,6 +4,7 @@ class Recipe {
   final String description;
   final String imageUrl;
   final String author;
+  final String authorImageUrl;
   final double rating;
   final int duration; // 분 단위
   final String difficulty; // '쉬움', '보통', '어려움'
@@ -24,6 +25,7 @@ class Recipe {
     required this.description,
     required this.imageUrl,
     required this.author,
+    required this.authorImageUrl,
     required this.rating,
     required this.duration,
     required this.difficulty,
@@ -46,6 +48,7 @@ class Recipe {
       description: json['description'],
       imageUrl: json['imageUrl'],
       author: json['author'],
+      authorImageUrl: json['authorImageUrl'],
       rating: json['rating'].toDouble(),
       duration: json['duration'],
       difficulty: json['difficulty'],
@@ -74,6 +77,7 @@ class Recipe {
       'description': description,
       'imageUrl': imageUrl,
       'author': author,
+      'authorImageUrl': authorImageUrl,
       'rating': rating,
       'duration': duration,
       'difficulty': difficulty,

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
 import 'recipe_detail_screen.dart';
-import '../models/recipe_model.dart';
 import '../data/sample_recipes.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -37,12 +36,14 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final sampleRecipes = SampleRecipes.getSampleRecipes();
     final trendingRecipes = sampleRecipes
-        .take(3)
+        .take(4)
         .map((recipe) => {
               'title': recipe.title,
               'author': recipe.author,
               'rating': recipe.rating,
               'duration': '${recipe.duration}분',
+              'imageUrl': recipe.imageUrl,
+              'authorImageUrl': recipe.authorImageUrl,
             })
         .toList();
 
@@ -200,7 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         );
                       },
-                      child: RecipeGridCard(recipe: {'title': recipe.title}),
+                      child: RecipeGridCard(recipe: recipe.toJson()),
                     );
                   },
                 ),
@@ -245,28 +246,34 @@ class RecipeCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               color: Colors.grey[300],
             ),
-            child: const Center(
-              child: Icon(
-                Icons.restaurant_menu,
-                size: 80,
-                color: Colors.grey,
-              ),
-            ),
-          ),
-
-          // 재생 버튼
-          const Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Center(
-              child: Icon(
-                Icons.play_circle_fill,
-                size: 50,
-                color: Colors.white,
-              ),
-            ),
+            child: recipe.containsKey('imageUrl') &&
+                    recipe['imageUrl'] != null &&
+                    recipe['imageUrl'].toString().isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.asset(
+                      '${recipe['imageUrl']}',
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Center(
+                          child: Icon(
+                            Icons.restaurant_menu,
+                            size: 80,
+                            color: Colors.grey,
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                : const Center(
+                    child: Icon(
+                      Icons.restaurant_menu,
+                      size: 80,
+                      color: Colors.grey,
+                    ),
+                  ),
           ),
 
           // 평점 및 북마크
@@ -359,11 +366,20 @@ class RecipeCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const CircleAvatar(
+                      CircleAvatar(
                         radius: 12,
                         backgroundColor: Colors.grey,
-                        child:
-                            Icon(Icons.person, size: 16, color: Colors.white),
+                        backgroundImage: recipe.containsKey('authorImageUrl') &&
+                                recipe['authorImageUrl'] != null &&
+                                recipe['authorImageUrl'].toString().isNotEmpty
+                            ? AssetImage(recipe['authorImageUrl'])
+                            : null,
+                        child: (!recipe.containsKey('authorImageUrl') ||
+                                recipe['authorImageUrl'] == null ||
+                                recipe['authorImageUrl'].toString().isEmpty)
+                            ? const Icon(Icons.person,
+                                size: 16, color: Colors.white)
+                            : null,
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -444,13 +460,34 @@ class RecipeGridCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               color: Colors.grey[300],
             ),
-            child: const Center(
-              child: Icon(
-                Icons.restaurant_menu,
-                size: 50,
-                color: Colors.grey,
-              ),
-            ),
+            child: recipe.containsKey('imageUrl') &&
+                    recipe['imageUrl'] != null &&
+                    recipe['imageUrl'].toString().isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.asset(
+                      '${recipe['imageUrl']}',
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Center(
+                          child: Icon(
+                            Icons.restaurant_menu,
+                            size: 50,
+                            color: Colors.grey,
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                : const Center(
+                    child: Icon(
+                      Icons.restaurant_menu,
+                      size: 50,
+                      color: Colors.grey,
+                    ),
+                  ),
           ),
           Positioned(
             bottom: 0,

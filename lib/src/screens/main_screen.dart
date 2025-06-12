@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../core/constants.dart';
 import 'home_screen.dart';
 import 'feed_screen.dart';
-import 'recipe_detail_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});

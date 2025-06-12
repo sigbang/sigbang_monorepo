@@ -35,13 +35,31 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     decoration: BoxDecoration(
                       color: Colors.grey[300],
                     ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.restaurant_menu,
-                        size: 120,
-                        color: Colors.grey,
-                      ),
-                    ),
+                    child: widget.recipe.containsKey('imageUrl') &&
+                            widget.recipe['imageUrl'] != null &&
+                            widget.recipe['imageUrl'].toString().isNotEmpty
+                        ? Image.asset(
+                            '${widget.recipe['imageUrl']}',
+                            width: double.infinity,
+                            height: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Center(
+                                child: Icon(
+                                  Icons.restaurant_menu,
+                                  size: 120,
+                                  color: Colors.grey,
+                                ),
+                              );
+                            },
+                          )
+                        : const Center(
+                            child: Icon(
+                              Icons.restaurant_menu,
+                              size: 120,
+                              color: Colors.grey,
+                            ),
+                          ),
                   ),
                   // 그라데이션 오버레이
                   Positioned(
@@ -201,12 +219,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  ...cookingSteps
-                      .map((step) => _CookingStep(
-                            stepNumber: step['step'],
-                            description: step['description'],
-                          ))
-                      .toList(),
+                  ...cookingSteps.map((step) => _CookingStep(
+                        stepNumber: step['step'],
+                        description: step['description'],
+                      )),
 
                   const SizedBox(height: 32),
 
@@ -221,13 +237,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  ...comments
-                      .map((comment) => _CommentItem(
-                            userName: comment['userName'],
-                            comment: comment['comment'],
-                            time: comment['time'],
-                          ))
-                      .toList(),
+                  ...comments.map((comment) => _CommentItem(
+                        userName: comment['userName'],
+                        comment: comment['comment'],
+                        time: comment['time'],
+                        userImage: comment['userImage'],
+                      )),
 
                   // 댓글 입력
                   Container(
@@ -390,10 +405,12 @@ class _IngredientItem extends StatelessWidget {
 class _CookingStep extends StatelessWidget {
   final int stepNumber;
   final String description;
+  final String? imageUrl;
 
   const _CookingStep({
     required this.stepNumber,
     required this.description,
+    this.imageUrl,
   });
 
   @override
@@ -449,13 +466,32 @@ class _CookingStep extends StatelessWidget {
                     color: Colors.grey[200],
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.camera_alt,
-                      size: 40,
-                      color: Colors.grey,
-                    ),
-                  ),
+                  child: imageUrl != null && imageUrl!.isNotEmpty
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.asset(
+                            '$imageUrl',
+                            width: double.infinity,
+                            height: 120,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Center(
+                                child: Icon(
+                                  Icons.camera_alt,
+                                  size: 40,
+                                  color: Colors.grey,
+                                ),
+                              );
+                            },
+                          ),
+                        )
+                      : const Center(
+                          child: Icon(
+                            Icons.camera_alt,
+                            size: 40,
+                            color: Colors.grey,
+                          ),
+                        ),
                 ),
                 const SizedBox(height: 12),
 
@@ -481,11 +517,13 @@ class _CommentItem extends StatelessWidget {
   final String userName;
   final String comment;
   final String time;
+  final String? userImage;
 
   const _CommentItem({
     required this.userName,
     required this.comment,
     required this.time,
+    this.userImage,
   });
 
   @override
@@ -496,14 +534,19 @@ class _CommentItem extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 프로필 이미지
-          const CircleAvatar(
+          CircleAvatar(
             radius: 20,
             backgroundColor: kYellowColor,
-            child: Icon(
-              Icons.person,
-              color: kBlackColor,
-              size: 20,
-            ),
+            backgroundImage: userImage != null && userImage!.isNotEmpty
+                ? AssetImage(userImage!)
+                : null,
+            child: (userImage == null || userImage!.isEmpty)
+                ? const Icon(
+                    Icons.person,
+                    color: kBlackColor,
+                    size: 20,
+                  )
+                : null,
           ),
           const SizedBox(width: 12),
 
@@ -575,15 +618,18 @@ final List<Map<String, dynamic>> comments = [
     'userName': '요리마스터',
     'comment': '정말 간단하면서도 맛있어요! 마늘 향이 너무 좋네요.',
     'time': '2시간 전',
+    'userImage': '',
   },
   {
     'userName': '파스타러버',
     'comment': '레시피 따라했는데 레스토랑 못지않은 맛이 나왔어요. 감사합니다!',
     'time': '1일 전',
+    'userImage': '',
   },
   {
     'userName': '초보쿡',
     'comment': '면수를 넣는 게 포인트였네요. 다음엔 더 맛있게 만들 수 있을 것 같아요.',
     'time': '3일 전',
+    'userImage': '',
   },
 ];

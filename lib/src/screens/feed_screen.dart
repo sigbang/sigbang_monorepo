@@ -214,13 +214,36 @@ class _FeedRecipeCardState extends State<FeedRecipeCard> {
               ),
               child: Stack(
                 children: [
-                  const Center(
-                    child: Icon(
-                      Icons.restaurant_menu,
-                      size: 80,
-                      color: Colors.grey,
-                    ),
-                  ),
+                  // 이미지 또는 플레이스홀더
+                  widget.recipe.imageUrl.isNotEmpty
+                      ? ClipRRect(
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(16),
+                            topRight: Radius.circular(16),
+                          ),
+                          child: Image.asset(
+                            '${widget.recipe.imageUrl}',
+                            width: double.infinity,
+                            height: 200,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Center(
+                                child: Icon(
+                                  Icons.restaurant_menu,
+                                  size: 80,
+                                  color: Colors.grey,
+                                ),
+                              );
+                            },
+                          ),
+                        )
+                      : const Center(
+                          child: Icon(
+                            Icons.restaurant_menu,
+                            size: 80,
+                            color: Colors.grey,
+                          ),
+                        ),
 
                   // 좋아요, 저장 버튼
                   Positioned(
@@ -310,10 +333,16 @@ class _FeedRecipeCardState extends State<FeedRecipeCard> {
                   // 작성자
                   Row(
                     children: [
-                      const CircleAvatar(
+                      CircleAvatar(
                         radius: 12,
                         backgroundColor: kYellowColor,
-                        child: Icon(Icons.person, size: 16, color: kBlackColor),
+                        backgroundImage: widget.recipe.authorImageUrl.isNotEmpty
+                            ? AssetImage(widget.recipe.authorImageUrl)
+                            : null,
+                        child: widget.recipe.authorImageUrl.isEmpty
+                            ? const Icon(Icons.person,
+                                size: 16, color: kBlackColor)
+                            : null,
                       ),
                       const SizedBox(width: 8),
                       Text(
