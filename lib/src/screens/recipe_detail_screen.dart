@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
-import '../models/recipe_model.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   final Map<String, dynamic> recipe;
@@ -222,6 +221,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   ...cookingSteps.map((step) => _CookingStep(
                         stepNumber: step['step'],
                         description: step['description'],
+                        imageUrl: step['imageUrl'],
                       )),
 
                   const SizedBox(height: 32),
@@ -410,7 +410,7 @@ class _CookingStep extends StatelessWidget {
   const _CookingStep({
     required this.stepNumber,
     required this.description,
-    this.imageUrl,
+    required this.imageUrl,
   });
 
   @override

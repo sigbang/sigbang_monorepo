@@ -190,7 +190,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   itemCount: sampleRecipes.length.clamp(0, 4),
                   itemBuilder: (context, index) {
-                    final recipe = sampleRecipes[index];
+                    final recipe = sampleRecipes[index + 2];
                     return GestureDetector(
                       onTap: () {
                         Navigator.push(

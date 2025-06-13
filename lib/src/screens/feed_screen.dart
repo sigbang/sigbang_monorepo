@@ -222,7 +222,7 @@ class _FeedRecipeCardState extends State<FeedRecipeCard> {
                             topRight: Radius.circular(16),
                           ),
                           child: Image.asset(
-                            '${widget.recipe.imageUrl}',
+                            widget.recipe.imageUrl,
                             width: double.infinity,
                             height: 200,
                             fit: BoxFit.cover,
