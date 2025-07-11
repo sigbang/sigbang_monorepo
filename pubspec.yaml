@@ -12,6 +12,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  google_sign_in: ^6.2.1
+  supabase_flutter: ^1.10.9
+
   flutter_localizations:
     sdk: flutter
 
