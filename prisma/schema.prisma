@@ -1,0 +1,208 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 사용자 모델
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  nickname    String   @unique
+  profileImage String?
+  bio         String?
+  isActive    Boolean  @default(true) // Soft delete용
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Supabase Auth와 연동을 위한 필드
+  supabaseId  String   @unique
+  
+  // 관계
+  recipes     Recipe[]
+  comments    Comment[]
+  likes       Like[]
+  saves       Save[]
+  reports     Report[] // 신고한 내역
+  
+  @@map("users")
+}
+
+// 레시피 모델
+model Recipe {
+  id              String   @id @default(uuid())
+  title           String
+  description     String
+  ingredients     String[] // 재료 배열
+  instructions    String[] // 조리 과정 배열
+  images          String[] // 이미지 URL 배열
+  cookingTime     Int?     // 조리 시간 (분)
+  servings        Int?     // 몇 인분
+  difficulty      Difficulty @default(EASY)
+  isPublished     Boolean  @default(true)
+  isHidden        Boolean  @default(false) // 관리자 숨김 처리
+  viewCount       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // 관계
+  authorId        String
+  author          User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments        Comment[]
+  likes           Like[]
+  saves           Save[]
+  reports         Report[]
+  tags            RecipeTag[]
+  
+  @@map("recipes")
+}
+
+// 레시피 태그 모델
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  
+  // 관계
+  recipes   RecipeTag[]
+  
+  @@map("tags")
+}
+
+// 레시피-태그 중간 테이블
+model RecipeTag {
+  id       String @id @default(uuid())
+  recipeId String
+  tagId    String
+  
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  tag      Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  
+  @@unique([recipeId, tagId])
+  @@map("recipe_tags")
+}
+
+// 댓글 모델
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  isHidden  Boolean  @default(false) // 관리자 숨김 처리
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // 관계
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  recipeId  String
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  reports   Report[]
+  
+  // 대댓글 기능
+  parentId  String?
+  parent    Comment? @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   Comment[] @relation("CommentReplies")
+  
+  @@map("comments")
+}
+
+// 좋아요 모델
+model Like {
+  id       String @id @default(uuid())
+  createdAt DateTime @default(now())
+  
+  // 관계
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipeId String
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, recipeId]) // 중복 좋아요 방지
+  @@map("likes")
+}
+
+// 저장(스크랩) 모델
+model Save {
+  id       String @id @default(uuid())
+  createdAt DateTime @default(now())
+  
+  // 관계
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipeId String
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, recipeId]) // 중복 저장 방지
+  @@map("saves")
+}
+
+// 신고 모델
+model Report {
+  id        String     @id @default(uuid())
+  reason    ReportReason
+  description String?
+  status    ReportStatus @default(PENDING)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  
+  // 관계 - 신고자
+  reporterId String
+  reporter   User    @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  
+  // 신고 대상 (레시피 또는 댓글)
+  recipeId   String?
+  recipe     Recipe? @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  commentId  String?
+  comment    Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  
+  @@map("reports")
+}
+
+// 관리자 액션 로그
+model AdminAction {
+  id          String        @id @default(uuid())
+  action      AdminActionType
+  targetType  String        // 'recipe', 'comment', 'user'
+  targetId    String
+  reason      String?
+  adminId     String        // 관리자 사용자 ID
+  createdAt   DateTime      @default(now())
+  
+  @@map("admin_actions")
+}
+
+// 열거형들
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum ReportReason {
+  SPAM
+  INAPPROPRIATE_CONTENT
+  HARASSMENT
+  COPYRIGHT_VIOLATION
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+  DISMISSED
+}
+
+enum AdminActionType {
+  HIDE_RECIPE
+  HIDE_COMMENT
+  BLOCK_USER
+  UNBLOCK_USER
+  DELETE_CONTENT
+}
