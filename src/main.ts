@@ -42,6 +42,12 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
+  console.log('✅ Loaded config:', {
+    PORT: process.env.PORT,
+    DATABASE_URL: process.env.DATABASE_URL,
+    JWT_SECRET: process.env.JWT_SECRET,
+  });
+
   const port = process.env.PORT || 3000;
   await app.listen(port);
   
