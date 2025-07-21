@@ -24,7 +24,7 @@ FROM node:18-alpine3.15 AS production
 
 WORKDIR /app
 
-RUN apk add --no-cache dumb-init openssl1.1-compat
+RUN apk add --no-cache dumb-init openssl
 
 # Copy built application and Prisma files
 COPY --from=builder /app/dist ./dist
