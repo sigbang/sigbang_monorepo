@@ -1,5 +1,5 @@
 # Build stage
-FROM node:18-alpine3.15 AS builder
+FROM node:18-slim AS builder
 
 WORKDIR /app
 
@@ -20,11 +20,11 @@ RUN npx prisma generate
 RUN npm run build
 
 # Production stage
-FROM node:18-alpine3.15 AS production
+FROM node:18-slim AS production
 
 WORKDIR /app
 
-RUN apk add --no-cache dumb-init openssl
+RUN apt-get update && apt-get install -y dumb-init && rm -rf /var/lib/apt/lists/*
 
 # Copy built application and Prisma files
 COPY --from=builder /app/dist ./dist
@@ -34,17 +34,6 @@ COPY --from=builder /app/generated ./generated
 COPY --from=builder /app/prisma ./prisma
 
 COPY .env .env
-
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nestjs -u 1001
-
-# Change ownership of the app directory
-RUN chown -R nestjs:nodejs /app
-USER nestjs
-
-# Expose port
-EXPOSE 3000
 
 # Start the application
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
