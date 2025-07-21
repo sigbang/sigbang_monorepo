@@ -33,6 +33,8 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/generated ./generated
 COPY --from=builder /app/prisma ./prisma
 
+COPY .env .env
+
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nestjs -u 1001
