@@ -14,7 +14,7 @@ RUN npm ci && npm cache clean --force
 COPY . .
 
 # Generate Prisma client
-RUN npx prisma generate
+RUN npx prisma generate --binary-target=debian-openssl-3.0.x
 
 # Build the application
 RUN npm run build
@@ -25,7 +25,7 @@ FROM node:18-slim AS production
 WORKDIR /app
 
 RUN apt-get update && \
-    apt-get install -y dumb-init openssl libssl1.1 && \
+    apt-get install -y dumb-init openssl libssl-dev && \
     rm -rf /var/lib/apt/lists/
 
 # Copy built application and Prisma files
