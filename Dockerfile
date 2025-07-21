@@ -14,7 +14,7 @@ RUN npm ci && npm cache clean --force
 COPY . .
 
 # Generate Prisma client
-RUN npx prisma generate --binary-target=debian-openssl-3.0.x
+RUN npx prisma generate
 
 # Build the application
 RUN npm run build
