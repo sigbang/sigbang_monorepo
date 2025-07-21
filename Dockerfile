@@ -24,8 +24,7 @@ FROM node:18-alpine AS production
 
 WORKDIR /app
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+RUN apk add --no-cache dumb-init openssl1.1-compat
 
 # Copy package files
 COPY package*.json ./
