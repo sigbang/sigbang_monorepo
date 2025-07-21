@@ -26,13 +26,10 @@ WORKDIR /app
 
 RUN apk add --no-cache dumb-init openssl1.1-compat
 
-# Copy package files
-COPY package*.json ./
-
-
 # Copy built application and Prisma files
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/generated ./generated
 COPY --from=builder /app/prisma ./prisma
 
