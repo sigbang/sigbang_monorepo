@@ -20,30 +20,31 @@ jobs:
 
     - name: Deploy to EC2
       run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
-            echo "[1] 🛰 Pull latest code"
-            cd ~/sigbang-server/sigbang_api
-            git pull origin main
+        ssh -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
+          echo "[1] 🛰 Pull latest code"
+          cd ~/sigbang-server/sigbang_api
+          git pull origin main
 
-            cd ..
-            
-            echo "[2] 💽 Disk usage BEFORE cleanup"
-            df -h
-            docker system df
-            
-            echo "[3] 🧹 Docker cleanup"
-            docker container prune -f
-            docker image prune -af
-            docker volume prune -f
-            docker builder prune -f
-            
-            echo "[4] 💽 Disk usage AFTER cleanup"
-            df -h
-            docker system df
-            
-            echo "[5] 🧱 Docker build"
-            docker-compose -f docker-compose.yml -f docker-compose.back.yml build --no-cache backend
-            
-            echo "[6] 🚀 Docker up"
-            docker-compose -f docker-compose.yml -f docker-compose.back.yml up -d backend
+          cd ..
+
+
+          echo "[2] 💽 Disk usage BEFORE cleanup"
+          df -h
+          docker system df
+
+          echo "[3] 🧹 Docker cleanup"
+          docker container prune -f
+          docker image prune -af
+          docker volume prune -f
+          docker builder prune -f
+          
+          echo "[4] 💽 Disk usage AFTER cleanup"
+          df -h
+          docker system df
+
+          echo "[5] 🧱 Docker build"
+          docker-compose -f docker-compose.yml -f docker-compose.back.yml build --no-cache backend
+          
+          echo "[6] 🚀 Docker up"
+          docker-compose -f docker-compose.yml -f docker-compose.back.yml up -d backend
         EOF
