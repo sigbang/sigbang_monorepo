@@ -30,8 +30,8 @@ RUN apk add --no-cache dumb-init
 # Copy package files
 COPY package*.json ./
 
-# Install only production dependencies
-RUN npm ci --only=production && npm cache clean --force
+
+RUN npm ci --omit=dev && npm cache clean --force
 
 # Copy built application and Prisma files
 COPY --from=builder /app/dist ./dist
