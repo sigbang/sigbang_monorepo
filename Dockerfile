@@ -24,7 +24,9 @@ FROM node:18-slim AS production
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y dumb-init && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y dumb-init openssl libssl1.1 && \
+    rm -rf /var/lib/apt/lists/
 
 # Copy built application and Prisma files
 COPY --from=builder /app/dist ./dist
