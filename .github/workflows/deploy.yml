@@ -23,6 +23,8 @@ jobs:
         ssh -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
           cd ~/sigbang-server/sigbang_api
           git pull origin main
+
+          cd ..
           docker-compose -f docker-compose.yml -f docker-compose.back.yml build backend
           docker-compose -f docker-compose.yml -f docker-compose.back.yml up -d backend
         EOF
