@@ -23,7 +23,7 @@ import {
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { RecipesService } from './recipes.service';
 import { CreateRecipeDto, UpdateRecipeDto, RecipeQueryDto } from './dto/recipes.dto';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../common/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
 
 @ApiTags('레시피')

@@ -11,6 +11,7 @@ import { CommentsModule } from './comments/comments.module';
 import { LikesModule } from './likes/likes.module';
 import { SavesModule } from './saves/saves.module';
 import { AdminModule } from './admin/admin.module';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
@@ -24,6 +25,10 @@ import { AdminModule } from './admin/admin.module';
         limit: 100, // 1분당 100회 요청 제한
       },
     ]),
+    JwtModule.register({
+      secret: process.env.JWT_SECRET,
+      signOptions: { expiresIn: '7d' },
+    }),
     DatabaseModule,
     AuthModule,
     UsersModule,

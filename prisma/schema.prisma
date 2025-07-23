@@ -23,8 +23,8 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
-  // Supabase Auth와 연동을 위한 필드
-  supabaseId  String   @unique
+  // Supabase Auth와 연동을 위한 필드 (OAuth 사용자는 null 가능)
+  supabaseId  String?  @unique
   
   // 관계
   recipes     Recipe[]

@@ -1,13 +1,21 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { SupabaseService } from '../database/supabase.service';
 import { SignUpDto, SignInDto } from './dto/auth.dto';
+import { OAuth2Client } from 'google-auth-library';
+import { JwtService } from '@nestjs/jwt';
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 
 @Injectable()
 export class AuthService {
+
+  private client = new OAuth2Client(GOOGLE_CLIENT_ID);
+
   constructor(
     private prismaService: PrismaService,
     private supabaseService: SupabaseService,
+    private jwtService: JwtService,
   ) {}
 
   async signUp(signUpDto: SignUpDto) {
@@ -133,5 +141,36 @@ export class AuthService {
     } catch (error) {
       return { message: '로그아웃 처리 중 오류가 발생했습니다.' };
     }
+  }
+
+  async validateGoogleUser(idToken: string) {
+    const ticket = await this.client.verifyIdToken({
+      idToken,
+      audience: GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload?.email) throw new UnauthorizedException();
+
+    // 유저 DB에 저장 또는 조회
+    let user = await this.prismaService.user.findUnique({
+      where: { email: payload.email },
+    });
+
+    if (!user) {
+      user = await this.prismaService.user.create({
+        data: {
+          email: payload.email,
+          nickname: payload.name || `사용자_${Date.now()}`, // name이 없을 경우 대체값
+          profileImage: payload.picture,
+          // Google OAuth 사용자는 supabaseId 없이 생성
+        },
+      });
+    }
+
+    // JWT 발급
+    const token = this.jwtService.sign({ sub: user.id });
+
+    return { token, user };
   }
 } 

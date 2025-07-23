@@ -17,7 +17,7 @@ import {
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { SignUpDto, SignInDto, RefreshTokenDto } from './dto/auth.dto';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../common/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
 
 @ApiTags('인증')
@@ -111,5 +111,10 @@ export class AuthController {
   ) {
     const token = authorization?.split(' ')[1];
     return this.authService.signOut(token);
+  }
+
+  @Post('google')
+  async googleLogin(@Body() body: { idToken: string }) {
+    return this.authService.validateGoogleUser(body.idToken);
   }
 } 
