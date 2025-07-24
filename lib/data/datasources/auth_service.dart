@@ -1,11 +1,11 @@
 import 'package:dio/dio.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/config/env_config.dart';
 import '../models/user_model.dart';
 
 class AuthService {
-  static const String _baseUrl =
-      'https://your-nestjs-server.com'; // NestJS 서버 URL
+  static String get _baseUrl => EnvConfig.baseUrl; // 환경 변수에서 로드
   static const String _tokenKey = 'access_token';
 
   final Dio _dio;
@@ -15,13 +15,7 @@ class AuthService {
     Dio? dio,
     GoogleSignIn? googleSignIn,
   })  : _dio = dio ?? Dio(),
-        _googleSignIn = googleSignIn ??
-            GoogleSignIn(
-              scopes: [
-                'email',
-                'https://www.googleapis.com/auth/userinfo.profile',
-              ],
-            );
+        _googleSignIn = googleSignIn ?? GoogleSignIn();
 
   /// Google 로그인을 수행하고 서버에서 JWT를 받아옵니다.
   Future<UserModel> signInWithGoogle() async {

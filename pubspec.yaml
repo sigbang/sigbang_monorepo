@@ -30,6 +30,8 @@ dependencies:
   
   # Authentication
   google_sign_in: ^6.2.1
+
+  http: ^0.13.6
   
   # Local Storage
   shared_preferences: ^2.2.2
@@ -37,6 +39,7 @@ dependencies:
   # Utils
   equatable: ^2.0.5
   dartz: ^0.10.1
+  flutter_dotenv: ^5.1.0
 
   flutter_localizations:
     sdk: flutter
@@ -57,3 +60,5 @@ flutter:
     # Add assets from the images directory to the application.
     - assets/fonts/
     - assets/images/
+    - .env.dev
+    - .env.prod
