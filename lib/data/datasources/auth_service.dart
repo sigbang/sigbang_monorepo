@@ -35,11 +35,12 @@ class AuthService {
         throw Exception('Google ID Token을 가져올 수 없습니다');
       }
 
+      print('baseUrl: $_baseUrl');
       // 3. 서버에 ID Token 전송하여 JWT 받기
       final response = await _dio.post(
         '$_baseUrl/auth/google',
         data: {
-          'id_token': idToken,
+          'idToken': idToken,
         },
         options: Options(
           headers: {

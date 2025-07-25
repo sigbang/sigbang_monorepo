@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:dio/dio.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -20,7 +21,24 @@ final GetIt getIt = GetIt.instance;
 
 Future<void> setupDependencyInjection() async {
   // External dependencies
-  getIt.registerLazySingleton<Dio>(() => Dio());
+  getIt.registerLazySingleton<Dio>(() {
+    final dio = Dio();
+
+    // 타임아웃 설정
+    dio.options.connectTimeout = const Duration(seconds: 30);
+    dio.options.receiveTimeout = const Duration(seconds: 30);
+
+    // 로그 인터셉터 (개발 환경에서만)
+    if (kDebugMode) {
+      dio.interceptors.add(LogInterceptor(
+        requestBody: true,
+        responseBody: true,
+        error: true,
+      ));
+    }
+
+    return dio;
+  });
   getIt.registerLazySingleton<GoogleSignIn>(() => GoogleSignIn(
         scopes: [
           'email',
@@ -29,7 +47,7 @@ Future<void> setupDependencyInjection() async {
         ],
         // GCP 프로젝트 설정에서 생성한 웹 어플리케이션 클라이언트 ID
         clientId:
-            '185415114151-3o8o60efo73qsvdsbmvidbcat7k0brhb.apps.googleusercontent.com',        
+            '185415114151-3o8o60efo73qsvdsbmvidbcat7k0brhb.apps.googleusercontent.com',
       ));
 
   // Data sources

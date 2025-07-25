@@ -31,9 +31,12 @@ class EnvConfig {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error loading environment file: $e');
+        print('Warning: Could not load environment file ($envFileName): $e');
+        print('Using default values instead');
+        print('BASE_URL: $baseUrl (default)');
       }
-      // 환경 파일이 없는 경우 기본값 사용
+      // 환경 파일이 없거나 오류가 있는 경우 기본값 사용
+      // 이는 정상적인 동작이므로 앱이 계속 실행됨
     }
   }
 }
