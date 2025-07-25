@@ -114,6 +114,7 @@ export class AuthController {
   }
 
   @Post('google')
+  @HttpCode(HttpStatus.OK)
   async googleLogin(@Body() body: { idToken: string }) {
     return this.authService.validateGoogleUser(body.idToken);
   }
