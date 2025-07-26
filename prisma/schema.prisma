@@ -27,13 +27,29 @@ model User {
   supabaseId  String?  @unique
   
   // 관계
-  recipes     Recipe[]
-  comments    Comment[]
-  likes       Like[]
-  saves       Save[]
-  reports     Report[] // 신고한 내역
+  recipes      Recipe[]
+  comments     Comment[]
+  likes        Like[]
+  saves        Save[]
+  reports      Report[] // 신고한 내역
+  refreshTokens RefreshToken[] // JWT 리프레시 토큰
   
   @@map("users")
+}
+
+// JWT 리프레시 토큰 모델
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  // 관계
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("refresh_tokens")
 }
 
 // 레시피 모델

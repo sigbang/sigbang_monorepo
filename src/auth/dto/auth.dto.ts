@@ -49,9 +49,27 @@ export class SignInDto {
 
 export class RefreshTokenDto {
   @ApiProperty({
-    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    example: 'a1b2c3d4e5f6...',
     description: '리프레시 토큰',
   })
   @IsString()
-  refresh_token: string;
+  refreshToken: string;
+}
+
+export class GoogleOAuthDto {
+  @ApiProperty({
+    example: 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjY4...',
+    description: 'Google ID 토큰',
+  })
+  @IsString()
+  idToken: string;
+}
+
+export class SignOutDto {
+  @ApiProperty({
+    example: 'a1b2c3d4e5f6...',
+    description: '로그아웃할 리프레시 토큰',
+  })
+  @IsString()
+  refreshToken: string;
 } 

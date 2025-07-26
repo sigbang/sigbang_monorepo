@@ -16,7 +16,7 @@ import {
 } from '@nestjs/swagger';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
-import { SignUpDto, SignInDto, RefreshTokenDto } from './dto/auth.dto';
+import { SignUpDto, SignInDto, RefreshTokenDto, GoogleOAuthDto, SignOutDto } from './dto/auth.dto';
 import { JwtAuthGuard } from '../common/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
 
@@ -35,6 +35,9 @@ export class AuthController {
     schema: {
       example: {
         message: '회원가입이 완료되었습니다.',
+        accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        refreshToken: 'a1b2c3d4e5f6789...',
+        expiresIn: 900,
         user: {
           id: 'uuid',
           email: 'user@example.com',
@@ -57,8 +60,9 @@ export class AuthController {
     schema: {
       example: {
         message: '로그인 성공',
-        access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-        refresh_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        refreshToken: 'a1b2c3d4e5f6789...',
+        expiresIn: 900,
         user: {
           id: 'uuid',
           email: 'user@example.com',
@@ -81,20 +85,19 @@ export class AuthController {
     description: '토큰 갱신 성공',
     schema: {
       example: {
-        access_token: 'new_access_token',
-        refresh_token: 'new_refresh_token',
+        accessToken: 'new_access_token',
+        refreshToken: 'new_refresh_token',
+        expiresIn: 900,
       },
     },
   })
-  @ApiResponse({ status: 404, description: '토큰 갱신 실패' })
+  @ApiResponse({ status: 401, description: '토큰 갱신 실패' })
   async refresh(@Body() refreshTokenDto: RefreshTokenDto) {
-    return this.authService.refreshToken(refreshTokenDto.refresh_token);
+    return this.authService.refreshToken(refreshTokenDto.refreshToken);
   }
 
   @Post('signout')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: '로그아웃' })
   @ApiResponse({
     status: 200,
@@ -105,17 +108,49 @@ export class AuthController {
       },
     },
   })
-  async signOut(
-    @Headers('authorization') authorization: string,
-    @CurrentUser() user: any,
-  ) {
-    const token = authorization?.split(' ')[1];
-    return this.authService.signOut(token);
+  async signOut(@Body() signOutDto: SignOutDto) {
+    return this.authService.signOut(signOutDto.refreshToken);
+  }
+
+  @Post('signout-all')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: '모든 기기에서 로그아웃' })
+  @ApiResponse({
+    status: 200,
+    description: '모든 기기에서 로그아웃 성공',
+    schema: {
+      example: {
+        message: '모든 기기에서 로그아웃 되었습니다.',
+      },
+    },
+  })
+  async signOutAll(@CurrentUser() user: any) {
+    return this.authService.signOutAll(user.id);
   }
 
   @Post('google')
   @HttpCode(HttpStatus.OK)
-  async googleLogin(@Body() body: { idToken: string }) {
-    return this.authService.validateGoogleUser(body.idToken);
+  @ApiOperation({ summary: 'Google OAuth 로그인' })
+  @ApiResponse({
+    status: 200,
+    description: 'Google 로그인 성공',
+    schema: {
+      example: {
+        accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        refreshToken: 'a1b2c3d4e5f6789...',
+        expiresIn: 900,
+        user: {
+          id: 'uuid',
+          email: 'user@gmail.com',
+          nickname: '구글사용자',
+          profileImage: 'https://lh3.googleusercontent.com/...',
+        },
+      },
+    },
+  })
+  async googleLogin(@Body() googleOAuthDto: GoogleOAuthDto) {
+    return this.authService.validateGoogleUser(googleOAuthDto.idToken);
   }
 } 

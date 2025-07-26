@@ -3,7 +3,7 @@ import { PrismaService } from '../database/prisma.service';
 import { SupabaseService } from '../database/supabase.service';
 import { SignUpDto, SignInDto } from './dto/auth.dto';
 import { OAuth2Client } from 'google-auth-library';
-import { JwtService } from '@nestjs/jwt';
+import { TokenService, TokenPair } from './token.service';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 
@@ -15,7 +15,7 @@ export class AuthService {
   constructor(
     private prismaService: PrismaService,
     private supabaseService: SupabaseService,
-    private jwtService: JwtService,
+    private tokenService: TokenService,
   ) {}
 
   async signUp(signUpDto: SignUpDto) {
@@ -53,8 +53,12 @@ export class AuthService {
         },
       });
 
+      // JWT 토큰 쌍 생성
+      const tokens = await this.tokenService.generateTokenPair(user.id, user.email);
+
       return {
         message: '회원가입이 완료되었습니다.',
+        ...tokens,
         user: {
           id: user.id,
           email: user.email,
@@ -94,10 +98,12 @@ export class AuthService {
         throw new NotFoundException('사용자를 찾을 수 없거나 비활성화된 계정입니다.');
       }
 
+      // JWT 토큰 쌍 생성
+      const tokens = await this.tokenService.generateTokenPair(user.id, user.email);
+
       return {
         message: '로그인 성공',
-        access_token: data.session.access_token,
-        refresh_token: data.session.refresh_token,
+        ...tokens,
         user: {
           id: user.id,
           email: user.email,
@@ -113,31 +119,27 @@ export class AuthService {
     }
   }
 
-  async refreshToken(refreshToken: string) {
+  async refreshToken(refreshToken: string): Promise<TokenPair> {
     try {
-      const { data, error } = await this.supabaseService
-        .getClient()
-        .auth.refreshSession({
-          refresh_token: refreshToken,
-        });
-
-      if (error) {
-        throw new NotFoundException('토큰 갱신에 실패했습니다.');
-      }
-
-      return {
-        access_token: data.session.access_token,
-        refresh_token: data.session.refresh_token,
-      };
+      return await this.tokenService.refreshTokenPair(refreshToken);
     } catch (error) {
-      throw new NotFoundException('토큰 갱신 중 오류가 발생했습니다.');
+      throw new UnauthorizedException('토큰 갱신에 실패했습니다.');
     }
   }
 
-  async signOut(accessToken: string) {
+  async signOut(refreshToken: string) {
     try {
-      await this.supabaseService.getClient().auth.signOut();
+      await this.tokenService.revokeRefreshToken(refreshToken);
       return { message: '로그아웃 되었습니다.' };
+    } catch (error) {
+      return { message: '로그아웃 처리 중 오류가 발생했습니다.' };
+    }
+  }
+
+  async signOutAll(userId: string) {
+    try {
+      await this.tokenService.revokeUserRefreshTokens(userId);
+      return { message: '모든 기기에서 로그아웃 되었습니다.' };
     } catch (error) {
       return { message: '로그아웃 처리 중 오류가 발생했습니다.' };
     }
@@ -168,9 +170,17 @@ export class AuthService {
       });
     }
 
-    // JWT 발급
-    const token = this.jwtService.sign({ sub: user.id });
+    // JWT 토큰 쌍 생성
+    const tokens = await this.tokenService.generateTokenPair(user.id, user.email);
 
-    return { token, user };
+    return { 
+      ...tokens,
+      user: {
+        id: user.id,
+        email: user.email,
+        nickname: user.nickname,
+        profileImage: user.profileImage,
+      },
+    };
   }
 } 
