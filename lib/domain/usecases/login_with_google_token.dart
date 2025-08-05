@@ -14,13 +14,7 @@ class LoginWithGoogleToken {
 
       return result.fold(
         (failure) => Left(failure),
-        (user) async {
-          // JWT 토큰이 있다면 저장
-          if (user.accessToken != null) {
-            await _authRepository.saveAccessToken(user.accessToken!);
-          }
-          return Right(user);
-        },
+        (user) => Right(user), // 토큰 저장은 AuthService에서 자동 처리됨
       );
     } catch (e) {
       return const Left(AuthFailure(message: 'Google 로그인 중 오류가 발생했습니다'));

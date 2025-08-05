@@ -9,10 +9,7 @@ class Logout {
 
   Future<Either<Failure, void>> call() async {
     try {
-      // 저장된 토큰 삭제
-      await _authRepository.clearAccessToken();
-
-      // 로그아웃 수행
+      // 로그아웃 수행 (토큰 정리는 AuthService에서 자동 처리됨)
       return await _authRepository.logout();
     } catch (e) {
       return const Left(AuthFailure(message: '로그아웃 중 오류가 발생했습니다'));

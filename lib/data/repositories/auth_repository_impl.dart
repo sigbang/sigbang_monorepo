@@ -2,12 +2,17 @@ import 'package:dartz/dartz.dart';
 import '../../core/errors/failure.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
-import '../datasources/auth_service.dart';
+import '../datasources/auth_service_new.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   const AuthRepositoryImpl(this._authService);
 
   final AuthService _authService;
+
+  @override
+  Future<void> initialize() async {
+    await _authService.initialize();
+  }
 
   @override
   Future<Either<Failure, User>> loginWithGoogle() async {
@@ -29,6 +34,16 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Either<Failure, void>> logout() async {
     try {
       await _authService.signOut();
+      return const Right(null);
+    } catch (e) {
+      return Left(AuthFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> logoutAll() async {
+    try {
+      await _authService.signOutAll();
       return const Right(null);
     } catch (e) {
       return Left(AuthFailure(message: e.toString()));
@@ -61,17 +76,12 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<void> saveAccessToken(String token) async {
-    await _authService.saveAccessToken(token);
-  }
-
-  @override
   Future<String?> getAccessToken() async {
     return await _authService.getAccessToken();
   }
 
   @override
-  Future<void> clearAccessToken() async {
-    await _authService.clearAccessToken();
+  Future<String?> getRefreshToken() async {
+    return await _authService.getRefreshToken();
   }
 }
