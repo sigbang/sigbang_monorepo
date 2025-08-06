@@ -57,13 +57,12 @@ model Recipe {
   id              String   @id @default(uuid())
   title           String
   description     String
-  ingredients     String[] // 재료 배열
-  instructions    String[] // 조리 과정 배열
-  images          String[] // 이미지 URL 배열
+  ingredients     String   // 멀티라인 재료 (TEXT)
+  thumbnailImage  String?  // 대표 이미지 URL
   cookingTime     Int?     // 조리 시간 (분)
   servings        Int?     // 몇 인분
   difficulty      Difficulty @default(EASY)
-  isPublished     Boolean  @default(true)
+  status          RecipeStatus @default(DRAFT) // 임시저장 / 공개 구분
   isHidden        Boolean  @default(false) // 관리자 숨김 처리
   viewCount       Int      @default(0)
   createdAt       DateTime @default(now())
@@ -77,6 +76,7 @@ model Recipe {
   saves           Save[]
   reports         Report[]
   tags            RecipeTag[]
+  steps           RecipeStep[]
   
   @@map("recipes")
 }
@@ -85,6 +85,7 @@ model Recipe {
 model Tag {
   id        String   @id @default(uuid())
   name      String   @unique
+  emoji     String?  // 이모지 (예: 🇯🇵, 🍖 등)
   createdAt DateTime @default(now())
   
   // 관계
@@ -104,6 +105,20 @@ model RecipeTag {
   
   @@unique([recipeId, tagId])
   @@map("recipe_tags")
+}
+
+// 레시피 단계 모델
+model RecipeStep {
+  id          String @id @default(uuid())
+  recipeId    String
+  order       Int    // 단계 순서
+  description String // 조리 설명
+  imageUrl    String? // 이미지 URL
+  
+  // 관계
+  recipe      Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  
+  @@map("recipe_steps")
 }
 
 // 댓글 모델
@@ -199,6 +214,11 @@ enum Difficulty {
   EASY
   MEDIUM
   HARD
+}
+
+enum RecipeStatus {
+  DRAFT
+  PUBLISHED
 }
 
 enum ReportReason {

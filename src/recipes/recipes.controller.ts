@@ -2,14 +2,15 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Body,
-  Patch,
   Param,
   Delete,
   Query,
   UseGuards,
   UseInterceptors,
   UploadedFiles,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,11 +20,19 @@ import {
   ApiConsumes,
   ApiQuery,
   ApiParam,
+  ApiBody,
 } from '@nestjs/swagger';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { RecipesService } from './recipes.service';
-import { CreateRecipeDto, UpdateRecipeDto, RecipeQueryDto } from './dto/recipes.dto';
+import { 
+  CreateRecipeDto, 
+  UpdateRecipeDto, 
+  RecipeQueryDto,
+  RecipeResponseDto,
+  DraftRecipeResponseDto
+} from './dto/recipes.dto';
 import { JwtAuthGuard } from '../common/guards/jwt.guard';
+import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
 
 @ApiTags('레시피')
@@ -31,73 +40,313 @@ import { CurrentUser } from '../common/decorators/user.decorator';
 export class RecipesController {
   constructor(private readonly recipesService: RecipesService) {}
 
-  @Post()
+  // 1. 레시피 임시 저장 생성
+  @Post('draft')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: '레시피 생성' })
-  @ApiResponse({ status: 201, description: '레시피가 성공적으로 생성되었습니다.' })
-  async create(@CurrentUser() user: any, @Body() createRecipeDto: CreateRecipeDto) {
-    return this.recipesService.create(user.id, createRecipeDto);
+  @ApiOperation({ 
+    summary: '레시피 임시 저장 생성',
+    description: '신규 레시피를 임시 저장으로 생성합니다.'
+  })
+  @ApiBody({ type: CreateRecipeDto })
+  @ApiResponse({ 
+    status: 201, 
+    description: '레시피가 성공적으로 임시 저장되었습니다.',
+    schema: {
+      example: {
+        success: true,
+        message: '레시피가 임시 저장되었습니다.',
+        data: {
+          id: 'uuid',
+          title: '레몬 고소 부타',
+          status: 'DRAFT',
+          createdAt: '2023-01-01T00:00:00.000Z'
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: '잘못된 요청' })
+  async createDraft(@CurrentUser() user: any, @Body() createRecipeDto: CreateRecipeDto) {
+    return this.recipesService.createDraft(user.id, createRecipeDto);
   }
 
-  @Get()
-  @ApiOperation({ summary: '레시피 목록 조회' })
-  @ApiQuery({ type: RecipeQueryDto })
-  @ApiResponse({ status: 200, description: '레시피 목록 조회 성공' })
-  async findAll(@Query() query: RecipeQueryDto, @CurrentUser() user?: any) {
-    return this.recipesService.findAll(query, user?.id);
-  }
-
-  @Get(':id')
-  @ApiOperation({ summary: '레시피 상세 조회' })
-  @ApiParam({ name: 'id', description: '레시피 ID' })
-  @ApiResponse({ status: 200, description: '레시피 상세 조회 성공' })
-  @ApiResponse({ status: 404, description: '레시피를 찾을 수 없음' })
-  async findOne(@Param('id') id: string, @CurrentUser() user?: any) {
-    return this.recipesService.findOne(id, user?.id);
-  }
-
-  @Patch(':id')
+  // 2. 레시피 임시 저장 수정
+  @Put('draft/:id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: '레시피 수정' })
+  @ApiOperation({ 
+    summary: '레시피 임시 저장 수정',
+    description: '기존 임시저장된 레시피를 수정합니다.'
+  })
   @ApiParam({ name: 'id', description: '레시피 ID' })
-  @ApiResponse({ status: 200, description: '레시피가 성공적으로 수정되었습니다.' })
+  @ApiBody({ type: UpdateRecipeDto })
+  @ApiResponse({ 
+    status: 200, 
+    description: '레시피가 성공적으로 수정되었습니다.',
+    schema: {
+      example: {
+        success: true,
+        message: '레시피가 수정되었습니다.',
+        data: {
+          id: 'uuid',
+          title: '레몬 고소 부타',
+          status: 'DRAFT',
+          updatedAt: '2023-01-01T00:00:00.000Z'
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: '잘못된 요청' })
   @ApiResponse({ status: 403, description: '권한 없음' })
   @ApiResponse({ status: 404, description: '레시피를 찾을 수 없음' })
-  async update(
+  async updateDraft(
     @Param('id') id: string,
     @CurrentUser() user: any,
     @Body() updateRecipeDto: UpdateRecipeDto,
   ) {
-    return this.recipesService.update(id, user.id, updateRecipeDto);
+    return this.recipesService.updateDraft(id, user.id, updateRecipeDto);
   }
 
+  // 3. 레시피 공개
+  @Post(':id/publish')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ 
+    summary: '레시피 공개',
+    description: '임시저장된 레시피를 공개 상태로 변경합니다.'
+  })
+  @ApiParam({ name: 'id', description: '레시피 ID' })
+  @ApiResponse({ 
+    status: 200, 
+    description: '레시피가 성공적으로 공개되었습니다.',
+    schema: {
+      example: {
+        success: true,
+        message: '레시피가 공개되었습니다.',
+        data: {
+          id: 'uuid',
+          title: '레몬 고소 부타',
+          status: 'PUBLISHED',
+          updatedAt: '2023-01-01T00:00:00.000Z'
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: '잘못된 요청 (최소 요구사항 미충족 등)' })
+  @ApiResponse({ status: 403, description: '권한 없음' })
+  @ApiResponse({ status: 404, description: '레시피를 찾을 수 없음' })
+  async publish(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.recipesService.publish(id, user.id);
+  }
+
+  // 4. 내 임시 저장 목록 조회
+  @Get('draft')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ 
+    summary: '내 임시 저장 목록 조회',
+    description: '현재 사용자의 임시 저장된 레시피 목록을 조회합니다.'
+  })
+  @ApiQuery({ name: 'page', required: false, description: '페이지 번호', example: 1 })
+  @ApiQuery({ name: 'limit', required: false, description: '페이지당 아이템 수', example: 10 })
+  @ApiResponse({ 
+    status: 200, 
+    description: '임시 저장 목록 조회 성공',
+    schema: {
+      example: {
+        drafts: [
+          {
+            id: 'uuid',
+            title: '레몬 고소 부타',
+            description: '일본식 고소한 돼지고기',
+            status: 'DRAFT',
+            createdAt: '2023-01-01T00:00:00.000Z',
+            updatedAt: '2023-01-01T00:00:00.000Z'
+          }
+        ],
+        pagination: {
+          page: 1,
+          limit: 10,
+          total: 1,
+          totalPages: 1
+        }
+      }
+    }
+  })
+  async getDrafts(
+    @CurrentUser() user: any,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number
+  ) {
+    return this.recipesService.getDrafts(user.id, page, limit);
+  }
+
+  // 5. 레시피 상세 조회
+  @Get(':id')
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({ 
+    summary: '레시피 상세 조회',
+    description: '레시피의 전체 정보를 조회합니다. 공개된 레시피만 조회 가능하며, 본인의 글인 경우 임시저장도 조회 가능합니다.'
+  })
+  @ApiParam({ name: 'id', description: '레시피 ID' })
+  @ApiResponse({ 
+    status: 200, 
+    description: '레시피 상세 조회 성공',
+    type: RecipeResponseDto
+  })
+  @ApiResponse({ status: 403, description: '권한 없음 (비공개 레시피)' })
+  @ApiResponse({ status: 404, description: '레시피를 찾을 수 없음' })
+  async getRecipe(@Param('id') id: string, @CurrentUser() user?: any) {
+    return this.recipesService.getRecipe(id, user?.id);
+  }
+
+  // 6. 피드 조회 (공개된 레시피만)
+  @Get('/feed')
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({ 
+    summary: '레시피 피드 조회',
+    description: '공개된 레시피만 목록으로 조회합니다. 페이징, 태그 필터, 검색 등을 지원합니다.'
+  })
+  @ApiQuery({ type: RecipeQueryDto })
+  @ApiResponse({ 
+    status: 200, 
+    description: '피드 조회 성공',
+    schema: {
+      example: {
+        recipes: [
+          {
+            id: 'uuid',
+            title: '레몬 고소 부타',
+            description: '일본식 고소한 돼지고기',
+            ingredients: '돼지고기 200g\n간장 2T\n마늘',
+            cookingTime: 30,
+            servings: 2,
+            difficulty: 'EASY',
+            status: 'PUBLISHED',
+            viewCount: 10,
+            createdAt: '2023-01-01T00:00:00.000Z',
+            updatedAt: '2023-01-01T00:00:00.000Z',
+            author: {
+              id: 'uuid',
+              nickname: '요리사',
+              profileImage: 'https://example.com/profile.jpg'
+            },
+            tags: [
+              { name: '오사카 요리', emoji: '🇯🇵' }
+            ],
+            steps: [
+              {
+                order: 1,
+                description: '팬에 돼지고기를 볶는다',
+                imageUrl: 'https://example.com/step1.jpg'
+              }
+            ],
+            likesCount: 5,
+            commentsCount: 3,
+            isLiked: false,
+            isSaved: false
+          }
+        ],
+        pagination: {
+          page: 1,
+          limit: 10,
+          total: 1,
+          totalPages: 1
+        }
+      }
+    }
+  })
+  async getFeed(@Query() query: RecipeQueryDto, @CurrentUser() user?: any) {
+    return this.recipesService.getFeed(query, user?.id);
+  }
+
+  // 대표 이미지 업로드
+  @Post(':id/thumbnail')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @UseInterceptors(FilesInterceptor('file', 1))
+  @ApiOperation({ 
+    summary: '레시피 대표 이미지 업로드',
+    description: '레시피의 대표 이미지(썸네일)를 업로드합니다.'
+  })
+  @ApiParam({ name: 'id', description: '레시피 ID' })
+  @ApiConsumes('multipart/form-data')
+  @ApiResponse({ 
+    status: 200, 
+    description: '대표 이미지가 성공적으로 업로드되었습니다.',
+    schema: {
+      example: {
+        success: true,
+        message: '대표 이미지가 업로드되었습니다.',
+        thumbnailUrl: 'https://example.com/thumbnail.jpg'
+      }
+    }
+  })
+  @ApiResponse({ status: 403, description: '권한 없음' })
+  @ApiResponse({ status: 404, description: '레시피를 찾을 수 없음' })
+  async uploadThumbnail(
+    @Param('id') id: string,
+    @CurrentUser() user: any,
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('파일이 제공되지 않았습니다.');
+    }
+    return this.recipesService.uploadThumbnail(id, user.id, files[0]);
+  }
+
+  // 추가: 이미지 업로드 (단계별 이미지용)
+  @Post('images')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @UseInterceptors(FilesInterceptor('files', 10))
+  @ApiOperation({ 
+    summary: '레시피 이미지 업로드',
+    description: '레시피용 이미지를 업로드합니다. 단계별 이미지 등에 사용할 수 있습니다.'
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiResponse({ 
+    status: 200, 
+    description: '이미지가 성공적으로 업로드되었습니다.',
+    schema: {
+      example: {
+        imageUrls: [
+          'https://example.com/image1.jpg',
+          'https://example.com/image2.jpg'
+        ]
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: '이미지 업로드 실패' })
+  async uploadImages(
+    @CurrentUser() user: any,
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    return this.recipesService.uploadImages(files, user.id);
+  }
+
+  // 추가: 레시피 삭제 (Soft Delete)
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: '레시피 삭제' })
+  @ApiOperation({ 
+    summary: '레시피 삭제',
+    description: '레시피를 삭제합니다. (Soft Delete)'
+  })
   @ApiParam({ name: 'id', description: '레시피 ID' })
-  @ApiResponse({ status: 200, description: '레시피가 성공적으로 삭제되었습니다.' })
+  @ApiResponse({ 
+    status: 200, 
+    description: '레시피가 성공적으로 삭제되었습니다.',
+    schema: {
+      example: {
+        success: true,
+        message: '레시피가 삭제되었습니다.'
+      }
+    }
+  })
   @ApiResponse({ status: 403, description: '권한 없음' })
   @ApiResponse({ status: 404, description: '레시피를 찾을 수 없음' })
   async remove(@Param('id') id: string, @CurrentUser() user: any) {
     return this.recipesService.remove(id, user.id);
   }
-
-  @Post(':id/images')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @UseInterceptors(FilesInterceptor('files', 5))
-  @ApiOperation({ summary: '레시피 이미지 업로드' })
-  @ApiConsumes('multipart/form-data')
-  @ApiParam({ name: 'id', description: '레시피 ID' })
-  @ApiResponse({ status: 200, description: '이미지가 성공적으로 업로드되었습니다.' })
-  async uploadImages(
-    @Param('id') id: string,
-    @CurrentUser() user: any,
-    @UploadedFiles() files: Express.Multer.File[],
-  ) {
-    return this.recipesService.uploadImages(id, user.id, files);
-  }
-} 
+}

@@ -18,17 +18,11 @@ export class UsersService {
   async findMe(userId: string) {
     const user = await this.prismaService.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        nickname: true,
-        profileImage: true,
-        bio: true,
-        createdAt: true,
+      include: {
         _count: {
           select: {
             recipes: {
-              where: { isPublished: true, isHidden: false }
+              where: { status: 'PUBLISHED', isHidden: false }
             },
             likes: true,
             saves: true,
@@ -175,7 +169,7 @@ export class UsersService {
       // 사용자의 모든 레시피도 비공개 처리
       await this.prismaService.recipe.updateMany({
         where: { authorId: userId },
-        data: { isPublished: false },
+        data: { status: 'DRAFT' },
       });
 
       return { message: '계정이 성공적으로 탈퇴되었습니다.' };
@@ -187,16 +181,11 @@ export class UsersService {
   async findUserById(userId: string) {
     const user = await this.prismaService.user.findUnique({
       where: { id: userId, isActive: true },
-      select: {
-        id: true,
-        nickname: true,
-        profileImage: true,
-        bio: true,
-        createdAt: true,
+      include: {
         _count: {
           select: {
             recipes: {
-              where: { isPublished: true, isHidden: false }
+              where: { status: 'PUBLISHED', isHidden: false }
             },
           },
         },
@@ -220,19 +209,9 @@ export class UsersService {
     const recipes = await this.prismaService.recipe.findMany({
       where: {
         authorId: userId,
-        ...(isOwner ? {} : { isPublished: true, isHidden: false }),
+        ...(isOwner ? {} : { status: 'PUBLISHED', isHidden: false }),
       },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        images: true,
-        difficulty: true,
-        cookingTime: true,
-        servings: true,
-        viewCount: true,
-        createdAt: true,
-        isPublished: true,
+      include: {
         _count: {
           select: {
             likes: true,
@@ -244,7 +223,16 @@ export class UsersService {
     });
 
     return recipes.map(recipe => ({
-      ...recipe,
+      id: recipe.id,
+      title: recipe.title,
+      description: recipe.description,
+      thumbnailImage: recipe.thumbnailImage,
+      difficulty: recipe.difficulty,
+      cookingTime: recipe.cookingTime,
+      servings: recipe.servings,
+      viewCount: recipe.viewCount,
+      createdAt: recipe.createdAt,
+      status: recipe.status,
       likesCount: recipe._count.likes,
       commentsCount: recipe._count.comments,
     }));
@@ -255,16 +243,7 @@ export class UsersService {
       where: { userId },
       include: {
         recipe: {
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            images: true,
-            difficulty: true,
-            cookingTime: true,
-            servings: true,
-            viewCount: true,
-            createdAt: true,
+          include: {
             author: {
               select: {
                 id: true,
@@ -291,4 +270,4 @@ export class UsersService {
       commentsCount: save.recipe._count.comments,
     }));
   }
-} 
+}

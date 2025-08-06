@@ -5,14 +5,18 @@ import {
   IsOptional,
   IsInt,
   IsEnum,
-  IsBoolean,
   MinLength,
   MaxLength,
   Min,
   Max,
   ArrayMinSize,
   ArrayMaxSize,
+  ValidateNested,
+  IsUrl,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+
+import { Difficulty as PrismaDifficulty } from '../../../generated/prisma';
 
 export enum Difficulty {
   EASY = 'EASY',
@@ -20,9 +24,69 @@ export enum Difficulty {
   HARD = 'HARD',
 }
 
+// Prisma enum과 DTO enum 매핑
+export { PrismaDifficulty };
+
+export enum RecipeStatus {
+  DRAFT = 'DRAFT',
+  PUBLISHED = 'PUBLISHED',
+}
+
+// 레시피 단계 DTO
+export class RecipeStepDto {
+  @ApiProperty({
+    example: 1,
+    description: '단계 순서',
+  })
+  @IsInt()
+  @Min(1)
+  order: number;
+
+  @ApiProperty({
+    example: '팬에 돼지고기를 볶아주세요.',
+    description: '조리 설명',
+  })
+  @IsString()
+  @MinLength(5, { message: '단계 설명은 최소 5자 이상이어야 합니다.' })
+  @MaxLength(500, { message: '단계 설명은 최대 500자까지 가능합니다.' })
+  description: string;
+
+  @ApiProperty({
+    example: 'https://example.com/step1.jpg',
+    description: '단계별 이미지 URL',
+    required: false,
+  })
+  @IsOptional()
+  @IsUrl({}, { message: '유효한 URL을 입력해주세요.' })
+  imageUrl?: string;
+}
+
+// 태그 DTO
+export class TagDto {
+  @ApiProperty({
+    example: '오사카 요리',
+    description: '태그명',
+  })
+  @IsString()
+  @MinLength(1, { message: '태그명은 최소 1자 이상이어야 합니다.' })
+  @MaxLength(20, { message: '태그명은 최대 20자까지 가능합니다.' })
+  name: string;
+
+  @ApiProperty({
+    example: '🇯🇵',
+    description: '태그 이모지',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10, { message: '이모지는 최대 10자까지 가능합니다.' })
+  emoji?: string;
+}
+
+// 레시피 임시 저장/등록 DTO
 export class CreateRecipeDto {
   @ApiProperty({
-    example: '김치찌개 레시피',
+    example: '레몬 고소 부타',
     description: '레시피 제목',
   })
   @IsString()
@@ -31,7 +95,7 @@ export class CreateRecipeDto {
   title: string;
 
   @ApiProperty({
-    example: '정말 맛있는 김치찌개 만드는 방법입니다.',
+    example: '일본식 고소한 돼지고기',
     description: '레시피 설명',
   })
   @IsString()
@@ -40,29 +104,22 @@ export class CreateRecipeDto {
   description: string;
 
   @ApiProperty({
-    example: ['김치 200g', '돼지고기 100g', '두부 1/2모', '대파 1대'],
-    description: '재료 목록',
+    example: '돼지고기 200g\n간장 2T\n마늘',
+    description: '재료 목록 (멀티라인)',
   })
-  @IsArray()
-  @ArrayMinSize(1, { message: '최소 1개 이상의 재료가 필요합니다.' })
-  @ArrayMaxSize(30, { message: '재료는 최대 30개까지 입력 가능합니다.' })
-  @IsString({ each: true })
-  ingredients: string[];
+  @IsString()
+  @MinLength(5, { message: '재료는 최소 5자 이상이어야 합니다.' })
+  @MaxLength(2000, { message: '재료는 최대 2000자까지 가능합니다.' })
+  ingredients: string;
 
   @ApiProperty({
-    example: [
-      '김치를 적당한 크기로 잘라주세요.',
-      '팬에 돼지고기를 볶아주세요.',
-      '김치를 넣고 함께 볶아주세요.',
-      '물을 넣고 끓여주세요.',
-    ],
-    description: '조리 과정',
+    example: 'https://example.com/recipe-thumbnail.jpg',
+    description: '레시피 대표 이미지 URL',
+    required: false,
   })
-  @IsArray()
-  @ArrayMinSize(1, { message: '최소 1개 이상의 조리 과정이 필요합니다.' })
-  @ArrayMaxSize(20, { message: '조리 과정은 최대 20단계까지 입력 가능합니다.' })
-  @IsString({ each: true })
-  instructions: string[];
+  @IsOptional()
+  @IsUrl({}, { message: '유효한 URL을 입력해주세요.' })
+  thumbnailImage?: string;
 
   @ApiProperty({
     example: 30,
@@ -95,28 +152,33 @@ export class CreateRecipeDto {
   difficulty: Difficulty;
 
   @ApiProperty({
-    example: ['한식', '찌개'],
+    type: [TagDto],
     description: '태그 목록',
     required: false,
   })
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(10, { message: '태그는 최대 10개까지 가능합니다.' })
-  @IsString({ each: true })
-  tags?: string[];
+  @ValidateNested({ each: true })
+  @Type(() => TagDto)
+  tags?: TagDto[];
 
   @ApiProperty({
-    example: true,
-    description: '공개 여부',
-    required: false,
+    type: [RecipeStepDto],
+    description: '조리 단계',
   })
-  @IsOptional()
-  @IsBoolean()
-  isPublished?: boolean;
+  @IsArray()
+  @ArrayMinSize(1, { message: '최소 1개 이상의 조리 단계가 필요합니다.' })
+  @ArrayMaxSize(20, { message: '조리 단계는 최대 20개까지 입력 가능합니다.' })
+  @ValidateNested({ each: true })
+  @Type(() => RecipeStepDto)
+  steps: RecipeStepDto[];
 }
 
+// 레시피 수정 DTO
 export class UpdateRecipeDto extends PartialType(CreateRecipeDto) {}
 
+// 피드 조회 DTO
 export class RecipeQueryDto {
   @ApiProperty({
     example: 1,
@@ -191,24 +253,22 @@ export class RecipeQueryDto {
   maxCookingTime?: number;
 }
 
+// 레시피 응답 DTO
 export class RecipeResponseDto {
   @ApiProperty({ example: 'uuid', description: '레시피 ID' })
   id: string;
 
-  @ApiProperty({ example: '김치찌개 레시피', description: '제목' })
+  @ApiProperty({ example: '레몬 고소 부타', description: '제목' })
   title: string;
 
-  @ApiProperty({ example: '정말 맛있는 김치찌개...', description: '설명' })
+  @ApiProperty({ example: '일본식 고소한 돼지고기', description: '설명' })
   description: string;
 
-  @ApiProperty({ example: ['김치 200g', '돼지고기 100g'], description: '재료' })
-  ingredients: string[];
+  @ApiProperty({ example: '돼지고기 200g\n간장 2T\n마늘', description: '재료' })
+  ingredients: string;
 
-  @ApiProperty({ example: ['김치를 썰어주세요.', '볶아주세요.'], description: '조리 과정' })
-  instructions: string[];
-
-  @ApiProperty({ example: ['https://example.com/image1.jpg'], description: '이미지 URL' })
-  images: string[];
+  @ApiProperty({ example: 'https://example.com/recipe-thumbnail.jpg', description: '대표 이미지' })
+  thumbnailImage?: string;
 
   @ApiProperty({ example: 30, description: '조리 시간' })
   cookingTime?: number;
@@ -219,11 +279,11 @@ export class RecipeResponseDto {
   @ApiProperty({ example: 'EASY', description: '난이도' })
   difficulty: Difficulty;
 
+  @ApiProperty({ example: 'PUBLISHED', description: '상태' })
+  status: RecipeStatus;
+
   @ApiProperty({ example: 0, description: '조회수' })
   viewCount: number;
-
-  @ApiProperty({ example: true, description: '공개 여부' })
-  isPublished: boolean;
 
   @ApiProperty({ example: '2023-01-01T00:00:00.000Z', description: '생성일' })
   createdAt: Date;
@@ -238,6 +298,12 @@ export class RecipeResponseDto {
     profileImage?: string;
   };
 
+  @ApiProperty({ type: [TagDto], description: '태그 목록' })
+  tags: TagDto[];
+
+  @ApiProperty({ type: [RecipeStepDto], description: '조리 단계' })
+  steps: RecipeStepDto[];
+
   @ApiProperty({ example: 5, description: '좋아요 수' })
   likesCount: number;
 
@@ -249,4 +315,25 @@ export class RecipeResponseDto {
 
   @ApiProperty({ example: false, description: '현재 사용자의 저장 여부' })
   isSaved?: boolean;
-} 
+}
+
+// 임시 저장 목록 응답 DTO
+export class DraftRecipeResponseDto {
+  @ApiProperty({ example: 'uuid', description: '레시피 ID' })
+  id: string;
+
+  @ApiProperty({ example: '레몬 고소 부타', description: '제목' })
+  title: string;
+
+  @ApiProperty({ example: '일본식 고소한 돼지고기', description: '설명' })
+  description: string;
+
+  @ApiProperty({ example: 'DRAFT', description: '상태' })
+  status: RecipeStatus;
+
+  @ApiProperty({ example: '2023-01-01T00:00:00.000Z', description: '생성일' })
+  createdAt: Date;
+
+  @ApiProperty({ example: '2023-01-01T00:00:00.000Z', description: '수정일' })
+  updatedAt: Date;
+}

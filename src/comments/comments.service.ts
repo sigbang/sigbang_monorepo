@@ -7,7 +7,11 @@ export class CommentsService {
 
   async create(userId: string, recipeId: string, content: string) {
     const recipe = await this.prismaService.recipe.findUnique({
-      where: { id: recipeId, isPublished: true, isHidden: false },
+      where: { 
+        id: recipeId,
+        status: 'PUBLISHED',
+        isHidden: false 
+      },
     });
 
     if (!recipe) {

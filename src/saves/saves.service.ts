@@ -8,7 +8,11 @@ export class SavesService {
   async toggleSave(userId: string, recipeId: string) {
     // 레시피 존재 여부 확인
     const recipe = await this.prismaService.recipe.findUnique({
-      where: { id: recipeId, isPublished: true, isHidden: false },
+      where: { 
+        id: recipeId,
+        status: 'PUBLISHED',
+        isHidden: false 
+      },
     });
 
     if (!recipe) {

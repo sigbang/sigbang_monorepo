@@ -6,7 +6,14 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { SupabaseService } from '../database/supabase.service';
-import { CreateRecipeDto, UpdateRecipeDto, RecipeQueryDto } from './dto/recipes.dto';
+import { 
+  CreateRecipeDto, 
+  UpdateRecipeDto, 
+  RecipeQueryDto,
+  RecipeResponseDto,
+  DraftRecipeResponseDto,
+  RecipeStatus 
+} from './dto/recipes.dto';
 
 @Injectable()
 export class RecipesService {
@@ -15,15 +22,16 @@ export class RecipesService {
     private supabaseService: SupabaseService,
   ) {}
 
-  async create(userId: string, createRecipeDto: CreateRecipeDto) {
-    const { tags, ...recipeData } = createRecipeDto;
+  // 1. 레시피 임시 저장 생성
+  async createDraft(userId: string, createRecipeDto: CreateRecipeDto) {
+    const { tags, steps, ...recipeData } = createRecipeDto;
 
     try {
       const recipe = await this.prismaService.recipe.create({
         data: {
           ...recipeData,
           authorId: userId,
-          images: [], // 초기에는 빈 배열, 별도로 이미지 업로드 API 사용
+          status: RecipeStatus.DRAFT,
         },
         include: {
           author: {
@@ -31,12 +39,6 @@ export class RecipesService {
               id: true,
               nickname: true,
               profileImage: true,
-            },
-          },
-          _count: {
-            select: {
-              likes: true,
-              comments: true,
             },
           },
         },
@@ -47,72 +49,50 @@ export class RecipesService {
         await this.handleTags(recipe.id, tags);
       }
 
+      // 단계 처리
+      if (steps && steps.length > 0) {
+        await this.handleSteps(recipe.id, steps);
+      }
+
       return {
-        message: '레시피가 성공적으로 생성되었습니다.',
-        recipe: {
-          ...recipe,
-          likesCount: recipe._count.likes,
-          commentsCount: recipe._count.comments,
+        success: true,
+        message: '레시피가 임시 저장되었습니다.',
+        data: {
+          id: recipe.id,
+          title: recipe.title,
+          status: recipe.status,
+          createdAt: recipe.createdAt,
         },
       };
     } catch (error) {
-      throw new BadRequestException('레시피 생성 중 오류가 발생했습니다.');
+      throw new BadRequestException('레시피 임시 저장에 실패했습니다.');
     }
   }
 
-  async findAll(query: RecipeQueryDto, userId?: string) {
-    const { page = 1, limit = 10, sortBy = 'latest', difficulty, search, tag, maxCookingTime } = query;
-    const skip = (page - 1) * limit;
+  // 2. 레시피 임시 저장 수정
+  async updateDraft(id: string, userId: string, updateRecipeDto: UpdateRecipeDto) {
+    const recipe = await this.prismaService.recipe.findUnique({
+      where: { id },
+    });
 
-    // 기본 where 조건
-    const where: any = {
-      isPublished: true,
-      isHidden: false,
-    };
-
-    // 필터 조건 추가
-    if (difficulty) {
-      where.difficulty = difficulty;
+    if (!recipe) {
+      throw new NotFoundException('레시피를 찾을 수 없습니다.');
     }
 
-    if (maxCookingTime) {
-      where.cookingTime = {
-        lte: maxCookingTime,
-      };
+    if (recipe.authorId !== userId) {
+      throw new ForbiddenException('레시피를 수정할 권한이 없습니다.');
     }
 
-    if (search) {
-      where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-        { ingredients: { hasSome: [search] } },
-      ];
+    if (recipe.status !== RecipeStatus.DRAFT) {
+      throw new BadRequestException('임시 저장된 레시피만 수정할 수 있습니다.');
     }
 
-    if (tag) {
-      where.tags = {
-        some: {
-          tag: {
-            name: { equals: tag, mode: 'insensitive' },
-          },
-        },
-      };
-    }
+    const { tags, steps, ...recipeData } = updateRecipeDto;
 
-    // 정렬 조건
-    let orderBy: any = { createdAt: 'desc' };
-    if (sortBy === 'popular') {
-      orderBy = { likes: { _count: 'desc' } };
-    } else if (sortBy === 'views') {
-      orderBy = { viewCount: 'desc' };
-    }
-
-    const [recipes, total] = await Promise.all([
-      this.prismaService.recipe.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy,
+    try {
+      const updatedRecipe = await this.prismaService.recipe.update({
+        where: { id },
+        data: recipeData,
         include: {
           author: {
             select: {
@@ -121,53 +101,140 @@ export class RecipesService {
               profileImage: true,
             },
           },
-          tags: {
-            include: {
-              tag: true,
-            },
-          },
-          _count: {
-            select: {
-              likes: true,
-              comments: true,
-            },
-          },
-          ...(userId && {
-            likes: {
-              where: { userId },
-              select: { id: true },
-            },
-            saves: {
-              where: { userId },
-              select: { id: true },
-            },
-          }),
         },
-      }),
-      this.prismaService.recipe.count({ where }),
-    ]);
+      });
 
-    const formattedRecipes = recipes.map(recipe => ({
-      ...recipe,
-      tags: recipe.tags.map(t => t.tag.name),
-      likesCount: recipe._count.likes,
-      commentsCount: recipe._count.comments,
-      isLiked: userId ? recipe.likes?.length > 0 : false,
-      isSaved: userId ? recipe.saves?.length > 0 : false,
-    }));
+      // 기존 태그 삭제 후 새로 추가
+      if (tags !== undefined) {
+        await this.prismaService.recipeTag.deleteMany({
+          where: { recipeId: id },
+        });
+        if (tags.length > 0) {
+          await this.handleTags(id, tags);
+        }
+      }
 
-    return {
-      recipes: formattedRecipes,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+      // 기존 단계 삭제 후 새로 추가
+      if (steps !== undefined) {
+        await this.prismaService.recipeStep.deleteMany({
+          where: { recipeId: id },
+        });
+        if (steps.length > 0) {
+          await this.handleSteps(id, steps);
+        }
+      }
+
+      return {
+        success: true,
+        message: '레시피가 수정되었습니다.',
+        data: {
+          id: updatedRecipe.id,
+          title: updatedRecipe.title,
+          status: updatedRecipe.status,
+          updatedAt: updatedRecipe.updatedAt,
+        },
+      };
+    } catch (error) {
+      throw new BadRequestException('레시피 수정에 실패했습니다.');
+    }
   }
 
-  async findOne(id: string, userId?: string) {
+  // 3. 레시피 공개
+  async publish(id: string, userId: string) {
+    const recipe = await this.prismaService.recipe.findUnique({
+      where: { id },
+      include: {
+        steps: true,
+      },
+    });
+
+    if (!recipe) {
+      throw new NotFoundException('레시피를 찾을 수 없습니다.');
+    }
+
+    if (recipe.authorId !== userId) {
+      throw new ForbiddenException('레시피를 공개할 권한이 없습니다.');
+    }
+
+    if (recipe.status === RecipeStatus.PUBLISHED) {
+      throw new BadRequestException('이미 공개된 레시피입니다.');
+    }
+
+    // 최소 요구사항 검증
+    if (!recipe.steps || recipe.steps.length === 0) {
+      throw new BadRequestException('최소 1개 이상의 조리 단계가 필요합니다.');
+    }
+
+    try {
+      const publishedRecipe = await this.prismaService.recipe.update({
+        where: { id },
+        data: {
+          status: RecipeStatus.PUBLISHED,
+        },
+      });
+
+      return {
+        success: true,
+        message: '레시피가 공개되었습니다.',
+        data: {
+          id: publishedRecipe.id,
+          title: publishedRecipe.title,
+          status: publishedRecipe.status,
+          updatedAt: publishedRecipe.updatedAt,
+        },
+      };
+    } catch (error) {
+      throw new BadRequestException('레시피 공개에 실패했습니다.');
+    }
+  }
+
+  // 4. 내 임시 저장 목록 조회
+  async getDrafts(userId: string, page: number = 1, limit: number = 10) {
+    const skip = (page - 1) * limit;
+
+    try {
+      const [drafts, total] = await Promise.all([
+        this.prismaService.recipe.findMany({
+          where: {
+            authorId: userId,
+            status: RecipeStatus.DRAFT,
+          },
+          skip,
+          take: limit,
+          orderBy: { updatedAt: 'desc' },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        }),
+        this.prismaService.recipe.count({
+          where: {
+            authorId: userId,
+            status: RecipeStatus.DRAFT,
+          },
+        }),
+      ]);
+
+      return {
+        drafts,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    } catch (error) {
+      throw new BadRequestException('임시 저장 목록 조회에 실패했습니다.');
+    }
+  }
+
+  // 5. 레시피 상세 조회
+  async getRecipe(id: string, userId?: string) {
     const recipe = await this.prismaService.recipe.findUnique({
       where: { id },
       include: {
@@ -182,6 +249,9 @@ export class RecipesService {
           include: {
             tag: true,
           },
+        },
+        steps: {
+          orderBy: { order: 'asc' },
         },
         _count: {
           select: {
@@ -206,33 +276,246 @@ export class RecipesService {
       throw new NotFoundException('레시피를 찾을 수 없습니다.');
     }
 
-    if (!recipe.isPublished && recipe.authorId !== userId) {
-      throw new NotFoundException('레시피를 찾을 수 없습니다.');
+    // 공개되지 않은 레시피는 작성자만 조회 가능
+    if (recipe.status !== RecipeStatus.PUBLISHED && recipe.authorId !== userId) {
+      throw new ForbiddenException('레시피를 조회할 권한이 없습니다.');
     }
 
-    if (recipe.isHidden && recipe.authorId !== userId) {
-      throw new NotFoundException('레시피를 찾을 수 없습니다.');
-    }
-
-    // 조회수 증가 (작성자 본인이 아닌 경우)
-    if (recipe.authorId !== userId) {
+    // 조회수 증가 (본인 글이 아닌 공개된 레시피인 경우)
+    if (recipe.status === RecipeStatus.PUBLISHED && recipe.authorId !== userId) {
       await this.prismaService.recipe.update({
         where: { id },
         data: { viewCount: { increment: 1 } },
       });
     }
 
-    return {
+    const formattedRecipe = {
       ...recipe,
-      tags: recipe.tags.map(t => t.tag.name),
+      tags: recipe.tags.map(t => ({
+        name: t.tag.name,
+        emoji: t.tag.emoji,
+      })),
+      steps: recipe.steps.map(step => ({
+        order: step.order,
+        description: step.description,
+        imageUrl: step.imageUrl,
+      })),
       likesCount: recipe._count.likes,
       commentsCount: recipe._count.comments,
       isLiked: userId ? recipe.likes?.length > 0 : false,
       isSaved: userId ? recipe.saves?.length > 0 : false,
     };
+
+    return formattedRecipe;
   }
 
-  async update(id: string, userId: string, updateRecipeDto: UpdateRecipeDto) {
+  // 6. 피드 조회 (공개된 레시피만)
+  async getFeed(recipeQueryDto: RecipeQueryDto, userId?: string) {
+    const { 
+      page = 1, 
+      limit = 10, 
+      sortBy = 'latest', 
+      difficulty, 
+      search, 
+      tag, 
+      maxCookingTime 
+    } = recipeQueryDto;
+
+    const skip = (page - 1) * limit;
+
+    // 기본 조건: 공개된 레시피만
+    const where: any = {
+      status: RecipeStatus.PUBLISHED,
+      isHidden: false,
+    };
+
+    // 필터 조건 추가
+    if (difficulty) {
+      where.difficulty = difficulty;
+    }
+
+    if (maxCookingTime) {
+      where.cookingTime = { lte: maxCookingTime };
+    }
+
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { ingredients: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (tag) {
+      where.tags = {
+        some: {
+          tag: {
+            name: { contains: tag, mode: 'insensitive' },
+          },
+        },
+      };
+    }
+
+    // 정렬 조건
+    let orderBy: any = { createdAt: 'desc' };
+    if (sortBy === 'popular') {
+      orderBy = { likes: { _count: 'desc' } };
+    } else if (sortBy === 'views') {
+      orderBy = { viewCount: 'desc' };
+    }
+
+    try {
+      const [recipes, total] = await Promise.all([
+        this.prismaService.recipe.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy,
+          include: {
+            author: {
+              select: {
+                id: true,
+                nickname: true,
+                profileImage: true,
+              },
+            },
+            tags: {
+              include: {
+                tag: true,
+              },
+            },
+            steps: {
+              orderBy: { order: 'asc' },
+              take: 1, // 피드에서는 첫 번째 단계만
+            },
+            _count: {
+              select: {
+                likes: true,
+                comments: true,
+              },
+            },
+            ...(userId && {
+              likes: {
+                where: { userId },
+                select: { id: true },
+              },
+              saves: {
+                where: { userId },
+                select: { id: true },
+              },
+            }),
+          },
+        }),
+        this.prismaService.recipe.count({ where }),
+      ]);
+
+      const formattedRecipes = recipes.map(recipe => ({
+        ...recipe,
+        tags: recipe.tags.map(t => ({
+          name: t.tag.name,
+          emoji: t.tag.emoji,
+        })),
+        steps: recipe.steps.map(step => ({
+          order: step.order,
+          description: step.description,
+          imageUrl: step.imageUrl,
+        })),
+        likesCount: recipe._count.likes,
+        commentsCount: recipe._count.comments,
+        isLiked: userId ? recipe.likes?.length > 0 : false,
+        isSaved: userId ? recipe.saves?.length > 0 : false,
+      }));
+
+      return {
+        recipes: formattedRecipes,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    } catch (error) {
+      throw new BadRequestException('피드 조회에 실패했습니다.');
+    }
+  }
+
+  // 태그 처리 헬퍼 메소드
+  private async handleTags(recipeId: string, tags: any[]) {
+    for (const tagData of tags) {
+      // 태그가 존재하지 않으면 생성
+      let tag = await this.prismaService.tag.findUnique({
+        where: { name: tagData.name },
+      });
+
+      if (!tag) {
+        tag = await this.prismaService.tag.create({
+          data: {
+            name: tagData.name,
+            emoji: tagData.emoji,
+          },
+        });
+      } else if (tagData.emoji && tag.emoji !== tagData.emoji) {
+        // 기존 태그에 이모지 업데이트
+        tag = await this.prismaService.tag.update({
+          where: { id: tag.id },
+          data: { emoji: tagData.emoji },
+        });
+      }
+
+      // 레시피-태그 연결
+      await this.prismaService.recipeTag.create({
+        data: {
+          recipeId,
+          tagId: tag.id,
+        },
+      });
+    }
+  }
+
+  // 단계 처리 헬퍼 메소드
+  private async handleSteps(recipeId: string, steps: any[]) {
+    for (const stepData of steps) {
+      await this.prismaService.recipeStep.create({
+        data: {
+          recipeId,
+          order: stepData.order,
+          description: stepData.description,
+          imageUrl: stepData.imageUrl,
+        },
+      });
+    }
+  }
+
+  // 기존 메소드들 (이미지 업로드, 삭제 등)
+  async uploadImages(files: Express.Multer.File[], userId: string) {
+    try {
+      const uploadPromises = files.map(async (file) => {
+        const fileName = `recipes/${userId}/${Date.now()}_${file.originalname}`;
+        const { data, error } = await this.supabaseService.getClient().storage
+          .from('recipe-images')
+          .upload(fileName, file.buffer, {
+            contentType: file.mimetype,
+          });
+
+        if (error) throw error;
+
+        const { data: urlData } = this.supabaseService.getClient().storage
+          .from('recipe-images')  
+          .getPublicUrl(data.path);
+
+        return urlData.publicUrl;
+      });
+
+      const imageUrls = await Promise.all(uploadPromises);
+      return { imageUrls };
+    } catch (error) {
+      throw new BadRequestException('이미지 업로드에 실패했습니다.');
+    }
+  }
+
+  // 대표 이미지 업로드
+  async uploadThumbnail(id: string, userId: string, file: Express.Multer.File) {
     const recipe = await this.prismaService.recipe.findUnique({
       where: { id },
     });
@@ -245,44 +528,43 @@ export class RecipesService {
       throw new ForbiddenException('레시피를 수정할 권한이 없습니다.');
     }
 
-    const { tags, ...recipeData } = updateRecipeDto;
-
     try {
-      const updatedRecipe = await this.prismaService.recipe.update({
-        where: { id },
-        data: recipeData,
-        include: {
-          author: {
-            select: {
-              id: true,
-              nickname: true,
-              profileImage: true,
-            },
-          },
-          _count: {
-            select: {
-              likes: true,
-              comments: true,
-            },
-          },
-        },
-      });
+      const fileName = `recipes/${userId}/thumbnails/${Date.now()}_${file.originalname}`;
+      const { data, error } = await this.supabaseService.getClient().storage
+        .from('recipe-images')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+        });
 
-      // 태그 업데이트
-      if (tags !== undefined) {
-        await this.updateTags(id, tags);
+      if (error) throw error;
+
+      const { data: urlData } = this.supabaseService.getClient().storage
+        .from('recipe-images')
+        .getPublicUrl(data.path);
+
+      // 기존 대표 이미지가 있으면 삭제
+      if (recipe.thumbnailImage) {
+        const oldPath = recipe.thumbnailImage.split('/').slice(-1)[0];
+        if (oldPath) {
+          await this.supabaseService.getClient().storage
+            .from('recipe-images')
+            .remove([`recipes/${userId}/thumbnails/${oldPath}`]);
+        }
       }
 
+      // DB 업데이트
+      await this.prismaService.recipe.update({
+        where: { id },
+        data: { thumbnailImage: urlData.publicUrl },
+      });
+
       return {
-        message: '레시피가 성공적으로 수정되었습니다.',
-        recipe: {
-          ...updatedRecipe,
-          likesCount: updatedRecipe._count.likes,
-          commentsCount: updatedRecipe._count.comments,
-        },
+        success: true,
+        message: '대표 이미지가 업로드되었습니다.',
+        thumbnailUrl: urlData.publicUrl,
       };
     } catch (error) {
-      throw new BadRequestException('레시피 수정 중 오류가 발생했습니다.');
+      throw new BadRequestException('대표 이미지 업로드에 실패했습니다.');
     }
   }
 
@@ -300,120 +582,17 @@ export class RecipesService {
     }
 
     try {
-      // Soft delete - isPublished를 false로 설정
       await this.prismaService.recipe.update({
         where: { id },
-        data: { isPublished: false },
-      });
-
-      return { message: '레시피가 성공적으로 삭제되었습니다.' };
-    } catch (error) {
-      throw new BadRequestException('레시피 삭제 중 오류가 발생했습니다.');
-    }
-  }
-
-  async uploadImages(recipeId: string, userId: string, files: Express.Multer.File[]) {
-    const recipe = await this.prismaService.recipe.findUnique({
-      where: { id: recipeId },
-    });
-
-    if (!recipe) {
-      throw new NotFoundException('레시피를 찾을 수 없습니다.');
-    }
-
-    if (recipe.authorId !== userId) {
-      throw new ForbiddenException('레시피 이미지를 업로드할 권한이 없습니다.');
-    }
-
-    if (!files || files.length === 0) {
-      throw new BadRequestException('업로드할 파일이 없습니다.');
-    }
-
-    const bucketName = 'recipe-images';
-    const imageUrls: string[] = [];
-
-    try {
-      for (const file of files) {
-        // 파일 타입 검증
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-        if (!allowedTypes.includes(file.mimetype)) {
-          throw new BadRequestException('JPG, PNG, WebP 파일만 업로드 가능합니다.');
-        }
-
-        // 파일 크기 검증 (10MB)
-        const maxSize = 10 * 1024 * 1024;
-        if (file.size > maxSize) {
-          throw new BadRequestException('파일 크기는 10MB를 초과할 수 없습니다.');
-        }
-
-        const fileName = `recipes/${recipeId}/${Date.now()}-${file.originalname}`;
-        
-        await this.supabaseService.uploadFile(
-          bucketName,
-          fileName,
-          file.buffer,
-          file.mimetype,
-        );
-
-        const imageUrl = this.supabaseService.getPublicUrl(bucketName, fileName);
-        imageUrls.push(imageUrl);
-      }
-
-      // 기존 이미지와 새 이미지 합치기
-      const updatedImages = [...recipe.images, ...imageUrls];
-      
-      const updatedRecipe = await this.prismaService.recipe.update({
-        where: { id: recipeId },
-        data: { images: updatedImages },
+        data: { isHidden: true }, // Soft delete
       });
 
       return {
-        message: '이미지가 성공적으로 업로드되었습니다.',
-        images: updatedRecipe.images,
+        success: true,
+        message: '레시피가 삭제되었습니다.',
       };
     } catch (error) {
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new BadRequestException('이미지 업로드 중 오류가 발생했습니다.');
+      throw new BadRequestException('레시피 삭제에 실패했습니다.');
     }
   }
-
-  private async handleTags(recipeId: string, tagNames: string[]) {
-    for (const tagName of tagNames) {
-      // 태그가 없으면 생성, 있으면 기존 것 사용
-      const tag = await this.prismaService.tag.upsert({
-        where: { name: tagName },
-        update: {},
-        create: { name: tagName },
-      });
-
-      // 레시피-태그 연결
-      await this.prismaService.recipeTag.upsert({
-        where: {
-          recipeId_tagId: {
-            recipeId,
-            tagId: tag.id,
-          },
-        },
-        update: {},
-        create: {
-          recipeId,
-          tagId: tag.id,
-        },
-      });
-    }
-  }
-
-  private async updateTags(recipeId: string, tagNames: string[]) {
-    // 기존 태그 연결 삭제
-    await this.prismaService.recipeTag.deleteMany({
-      where: { recipeId },
-    });
-
-    // 새 태그 추가
-    if (tagNames.length > 0) {
-      await this.handleTags(recipeId, tagNames);
-    }
-  }
-} 
+}
