@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../domain/entities/recipe.dart';
 import '../../../domain/entities/user.dart';
 
 abstract class HomeState extends Equatable {
@@ -8,28 +9,45 @@ abstract class HomeState extends Equatable {
   List<Object?> get props => [];
 }
 
-class HomeInitial extends HomeState {
-  const HomeInitial();
-}
+class HomeInitial extends HomeState {}
 
-class HomeLoading extends HomeState {
-  const HomeLoading();
-}
+class HomeLoading extends HomeState {}
 
 class HomeLoaded extends HomeState {
-  const HomeLoaded(this.user);
+  final User? user;
+  final List<Recipe> recommendedRecipes;
+  final bool isLoggedIn;
 
-  final User user;
+  const HomeLoaded({
+    this.user,
+    required this.recommendedRecipes,
+    required this.isLoggedIn,
+  });
 
   @override
-  List<Object?> get props => [user];
+  List<Object?> get props => [user, recommendedRecipes, isLoggedIn];
 }
 
 class HomeError extends HomeState {
-  const HomeError(this.message);
-
   final String message;
+
+  const HomeError(this.message);
 
   @override
   List<Object?> get props => [message];
+}
+
+class HomeRefreshing extends HomeState {
+  final User? user;
+  final List<Recipe> recommendedRecipes;
+  final bool isLoggedIn;
+
+  const HomeRefreshing({
+    this.user,
+    required this.recommendedRecipes,
+    required this.isLoggedIn,
+  });
+
+  @override
+  List<Object?> get props => [user, recommendedRecipes, isLoggedIn];
 }

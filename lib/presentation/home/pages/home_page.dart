@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/constants/app_strings.dart';
-import '../../../core/router/app_router.dart';
+
+import '../../../domain/entities/recipe.dart';
+
 import '../../../injection/injection.dart';
 import '../cubits/home_cubit.dart';
 import '../cubits/home_state.dart';
+import '../widgets/recipe_card.dart';
+import '../widgets/home_header.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -13,7 +16,7 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => getIt<HomeCubit>()..loadUserInfo(),
+      create: (context) => getIt<HomeCubit>()..loadHome(),
       child: const HomeView(),
     );
   }
@@ -25,213 +28,155 @@ class HomeView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(AppStrings.home),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () => context.push(AppRouter.settings),
-          ),
-        ],
-      ),
-      body: BlocBuilder<HomeCubit, HomeState>(
-        builder: (context, state) {
-          if (state is HomeLoading) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          } else if (state is HomeError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: Theme.of(context).colorScheme.error,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    state.message,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => context.read<HomeCubit>().loadUserInfo(),
-                    child: const Text('다시 시도'),
-                  ),
-                ],
-              ),
-            );
-          } else if (state is HomeLoaded) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 사용자 환영 메시지
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 30,
-                            backgroundImage: state.user.avatarUrl != null
-                                ? NetworkImage(state.user.avatarUrl!)
-                                : null,
-                            child: state.user.avatarUrl == null
-                                ? Text(
-                                    state.user.name.isNotEmpty
-                                        ? state.user.name[0].toUpperCase()
-                                        : 'U',
-                                    style: const TextStyle(fontSize: 24),
-                                  )
-                                : null,
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '안녕하세요, ${state.user.name}님!',
-                                  style:
-                                      Theme.of(context).textTheme.headlineSmall,
-                                ),
-                                Text(
-                                  '오늘도 맛있는 요리를 만들어보세요',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant,
-                                      ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+      body: SafeArea(
+        child: BlocBuilder<HomeCubit, HomeState>(
+          builder: (context, state) {
+            if (state is HomeLoading) {
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
+            }
+
+            if (state is HomeError) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      state.message,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => context.read<HomeCubit>().loadHome(),
+                      child: const Text('다시 시도'),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            if (state is HomeLoaded || state is HomeRefreshing) {
+              final user = state is HomeLoaded
+                  ? state.user
+                  : (state as HomeRefreshing).user;
+              final recipes = state is HomeLoaded
+                  ? state.recommendedRecipes
+                  : (state as HomeRefreshing).recommendedRecipes;
+              final isLoggedIn = state is HomeLoaded
+                  ? state.isLoggedIn
+                  : (state as HomeRefreshing).isLoggedIn;
+              final isRefreshing = state is HomeRefreshing;
+
+              return RefreshIndicator(
+                onRefresh: () => context.read<HomeCubit>().refreshHome(),
+                child: CustomScrollView(
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: HomeHeader(
+                          user: user,
+                          isLoggedIn: isLoggedIn,
+                        ),
                       ),
                     ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // 메뉴 그리드
-                  Text(
-                    '기능',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Row(
+                          children: [
+                            Text(
+                              isLoggedIn
+                                  ? '${user?.name}님을 위한 추천'
+                                  : '오늘의 추천 레시피',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                            ),
+                            const Spacer(),
+                            if (isRefreshing)
+                              const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                          ],
                         ),
-                  ),
-                  const SizedBox(height: 16),
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    children: [
-                      _buildMenuCard(
-                        context,
-                        icon: Icons.add_circle_outline,
-                        title: '레시피 추가',
-                        subtitle: '새로운 레시피를 공유하세요',
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('레시피 추가 기능 준비 중입니다')),
-                          );
-                        },
                       ),
-                      _buildMenuCard(
-                        context,
-                        icon: Icons.restaurant,
-                        title: '레시피 검색',
-                        subtitle: '다양한 레시피를 찾아보세요',
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('레시피 검색 기능 준비 중입니다')),
-                          );
-                        },
-                      ),
-                      _buildMenuCard(
-                        context,
-                        icon: Icons.favorite_outline,
-                        title: '즐겨찾기',
-                        subtitle: '좋아하는 레시피 모음',
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('즐겨찾기 기능 준비 중입니다')),
-                          );
-                        },
-                      ),
-                      _buildMenuCard(
-                        context,
-                        icon: Icons.person_outline,
-                        title: '내 레시피',
-                        subtitle: '작성한 레시피 관리',
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('내 레시피 기능 준비 중입니다')),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          }
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                    _buildRecipeGrid(context, recipes),
+                    const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                  ],
+                ),
+              );
+            }
 
-          return const SizedBox.shrink();
-        },
+            return const SizedBox.shrink();
+          },
+        ),
       ),
     );
   }
 
-  Widget _buildMenuCard(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 48,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                textAlign: TextAlign.center,
-              ),
-            ],
+  Widget _buildRecipeGrid(BuildContext context, List<Recipe> recipes) {
+    if (recipes.isEmpty) {
+      return const SliverToBoxAdapter(
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(32.0),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.restaurant_menu,
+                  size: 64,
+                  color: Colors.grey,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  '아직 추천할 레시피가 없어요',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
           ),
+        ),
+      );
+    }
+
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisSpacing: 16,
+          crossAxisSpacing: 16,
+          childAspectRatio: 0.75,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final recipe = recipes[index];
+            return RecipeCard(
+              recipe: recipe,
+              onTap: () => context.push('/recipe/${recipe.id}'),
+            );
+          },
+          childCount: recipes.length,
         ),
       ),
     );

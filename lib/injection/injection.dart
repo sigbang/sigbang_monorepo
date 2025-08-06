@@ -1,19 +1,29 @@
-import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 // Data Layer
 import '../data/datasources/auth_service_new.dart';
 import '../data/datasources/api_client.dart';
+import '../data/datasources/recipe_service.dart';
 import '../data/repositories/auth_repository_impl.dart';
+import '../data/repositories/recipe_repository_impl.dart';
 
 // Domain Layer
 import '../domain/repositories/auth_repository.dart';
+import '../domain/repositories/recipe_repository.dart';
 import '../domain/usecases/login_with_google_token.dart';
 import '../domain/usecases/logout.dart';
 import '../domain/usecases/logout_all.dart';
 import '../domain/usecases/get_current_user.dart';
 import '../domain/usecases/initialize_auth.dart';
+import '../domain/usecases/get_recipe_feed.dart';
+import '../domain/usecases/get_recipe_detail.dart';
+import '../domain/usecases/create_recipe_draft.dart';
+import '../domain/usecases/update_recipe_draft.dart';
+import '../domain/usecases/publish_recipe.dart';
+import '../domain/usecases/get_recommended_recipes.dart';
+import '../domain/usecases/get_my_drafts.dart';
+import '../domain/usecases/upload_recipe_images.dart';
 
 // Presentation Layer
 import '../presentation/login/cubits/login_cubit.dart';
@@ -35,63 +45,58 @@ Future<void> setupDependencyInjection() async {
       ));
 
   // API Client
-  getIt.registerLazySingleton<ApiClient>(
-    () => ApiClient(
-      onTokenExpired: () {
-        // 토큰 만료 시 로그인 화면으로 이동 처리
-        if (kDebugMode) {
-          print('🔄 Token expired, redirecting to login...');
-        }
-      },
-    ),
-  );
+  getIt.registerLazySingleton<ApiClient>(() => ApiClient());
 
   // Data sources
   getIt.registerLazySingleton<AuthService>(
-    () => AuthService(
-      apiClient: getIt<ApiClient>(),
-      googleSignIn: getIt<GoogleSignIn>(),
-      onTokenExpired: () {
-        // 토큰 만료 시 처리
-        if (kDebugMode) {
-          print('🔄 Auth service token expired');
-        }
-      },
-    ),
-  );
+      () => AuthService(apiClient: getIt<ApiClient>()));
+  getIt.registerLazySingleton<RecipeService>(
+      () => RecipeService(getIt<ApiClient>()));
 
   // Repositories
   getIt.registerLazySingleton<AuthRepository>(
-    () => AuthRepositoryImpl(getIt<AuthService>()),
-  );
+      () => AuthRepositoryImpl(getIt<AuthService>()));
+  getIt.registerLazySingleton<RecipeRepository>(
+      () => RecipeRepositoryImpl(getIt<RecipeService>()));
 
-  // Use cases
+  // Auth Use cases
   getIt.registerLazySingleton<InitializeAuth>(
-    () => InitializeAuth(getIt<AuthRepository>()),
-  );
+      () => InitializeAuth(getIt<AuthRepository>()));
   getIt.registerLazySingleton<LoginWithGoogleToken>(
-    () => LoginWithGoogleToken(getIt<AuthRepository>()),
-  );
-  getIt.registerLazySingleton<Logout>(
-    () => Logout(getIt<AuthRepository>()),
-  );
+      () => LoginWithGoogleToken(getIt<AuthRepository>()));
+  getIt.registerLazySingleton<Logout>(() => Logout(getIt<AuthRepository>()));
   getIt.registerLazySingleton<LogoutAll>(
-    () => LogoutAll(getIt<AuthRepository>()),
-  );
+      () => LogoutAll(getIt<AuthRepository>()));
   getIt.registerLazySingleton<GetCurrentUser>(
-    () => GetCurrentUser(getIt<AuthRepository>()),
-  );
+      () => GetCurrentUser(getIt<AuthRepository>()));
+
+  // Recipe Use cases
+  getIt.registerLazySingleton<GetRecipeFeed>(
+      () => GetRecipeFeed(getIt<RecipeRepository>()));
+  getIt.registerLazySingleton<GetRecipeDetail>(
+      () => GetRecipeDetail(getIt<RecipeRepository>()));
+  getIt.registerLazySingleton<CreateRecipeDraft>(
+      () => CreateRecipeDraft(getIt<RecipeRepository>()));
+  getIt.registerLazySingleton<UpdateRecipeDraft>(
+      () => UpdateRecipeDraft(getIt<RecipeRepository>()));
+  getIt.registerLazySingleton<PublishRecipe>(
+      () => PublishRecipe(getIt<RecipeRepository>()));
+  getIt.registerLazySingleton<GetRecommendedRecipes>(
+      () => GetRecommendedRecipes(getIt<RecipeRepository>()));
+  getIt.registerLazySingleton<GetMyDrafts>(
+      () => GetMyDrafts(getIt<RecipeRepository>()));
+  getIt.registerLazySingleton<UploadRecipeImages>(
+      () => UploadRecipeImages(getIt<RecipeRepository>()));
+  getIt.registerLazySingleton<UploadRecipeThumbnail>(
+      () => UploadRecipeThumbnail(getIt<RecipeRepository>()));
 
   // Cubits (as factories to create new instances each time)
-  getIt.registerFactory<LoginCubit>(
-    () => LoginCubit(
-      loginWithGoogleToken: getIt<LoginWithGoogleToken>(),
-      logout: getIt<Logout>(),
-    ),
-  );
-  getIt.registerFactory<HomeCubit>(
-    () => HomeCubit(
-      getCurrentUser: getIt<GetCurrentUser>(),
-    ),
-  );
+  getIt.registerFactory<LoginCubit>(() => LoginCubit(
+        loginWithGoogleToken: getIt<LoginWithGoogleToken>(),
+        logout: getIt<Logout>(),
+      ));
+  getIt.registerFactory<HomeCubit>(() => HomeCubit(
+        getIt<GetCurrentUser>(),
+        getIt<GetRecommendedRecipes>(),
+      ));
 }
