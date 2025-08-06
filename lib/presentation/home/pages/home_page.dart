@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../domain/entities/recipe.dart';
 
-import '../../../injection/injection.dart';
 import '../cubits/home_cubit.dart';
 import '../cubits/home_state.dart';
 import '../widgets/recipe_card.dart';
@@ -15,10 +14,7 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => getIt<HomeCubit>()..loadHome(),
-      child: const HomeView(),
-    );
+    return const HomeView();
   }
 }
 
