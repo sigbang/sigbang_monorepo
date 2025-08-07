@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -48,8 +49,17 @@ Future<void> setupDependencyInjection() async {
   getIt.registerLazySingleton<ApiClient>(() => ApiClient());
 
   // Data sources
-  getIt.registerLazySingleton<AuthService>(
-      () => AuthService(apiClient: getIt<ApiClient>()));
+  getIt.registerLazySingleton<AuthService>(() => AuthService(
+        apiClient: getIt<ApiClient>(),
+        googleSignIn: getIt<GoogleSignIn>(),
+        onTokenExpired: () {
+          // 토큰 만료 시 처리
+          if (kDebugMode) {
+            print('🔄 Auth service token expired');
+          }
+        },
+      ));
+
   getIt.registerLazySingleton<RecipeService>(
       () => RecipeService(getIt<ApiClient>()));
 
