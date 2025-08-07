@@ -29,6 +29,7 @@ import '../domain/usecases/upload_recipe_images.dart';
 // Presentation Layer
 import '../presentation/login/cubits/login_cubit.dart';
 import '../presentation/home/cubits/home_cubit.dart';
+import '../presentation/feed/cubits/feed_cubit.dart';
 
 final GetIt getIt = GetIt.instance;
 
@@ -108,5 +109,9 @@ Future<void> setupDependencyInjection() async {
   getIt.registerFactory<HomeCubit>(() => HomeCubit(
         getIt<GetCurrentUser>(),
         getIt<GetRecommendedRecipes>(),
+      ));
+  getIt.registerFactory<FeedCubit>(() => FeedCubit(
+        getIt<GetRecipeFeed>(),
+        getIt<GetCurrentUser>(),
       ));
 }
