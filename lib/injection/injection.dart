@@ -30,6 +30,7 @@ import '../domain/usecases/upload_recipe_images.dart';
 import '../presentation/login/cubits/login_cubit.dart';
 import '../presentation/home/cubits/home_cubit.dart';
 import '../presentation/feed/cubits/feed_cubit.dart';
+import '../presentation/recipe_detail/cubits/recipe_detail_cubit.dart';
 
 final GetIt getIt = GetIt.instance;
 
@@ -111,6 +112,11 @@ Future<void> setupDependencyInjection() async {
         getIt<GetRecommendedRecipes>(),
       ));
   getIt.registerFactory<FeedCubit>(() => FeedCubit(
+        getIt<GetRecipeFeed>(),
+        getIt<GetCurrentUser>(),
+      ));
+  getIt.registerFactory<RecipeDetailCubit>(() => RecipeDetailCubit(
+        getIt<GetRecipeDetail>(),
         getIt<GetRecipeFeed>(),
         getIt<GetCurrentUser>(),
       ));

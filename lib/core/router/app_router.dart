@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../presentation/login/pages/login_page.dart';
 import '../../presentation/main/pages/main_page.dart';
 import '../../presentation/settings/pages/settings_page.dart';
+import '../../presentation/recipe_detail/pages/recipe_detail_page.dart';
 import '../../presentation/home/cubits/home_cubit.dart';
 import '../../presentation/home/cubits/home_state.dart';
 import '../../injection/injection.dart';
@@ -12,6 +13,7 @@ class AppRouter {
   static const String login = '/login';
   static const String main = '/';
   static const String settings = '/settings';
+  static const String recipeDetail = '/recipe';
 
   static final GoRouter _router = GoRouter(
     initialLocation: main,
@@ -57,6 +59,22 @@ class AppRouter {
         path: settings,
         name: 'settings',
         builder: (context, state) => const SettingsPage(),
+      ),
+      GoRoute(
+        path: '$recipeDetail/:recipeId',
+        name: 'recipe_detail',
+        builder: (context, state) {
+          final recipeId = state.pathParameters['recipeId']!;
+          final feedQuery = state.uri.queryParameters['feedQuery'];
+          final tagsParam = state.uri.queryParameters['tags'];
+          final tags = tagsParam?.split(',') ?? <String>[];
+
+          return RecipeDetailPage(
+            recipeId: recipeId,
+            feedQuery: feedQuery,
+            tags: tags,
+          );
+        },
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

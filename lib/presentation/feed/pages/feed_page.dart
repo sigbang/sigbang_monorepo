@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
+import 'package:go_router/go_router.dart';
 import '../../../injection/injection.dart';
 import '../cubits/feed_cubit.dart';
 import '../cubits/feed_state.dart';
@@ -284,14 +284,26 @@ class _FeedViewState extends State<FeedView> {
               recipe: recipe,
               isLoggedIn: state.isLoggedIn,
               onTap: () {
-                // TODO: 레시피 상세 화면으로 이동
-                // context.push('/recipe/${recipe.id}');
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('${recipe.title} 상세 화면 (구현 예정)'),
-                    duration: const Duration(seconds: 1),
-                  ),
-                );
+                // 레시피 상세 화면으로 이동 (피드 컨텍스트 포함)
+                String? queryParams;
+                if (state.searchQuery != null ||
+                    state.selectedTags.isNotEmpty) {
+                  final params = <String>[];
+                  if (state.searchQuery != null) {
+                    params.add(
+                        'feedQuery=${Uri.encodeComponent(state.searchQuery!)}');
+                  }
+                  if (state.selectedTags.isNotEmpty) {
+                    params.add('tags=${state.selectedTags.join(',')}');
+                  }
+                  queryParams = params.join('&');
+                }
+
+                final uri = queryParams != null
+                    ? '/recipe/${recipe.id}?$queryParams'
+                    : '/recipe/${recipe.id}';
+
+                context.push(uri);
               },
             );
           },
