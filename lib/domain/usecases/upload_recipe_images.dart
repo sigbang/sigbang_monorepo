@@ -14,17 +14,3 @@ class UploadRecipeImages {
     return await _repository.uploadImages(userId, filePaths);
   }
 }
-
-class UploadRecipeThumbnail {
-  final RecipeRepository _repository;
-
-  UploadRecipeThumbnail(this._repository);
-
-  Future<Either<Failure, String>> call(
-    String recipeId,
-    String userId,
-    String filePath,
-  ) async {
-    return await _repository.uploadThumbnail(recipeId, userId, filePath);
-  }
-}

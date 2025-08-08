@@ -25,6 +25,13 @@ class CustomBottomNavigationBar extends StatelessWidget {
           context.push('/login');
           return;
         }
+
+        // 레시피 추가 탭의 경우 직접 레시피 등록 화면으로 이동
+        if (index == 2 && isLoggedIn) {
+          context.push('/create-recipe');
+          return;
+        }
+
         onTap(index);
       },
       selectedItemColor: Theme.of(context).primaryColor,

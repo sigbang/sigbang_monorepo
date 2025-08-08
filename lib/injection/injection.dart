@@ -31,6 +31,7 @@ import '../presentation/login/cubits/login_cubit.dart';
 import '../presentation/home/cubits/home_cubit.dart';
 import '../presentation/feed/cubits/feed_cubit.dart';
 import '../presentation/recipe_detail/cubits/recipe_detail_cubit.dart';
+import '../presentation/recipe_create/cubits/recipe_create_cubit.dart';
 
 final GetIt getIt = GetIt.instance;
 
@@ -99,8 +100,6 @@ Future<void> setupDependencyInjection() async {
       () => GetMyDrafts(getIt<RecipeRepository>()));
   getIt.registerLazySingleton<UploadRecipeImages>(
       () => UploadRecipeImages(getIt<RecipeRepository>()));
-  getIt.registerLazySingleton<UploadRecipeThumbnail>(
-      () => UploadRecipeThumbnail(getIt<RecipeRepository>()));
 
   // Cubits (as factories to create new instances each time)
   getIt.registerFactory<LoginCubit>(() => LoginCubit(
@@ -118,6 +117,13 @@ Future<void> setupDependencyInjection() async {
   getIt.registerFactory<RecipeDetailCubit>(() => RecipeDetailCubit(
         getIt<GetRecipeDetail>(),
         getIt<GetRecipeFeed>(),
+        getIt<GetCurrentUser>(),
+      ));
+  getIt.registerFactory<RecipeCreateCubit>(() => RecipeCreateCubit(
+        getIt<CreateRecipeDraft>(),
+        getIt<PublishRecipe>(),
+        getIt<UploadRecipeImages>(),
+        getIt<UploadRecipeImages>(),
         getIt<GetCurrentUser>(),
       ));
 }

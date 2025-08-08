@@ -192,6 +192,18 @@ class RecipeStep extends Equatable {
   final String description;
   final String? imageUrl;
 
+  RecipeStep copyWith({
+    int? order,
+    String? description,
+    String? imageUrl,
+  }) {
+    return RecipeStep(
+      order: order ?? this.order,
+      description: description ?? this.description,
+      imageUrl: imageUrl ?? this.imageUrl,
+    );
+  }
+
   @override
   List<Object?> get props => [order, description, imageUrl];
 }
