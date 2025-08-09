@@ -40,13 +40,13 @@ import { CurrentUser } from '../common/decorators/user.decorator';
 export class RecipesController {
   constructor(private readonly recipesService: RecipesService) {}
 
-  // 1. 레시피 임시 저장 생성
+  // 1. 레시피 임시 저장 생성 (기존 임시 저장 전부 제거 후 새로 생성)
   @Post('draft')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
     summary: '레시피 임시 저장 생성',
-    description: '신규 레시피를 임시 저장으로 생성합니다.'
+    description: '해당 유저의 기존 임시 저장을 모두 삭제한 후, 새로운 임시 저장을 생성합니다.'
   })
   @ApiBody({ type: CreateRecipeDto })
   @ApiResponse({ 
@@ -139,46 +139,47 @@ export class RecipesController {
     return this.recipesService.publish(id, user.id);
   }
 
-  // 4. 내 임시 저장 목록 조회
+  // 4. 내 임시 저장 단건 조회 (유저당 1개)
   @Get('draft')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '내 임시 저장 목록 조회',
-    description: '현재 사용자의 임시 저장된 레시피 목록을 조회합니다.'
+    summary: '내 임시 저장 조회',
+    description: '현재 사용자의 임시 저장된 레시피를 조회합니다. 없으면 null 반환.'
   })
-  @ApiQuery({ name: 'page', required: false, description: '페이지 번호', example: 1 })
-  @ApiQuery({ name: 'limit', required: false, description: '페이지당 아이템 수', example: 10 })
   @ApiResponse({ 
     status: 200, 
-    description: '임시 저장 목록 조회 성공',
+    description: '임시 저장 조회 성공',
     schema: {
       example: {
-        drafts: [
-          {
-            id: 'uuid',
-            title: '레몬 고소 부타',
-            description: '일본식 고소한 돼지고기',
-            status: 'DRAFT',
-            createdAt: '2023-01-01T00:00:00.000Z',
-            updatedAt: '2023-01-01T00:00:00.000Z'
-          }
-        ],
-        pagination: {
-          page: 1,
-          limit: 10,
-          total: 1,
-          totalPages: 1
-        }
+        id: 'uuid',
+        title: '레몬 고소 부타',
+        description: '일본식 고소한 돼지고기',
+        status: 'DRAFT',
+        createdAt: '2023-01-01T00:00:00.000Z',
+        updatedAt: '2023-01-01T00:00:00.000Z'
       }
     }
   })
-  async getDrafts(
+  async getDraft(@CurrentUser() user: any) {
+    return this.recipesService.getDraft(user.id);
+  }
+
+  // 내 임시 저장 수정 (id 없이 현재 사용자 기준)
+  @Put('draft')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ 
+    summary: '내 임시 저장 수정',
+    description: '현재 사용자의 단 하나의 임시 저장 레시피를 수정합니다.'
+  })
+  @ApiBody({ type: UpdateRecipeDto })
+  @ApiResponse({ status: 200, description: '임시 저장 수정 성공' })
+  async updateMyDraft(
     @CurrentUser() user: any,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number
+    @Body() updateRecipeDto: UpdateRecipeDto,
   ) {
-    return this.recipesService.getDrafts(user.id, page, limit);
+    return this.recipesService.updateMyDraft(user.id, updateRecipeDto);
   }
 
   // 5. 레시피 상세 조회

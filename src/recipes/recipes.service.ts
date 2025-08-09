@@ -27,6 +27,14 @@ export class RecipesService {
     const { tags, steps, ...recipeData } = createRecipeDto;
 
     try {
+      // 사용자의 기존 임시 저장 전체 삭제 후 새로 생성
+      await this.prismaService.recipe.deleteMany({
+        where: {
+          authorId: userId,
+          status: RecipeStatus.DRAFT,
+        },
+      });
+
       const recipe = await this.prismaService.recipe.create({
         data: {
           ...recipeData,
@@ -56,7 +64,7 @@ export class RecipesService {
 
       return {
         success: true,
-        message: '레시피가 임시 저장되었습니다.',
+        message: '기존 임시 저장을 모두 제거하고 새 임시 저장이 생성되었습니다.',
         data: {
           id: recipe.id,
           title: recipe.title,
@@ -189,48 +197,41 @@ export class RecipesService {
   }
 
   // 4. 내 임시 저장 목록 조회
-  async getDrafts(userId: string, page: number = 1, limit: number = 10) {
-    const skip = (page - 1) * limit;
-
+  async getDraft(userId: string) {
     try {
-      const [drafts, total] = await Promise.all([
-        this.prismaService.recipe.findMany({
-          where: {
-            authorId: userId,
-            status: RecipeStatus.DRAFT,
-          },
-          skip,
-          take: limit,
-          orderBy: { updatedAt: 'desc' },
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            status: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        }),
-        this.prismaService.recipe.count({
-          where: {
-            authorId: userId,
-            status: RecipeStatus.DRAFT,
-          },
-        }),
-      ]);
-
-      return {
-        drafts,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
+      const draft = await this.prismaService.recipe.findFirst({
+        where: {
+          authorId: userId,
+          status: RecipeStatus.DRAFT,
         },
-      };
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      return draft ?? null;
     } catch (error) {
-      throw new BadRequestException('임시 저장 목록 조회에 실패했습니다.');
+      throw new BadRequestException('임시 저장 조회에 실패했습니다.');
     }
+  }
+
+  // 내 임시 저장 수정 (사용자 기준)
+  async updateMyDraft(userId: string, updateRecipeDto: UpdateRecipeDto) {
+    // 사용자의 단일 임시 저장을 조회
+    const draft = await this.prismaService.recipe.findFirst({
+      where: { authorId: userId, status: RecipeStatus.DRAFT },
+    });
+
+    if (!draft) {
+      throw new NotFoundException('임시 저장된 레시피가 없습니다.');
+    }
+
+    return this.updateDraft(draft.id, userId, updateRecipeDto);
   }
 
   // 5. 레시피 상세 조회
