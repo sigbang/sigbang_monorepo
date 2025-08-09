@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../domain/entities/recipe.dart';
 import 'photo_upload_widget.dart';
 
-class RecipeStepsEditor extends StatelessWidget {
+class RecipeStepsEditor extends StatefulWidget {
   final List<RecipeStep> steps;
   final Map<String, String?> errors;
   final VoidCallback onAddStep;
@@ -21,6 +21,47 @@ class RecipeStepsEditor extends StatelessWidget {
     required this.onSetStepImage,
     required this.onReorderSteps,
   });
+
+  @override
+  State<RecipeStepsEditor> createState() => _RecipeStepsEditorState();
+}
+
+class _RecipeStepsEditorState extends State<RecipeStepsEditor> {
+  final Map<int, TextEditingController> _controllers = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeControllers();
+  }
+
+  @override
+  void didUpdateWidget(RecipeStepsEditor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _initializeControllers();
+  }
+
+  void _initializeControllers() {
+    // 기존 컨트롤러들을 정리
+    for (var controller in _controllers.values) {
+      controller.dispose();
+    }
+    _controllers.clear();
+
+    // 새로운 컨트롤러들 생성
+    for (int i = 0; i < widget.steps.length; i++) {
+      _controllers[i] =
+          TextEditingController(text: widget.steps[i].description);
+    }
+  }
+
+  @override
+  void dispose() {
+    for (var controller in _controllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +94,7 @@ class RecipeStepsEditor extends StatelessWidget {
 
             // 단계 추가 버튼
             ElevatedButton.icon(
-              onPressed: onAddStep,
+              onPressed: widget.onAddStep,
               icon: const Icon(Icons.add, size: 18),
               label: const Text('단계 추가'),
               style: ElevatedButton.styleFrom(
@@ -66,7 +107,7 @@ class RecipeStepsEditor extends StatelessWidget {
         const SizedBox(height: 16),
 
         // 에러 메시지
-        if (errors['steps'] != null) ...[
+        if (widget.errors['steps'] != null) ...[
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -83,7 +124,7 @@ class RecipeStepsEditor extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    errors['steps']!,
+                    widget.errors['steps']!,
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onErrorContainer,
                     ),
@@ -96,16 +137,16 @@ class RecipeStepsEditor extends StatelessWidget {
         ],
 
         // 단계 목록
-        if (steps.isEmpty)
+        if (widget.steps.isEmpty)
           _buildEmptyState(context)
         else
           ReorderableListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            onReorder: onReorderSteps,
-            itemCount: steps.length,
+            onReorder: widget.onReorderSteps,
+            itemCount: widget.steps.length,
             itemBuilder: (context, index) {
-              final step = steps[index];
+              final step = widget.steps[index];
               return _buildStepCard(context, step, index);
             },
           ),
@@ -151,7 +192,7 @@ class RecipeStepsEditor extends StatelessWidget {
   }
 
   Widget _buildStepCard(BuildContext context, RecipeStep step, int index) {
-    final stepError = errors['step_$index'];
+    final stepError = widget.errors['step_$index'];
 
     return Card(
       key: ValueKey(step.order),
@@ -206,7 +247,7 @@ class RecipeStepsEditor extends StatelessWidget {
 
                 // 삭제 버튼
                 IconButton(
-                  onPressed: () => onRemoveStep(index),
+                  onPressed: () => widget.onRemoveStep(index),
                   icon: Icon(
                     Icons.delete,
                     color: Theme.of(context).colorScheme.error,
@@ -219,11 +260,9 @@ class RecipeStepsEditor extends StatelessWidget {
 
             // 단계 설명
             TextField(
-              controller: TextEditingController(text: step.description)
-                ..selection = TextSelection.fromPosition(
-                  TextPosition(offset: step.description.length),
-                ),
-              onChanged: (value) => onUpdateStepDescription(index, value),
+              controller: _controllers[index],
+              onChanged: (value) =>
+                  widget.onUpdateStepDescription(index, value),
               maxLines: 3,
               maxLength: 200,
               decoration: InputDecoration(
@@ -248,7 +287,7 @@ class RecipeStepsEditor extends StatelessWidget {
               imagePath: step.imageUrl,
               onTap: () => _showImagePicker(context, index),
               onRemove: step.imageUrl != null
-                  ? () => onSetStepImage(index, '')
+                  ? () => widget.onSetStepImage(index, '')
                   : null,
               label: '단계 이미지 (선택사항)',
             ),
@@ -279,7 +318,8 @@ class RecipeStepsEditor extends StatelessWidget {
               onTap: () {
                 Navigator.pop(context);
                 // TODO: 카메라 촬영 구현
-                onSetStepImage(stepIndex, '/mock/camera/step_$stepIndex.jpg');
+                widget.onSetStepImage(
+                    stepIndex, '/mock/camera/step_$stepIndex.jpg');
               },
             ),
             ListTile(
@@ -288,7 +328,8 @@ class RecipeStepsEditor extends StatelessWidget {
               onTap: () {
                 Navigator.pop(context);
                 // TODO: 갤러리 선택 구현
-                onSetStepImage(stepIndex, '/mock/gallery/step_$stepIndex.jpg');
+                widget.onSetStepImage(
+                    stepIndex, '/mock/gallery/step_$stepIndex.jpg');
               },
             ),
           ],

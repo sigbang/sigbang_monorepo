@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../domain/entities/recipe.dart';
 
-class BasicInfoForm extends StatelessWidget {
+class BasicInfoForm extends StatefulWidget {
   final String title;
   final String description;
   final String ingredients;
@@ -34,6 +34,50 @@ class BasicInfoForm extends StatelessWidget {
   });
 
   @override
+  State<BasicInfoForm> createState() => _BasicInfoFormState();
+}
+
+class _BasicInfoFormState extends State<BasicInfoForm> {
+  late TextEditingController _titleController;
+  late TextEditingController _descriptionController;
+  late TextEditingController _ingredientsController;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.title);
+    _descriptionController = TextEditingController(text: widget.description);
+    _ingredientsController = TextEditingController(text: widget.ingredients);
+  }
+
+  @override
+  void didUpdateWidget(BasicInfoForm oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // 외부에서 값이 변경된 경우에만 컨트롤러 업데이트
+    if (oldWidget.title != widget.title &&
+        _titleController.text != widget.title) {
+      _titleController.text = widget.title;
+    }
+    if (oldWidget.description != widget.description &&
+        _descriptionController.text != widget.description) {
+      _descriptionController.text = widget.description;
+    }
+    if (oldWidget.ingredients != widget.ingredients &&
+        _ingredientsController.text != widget.ingredients) {
+      _ingredientsController.text = widget.ingredients;
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _ingredientsController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -42,9 +86,9 @@ class BasicInfoForm extends StatelessWidget {
         _buildTextField(
           context,
           label: '레시피 제목',
-          value: title,
-          onChanged: onTitleChanged,
-          error: errors['title'],
+          controller: _titleController,
+          onChanged: widget.onTitleChanged,
+          error: widget.errors['title'],
           isRequired: true,
           maxLength: 50,
           hintText: '맛있는 레시피 제목을 입력하세요',
@@ -55,9 +99,9 @@ class BasicInfoForm extends StatelessWidget {
         _buildTextField(
           context,
           label: '레시피 설명',
-          value: description,
-          onChanged: onDescriptionChanged,
-          error: errors['description'],
+          controller: _descriptionController,
+          onChanged: widget.onDescriptionChanged,
+          error: widget.errors['description'],
           isRequired: true,
           maxLines: 3,
           maxLength: 200,
@@ -69,9 +113,9 @@ class BasicInfoForm extends StatelessWidget {
         _buildTextField(
           context,
           label: '재료',
-          value: ingredients,
-          onChanged: onIngredientsChanged,
-          error: errors['ingredients'],
+          controller: _ingredientsController,
+          onChanged: widget.onIngredientsChanged,
+          error: widget.errors['ingredients'],
           isRequired: true,
           maxLines: 5,
           maxLength: 500,
@@ -87,8 +131,8 @@ class BasicInfoForm extends StatelessWidget {
               child: _buildNumberField(
                 context,
                 label: '조리 시간',
-                value: cookingTime,
-                onChanged: onCookingTimeChanged,
+                value: widget.cookingTime,
+                onChanged: widget.onCookingTimeChanged,
                 suffix: '분',
                 min: 5,
                 max: 300,
@@ -101,8 +145,8 @@ class BasicInfoForm extends StatelessWidget {
               child: _buildNumberField(
                 context,
                 label: '인분',
-                value: servings,
-                onChanged: onServingsChanged,
+                value: widget.servings,
+                onChanged: widget.onServingsChanged,
                 suffix: '인분',
                 min: 1,
                 max: 10,
@@ -121,7 +165,7 @@ class BasicInfoForm extends StatelessWidget {
   Widget _buildTextField(
     BuildContext context, {
     required String label,
-    required String value,
+    required TextEditingController controller,
     required Function(String) onChanged,
     String? error,
     bool isRequired = false,
@@ -157,10 +201,7 @@ class BasicInfoForm extends StatelessWidget {
 
         // 텍스트 필드
         TextField(
-          controller: TextEditingController(text: value)
-            ..selection = TextSelection.fromPosition(
-              TextPosition(offset: value.length),
-            ),
+          controller: controller,
           onChanged: onChanged,
           maxLines: maxLines,
           maxLength: maxLength,
@@ -257,14 +298,14 @@ class BasicInfoForm extends StatelessWidget {
         const SizedBox(height: 8),
         Row(
           children: RecipeDifficulty.values.map((diff) {
-            final isSelected = difficulty == diff;
+            final isSelected = widget.difficulty == diff;
             return Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: ChoiceChip(
                   label: Text(_getDifficultyText(diff)),
                   selected: isSelected,
-                  onSelected: (_) => onDifficultyChanged(diff),
+                  onSelected: (_) => widget.onDifficultyChanged(diff),
                   selectedColor: Theme.of(context).colorScheme.primaryContainer,
                   backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
                 ),
