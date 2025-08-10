@@ -25,13 +25,10 @@ abstract class RecipeRepository {
 
   // 레시피 공개
   Future<Either<Failure, Recipe>> publishRecipe(String id, String userId);
+  
 
-  // 내 임시 저장 목록 조회
-  Future<Either<Failure, PaginatedRecipes>> getDrafts(
-    String userId,
-    int page,
-    int limit,
-  );
+  // 단일 임시 저장 조회 (사용자당 하나)
+  Future<Either<Failure, Recipe>> getDraft(String userId);
 
   // 레시피 삭제
   Future<Either<Failure, void>> deleteRecipe(String id, String userId);

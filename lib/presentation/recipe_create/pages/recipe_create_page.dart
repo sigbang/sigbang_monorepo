@@ -89,6 +89,26 @@ class RecipeCreateView extends StatelessWidget {
   }
 
   Widget _buildBody(BuildContext context, RecipeCreateState state) {
+    if (state is RecipeCreateChecking) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              SizedBox(
+                width: 72,
+                height: 72,
+                child: CircularProgressIndicator(strokeWidth: 6),
+              ),
+              SizedBox(height: 16),
+              Text('임시 저장 확인 중...'),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (state is RecipeCreateUploading) {
       return _buildUploadingView(context, state);
     }

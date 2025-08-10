@@ -4,28 +4,93 @@ import '../../../domain/entities/recipe.dart';
 import '../../../domain/usecases/create_recipe_draft.dart';
 import '../../../domain/usecases/publish_recipe.dart';
 
-import '../../../domain/usecases/upload_recipe_images.dart';
+// import '../../../domain/usecases/upload_recipe_images.dart';
 import '../../../domain/usecases/get_current_user.dart';
+import '../../../domain/usecases/get_my_draft.dart';
+import '../../../domain/usecases/update_recipe_draft.dart';
+import '../../../domain/usecases/get_recipe_detail.dart';
 import 'recipe_create_state.dart';
 
 class RecipeCreateCubit extends Cubit<RecipeCreateState> {
   final CreateRecipeDraft _createRecipeDraft;
   final PublishRecipe _publishRecipe;
-  final UploadRecipeImages _uploadThumbnail;
-  final UploadRecipeImages _uploadImages;
   final GetCurrentUser _getCurrentUser;
+  final GetMyDraft _getMyDraft;
+  final UpdateRecipeDraft _updateRecipeDraft;
+  final GetRecipeDetail _getRecipeDetail;
 
   RecipeCreateCubit(
     this._createRecipeDraft,
     this._publishRecipe,
-    this._uploadThumbnail,
-    this._uploadImages,
     this._getCurrentUser,
+    this._getMyDraft,
+    this._updateRecipeDraft,
+    this._getRecipeDetail,
   ) : super(RecipeCreateInitial());
 
-  /// 편집 모드로 전환
-  void startEditing() {
-    if (state is! RecipeCreateEditing) {
+  /// 진입 시 임시 저장 불러오기 후 편집 모드 전환
+  Future<void> startEditing() async {
+    if (state is RecipeCreateEditing) return;
+
+    // 편집 차단 상태로 진입
+    emit(RecipeCreateChecking());
+
+    try {
+      // 현재 사용자
+      final userResult = await _getCurrentUser();
+      final userId = userResult.fold((_) => null, (user) => user?.id);
+      if (userId == null) {
+        emit(const RecipeCreateEditing());
+        return;
+      }
+
+      // 단일 임시 저장 조회
+      final draftResult = await _getMyDraft(userId);
+      await draftResult.fold((failure) async {
+        emit(const RecipeCreateEditing());
+      }, (draft) async {
+        // id로 상세 데이터 갱신 후 폼 채우기
+        final detailResult = await _getRecipeDetail(draft.id, userId);
+        await detailResult.fold((_) async {
+          // 상세 실패 시 드래프트로라도 채움
+          final editing = (state is RecipeCreateEditing)
+              ? state as RecipeCreateEditing
+              : const RecipeCreateEditing();
+          emit(editing.copyWith(
+            draftId: draft.id,
+            title: draft.title,
+            description: draft.description,
+            ingredients: draft.ingredients ?? editing.ingredients,
+            steps: draft.steps,
+            cookingTime: draft.cookingTime ?? editing.cookingTime,
+            servings: draft.servings ?? editing.servings,
+            difficulty: draft.difficulty ?? editing.difficulty,
+            tags: draft.tags,
+            thumbnailPath: draft.thumbnailUrl,
+            isDirty: false,
+            errors: const {},
+          ));
+        }, (full) async {
+          final editing = (state is RecipeCreateEditing)
+              ? state as RecipeCreateEditing
+              : const RecipeCreateEditing();
+          emit(editing.copyWith(
+            draftId: full.id,
+            title: full.title,
+            description: full.description,
+            ingredients: full.ingredients ?? editing.ingredients,
+            steps: full.steps,
+            cookingTime: full.cookingTime ?? editing.cookingTime,
+            servings: full.servings ?? editing.servings,
+            difficulty: full.difficulty ?? editing.difficulty,
+            tags: full.tags,
+            thumbnailPath: full.thumbnailUrl,
+            isDirty: false,
+            errors: const {},
+          ));
+        });
+      });
+    } catch (_) {
       emit(const RecipeCreateEditing());
     }
   }
@@ -334,8 +399,12 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
         author: null, // 서버에서 설정
       );
 
-      // 임시 저장 API 호출
-      final result = await _createRecipeDraft(recipe, userId);
+      // 임시 저장 API 호출 (있으면 업데이트, 없으면 생성)
+      final bool hasDraftId =
+          currentState.draftId != null && currentState.draftId!.isNotEmpty;
+      final result = hasDraftId
+          ? await _updateRecipeDraft(currentState.draftId!, recipe, userId)
+          : await _createRecipeDraft(recipe, userId);
 
       result.fold(
         (failure) {
@@ -364,6 +433,8 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
       ));
     }
   }
+
+  // no-op
 
   /// 발행 (공개)
   Future<void> publishRecipe() async {

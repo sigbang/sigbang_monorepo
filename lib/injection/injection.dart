@@ -23,7 +23,7 @@ import '../domain/usecases/create_recipe_draft.dart';
 import '../domain/usecases/update_recipe_draft.dart';
 import '../domain/usecases/publish_recipe.dart';
 import '../domain/usecases/get_recommended_recipes.dart';
-import '../domain/usecases/get_my_drafts.dart';
+import '../domain/usecases/get_my_draft.dart';
 import '../domain/usecases/upload_recipe_images.dart';
 
 // Presentation Layer
@@ -96,8 +96,8 @@ Future<void> setupDependencyInjection() async {
       () => PublishRecipe(getIt<RecipeRepository>()));
   getIt.registerLazySingleton<GetRecommendedRecipes>(
       () => GetRecommendedRecipes(getIt<RecipeRepository>()));
-  getIt.registerLazySingleton<GetMyDrafts>(
-      () => GetMyDrafts(getIt<RecipeRepository>()));
+  getIt.registerLazySingleton<GetMyDraft>(
+      () => GetMyDraft(getIt<RecipeRepository>()));
   getIt.registerLazySingleton<UploadRecipeImages>(
       () => UploadRecipeImages(getIt<RecipeRepository>()));
 
@@ -122,8 +122,9 @@ Future<void> setupDependencyInjection() async {
   getIt.registerFactory<RecipeCreateCubit>(() => RecipeCreateCubit(
         getIt<CreateRecipeDraft>(),
         getIt<PublishRecipe>(),
-        getIt<UploadRecipeImages>(),
-        getIt<UploadRecipeImages>(),
         getIt<GetCurrentUser>(),
+        getIt<GetMyDraft>(),
+        getIt<UpdateRecipeDraft>(),
+        getIt<GetRecipeDetail>(),
       ));
 }

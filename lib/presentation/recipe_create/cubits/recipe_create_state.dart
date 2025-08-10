@@ -10,7 +10,11 @@ abstract class RecipeCreateState extends Equatable {
 
 class RecipeCreateInitial extends RecipeCreateState {}
 
+/// 초기에 임시 저장 존재 여부 확인 중 상태 (편집 차단)
+class RecipeCreateChecking extends RecipeCreateState {}
+
 class RecipeCreateEditing extends RecipeCreateState {
+  final String? draftId;
   final String title;
   final String description;
   final String ingredients;
@@ -24,6 +28,7 @@ class RecipeCreateEditing extends RecipeCreateState {
   final Map<String, String?> errors;
 
   const RecipeCreateEditing({
+    this.draftId,
     this.title = '',
     this.description = '',
     this.ingredients = '',
@@ -38,6 +43,7 @@ class RecipeCreateEditing extends RecipeCreateState {
   });
 
   RecipeCreateEditing copyWith({
+    String? draftId,
     String? title,
     String? description,
     String? ingredients,
@@ -51,6 +57,7 @@ class RecipeCreateEditing extends RecipeCreateState {
     Map<String, String?>? errors,
   }) {
     return RecipeCreateEditing(
+      draftId: draftId ?? this.draftId,
       title: title ?? this.title,
       description: description ?? this.description,
       ingredients: ingredients ?? this.ingredients,
@@ -76,6 +83,7 @@ class RecipeCreateEditing extends RecipeCreateState {
 
   @override
   List<Object?> get props => [
+        draftId,
         title,
         description,
         ingredients,

@@ -69,14 +69,12 @@ class RecipeRepositoryImpl implements RecipeRepository {
     }
   }
 
+  
+
   @override
-  Future<Either<Failure, PaginatedRecipes>> getDrafts(
-    String userId,
-    int page,
-    int limit,
-  ) async {
+  Future<Either<Failure, Recipe>> getDraft(String userId) async {
     try {
-      final result = await _recipeService.getDrafts(userId, page, limit);
+      final result = await _recipeService.getDraft(userId);
       return Right(result.toDomain());
     } catch (e) {
       return Left(ServerFailure(message: e.toString()));

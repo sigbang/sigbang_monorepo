@@ -117,35 +117,28 @@ class RecipeService {
     }
   }
 
-  /// 내 임시 저장 목록 조회
-  Future<PaginatedRecipesModel> getDrafts(
-      String userId, int page, int limit) async {
+  
+  /// 단일 임시 저장 조회 (정책상 사용자당 하나)
+  Future<RecipeModel> getDraft(String userId) async {
     if (kDebugMode) {
-      print('📋 Fetching drafts: page $page, limit $limit');
+      print('📄 Fetching single draft for user: $userId');
     }
 
-    final response = await _apiClient.dio.get(
-      '/recipes/draft',
-      queryParameters: {
-        'page': page,
-        'limit': limit,
-      },
-    );
+    final response = await _apiClient.dio.get('/recipes/draft');
 
     if (response.statusCode == 200) {
+      final data = response.data;
+      final payload = (data is Map<String, dynamic>)
+          ? (data['data'] ?? data['draft'] ?? data)
+          : data;
       if (kDebugMode) {
-        print('✅ Drafts loaded: ${response.data['drafts']?.length ?? 0} items');
+        print('✅ Draft loaded (single): ${payload['id']}');
       }
-
-      // API 응답 구조에 맞게 변환
-      final transformedData = {
-        'recipes': response.data['drafts'],
-        'pagination': response.data['pagination'],
-      };
-
-      return PaginatedRecipesModel.fromJson(transformedData);
+      return RecipeModel.fromJson(payload as Map<String, dynamic>);
+    } else if (response.statusCode == 404) {
+      throw Exception('임시 저장 없음');
     } else {
-      throw Exception('임시 저장 목록 조회 실패: ${response.statusCode}');
+      throw Exception('임시 저장 조회 실패: ${response.statusCode}');
     }
   }
 
