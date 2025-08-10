@@ -45,10 +45,13 @@ class RecipeService {
     final response = await _apiClient.dio.get('/recipes/$id');
 
     if (response.statusCode == 200) {
+      final payload = response.data['data'] ?? response.data;
       if (kDebugMode) {
-        print('✅ Recipe loaded: ${response.data['title']}');
+        try {
+          print('✅ Recipe loaded: ${payload['title']}');
+        } catch (_) {}
       }
-      return RecipeModel.fromJson(response.data);
+      return RecipeModel.fromJson(payload as Map<String, dynamic>);
     } else {
       throw Exception('레시피 조회 실패: ${response.statusCode}');
     }
@@ -76,9 +79,8 @@ class RecipeService {
     }
   }
 
-  /// 레시피 임시 저장 수정
-  Future<RecipeModel> updateDraft(
-      String id, Recipe recipe, String userId) async {
+  /// 레시피 임시 저장 수정 (성공 시 id 반환)
+  Future<String> updateDraft(String id, Recipe recipe, String userId) async {
     if (kDebugMode) {
       print('✏️ Updating recipe draft: $id');
     }
@@ -93,7 +95,8 @@ class RecipeService {
       if (kDebugMode) {
         print('✅ Recipe draft updated: $id');
       }
-      return RecipeModel.fromJson(response.data['data']);
+      final data = response.data['data'] as Map<String, dynamic>;
+      return data['id'] as String? ?? id;
     } else {
       throw Exception('레시피 수정 실패: ${response.statusCode}');
     }
@@ -117,7 +120,6 @@ class RecipeService {
     }
   }
 
-  
   /// 단일 임시 저장 조회 (정책상 사용자당 하나)
   Future<RecipeModel> getDraft(String userId) async {
     if (kDebugMode) {

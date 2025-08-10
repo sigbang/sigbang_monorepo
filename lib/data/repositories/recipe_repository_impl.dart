@@ -45,14 +45,14 @@ class RecipeRepositoryImpl implements RecipeRepository {
   }
 
   @override
-  Future<Either<Failure, Recipe>> updateDraft(
+  Future<Either<Failure, String>> updateDraft(
     String id,
     Recipe recipe,
     String userId,
   ) async {
     try {
-      final result = await _recipeService.updateDraft(id, recipe, userId);
-      return Right(result.toDomain());
+      final updatedId = await _recipeService.updateDraft(id, recipe, userId);
+      return Right(updatedId);
     } catch (e) {
       return Left(ServerFailure(message: e.toString()));
     }
@@ -68,8 +68,6 @@ class RecipeRepositoryImpl implements RecipeRepository {
       return Left(ServerFailure(message: e.toString()));
     }
   }
-
-  
 
   @override
   Future<Either<Failure, Recipe>> getDraft(String userId) async {

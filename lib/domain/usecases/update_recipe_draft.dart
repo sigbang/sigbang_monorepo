@@ -8,7 +8,7 @@ class UpdateRecipeDraft {
 
   UpdateRecipeDraft(this._repository);
 
-  Future<Either<Failure, Recipe>> call(
+  Future<Either<Failure, String>> call(
     String id,
     Recipe recipe,
     String userId,

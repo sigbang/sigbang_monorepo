@@ -402,27 +402,57 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
       // 임시 저장 API 호출 (있으면 업데이트, 없으면 생성)
       final bool hasDraftId =
           currentState.draftId != null && currentState.draftId!.isNotEmpty;
-      final result = hasDraftId
-          ? await _updateRecipeDraft(currentState.draftId!, recipe, userId)
-          : await _createRecipeDraft(recipe, userId);
-
-      result.fold(
-        (failure) {
+      if (hasDraftId) {
+        final updateResult =
+            await _updateRecipeDraft(currentState.draftId!, recipe, userId);
+        await updateResult.fold((failure) async {
           if (kDebugMode) {
-            print('❌ Draft save failed: ${failure.toString()}');
+            print('❌ Draft update failed: ${failure.toString()}');
           }
           emit(RecipeCreateError(
             message: '임시 저장에 실패했습니다',
             previousState: currentState,
           ));
-        },
-        (savedRecipe) {
+        }, (updatedId) async {
           if (kDebugMode) {
-            print('✅ Draft saved: ${savedRecipe.id}');
+            print('✅ Draft updated: $updatedId');
           }
-          emit(RecipeCreateSuccess(recipe: savedRecipe));
-        },
-      );
+          final detail = await _getRecipeDetail(updatedId, userId);
+          detail.fold((f) {
+            emit(RecipeCreateError(
+              message: '임시 저장은 완료됐지만 상세 조회에 실패했습니다',
+              previousState: currentState,
+            ));
+          }, (full) {
+            emit(RecipeCreateSuccess(recipe: full));
+          });
+        });
+      } else {
+        final createResult = await _createRecipeDraft(recipe, userId);
+        await createResult.fold((failure) async {
+          if (kDebugMode) {
+            print('❌ Draft create failed: ${failure.toString()}');
+          }
+          emit(RecipeCreateError(
+            message: '임시 저장에 실패했습니다',
+            previousState: currentState,
+          ));
+        }, (savedRecipe) async {
+          if (kDebugMode) {
+            print('✅ Draft created: ${savedRecipe.id}');
+          }
+          final detail = await _getRecipeDetail(savedRecipe.id, userId);
+          detail.fold((f) {
+            // 상세 실패 시 최소한 생성된 정보로 성공 처리할 수도 있으나, 일관성을 위해 에러 처리
+            emit(RecipeCreateError(
+              message: '임시 저장은 완료됐지만 상세 조회에 실패했습니다',
+              previousState: currentState,
+            ));
+          }, (full) {
+            emit(RecipeCreateSuccess(recipe: full));
+          });
+        });
+      }
     } catch (e) {
       if (kDebugMode) {
         print('❌ Draft save error: $e');

@@ -16,8 +16,8 @@ abstract class RecipeRepository {
   // 레시피 임시 저장 생성
   Future<Either<Failure, Recipe>> createDraft(Recipe recipe, String userId);
 
-  // 레시피 임시 저장 수정
-  Future<Either<Failure, Recipe>> updateDraft(
+  // 레시피 임시 저장 수정 (서버는 최소 데이터만 반환하므로 id만 반환)
+  Future<Either<Failure, String>> updateDraft(
     String id,
     Recipe recipe,
     String userId,
@@ -25,7 +25,6 @@ abstract class RecipeRepository {
 
   // 레시피 공개
   Future<Either<Failure, Recipe>> publishRecipe(String id, String userId);
-  
 
   // 단일 임시 저장 조회 (사용자당 하나)
   Future<Either<Failure, Recipe>> getDraft(String userId);
