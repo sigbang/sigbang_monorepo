@@ -9,6 +9,8 @@ import '../../../domain/usecases/get_current_user.dart';
 import '../../../domain/usecases/get_my_draft.dart';
 import '../../../domain/usecases/update_recipe_draft.dart';
 import '../../../domain/usecases/get_recipe_detail.dart';
+import '../../../domain/usecases/upload_recipe_thumbnail.dart';
+import '../../../domain/usecases/upload_recipe_images.dart';
 import 'recipe_create_state.dart';
 
 class RecipeCreateCubit extends Cubit<RecipeCreateState> {
@@ -18,6 +20,10 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
   final GetMyDraft _getMyDraft;
   final UpdateRecipeDraft _updateRecipeDraft;
   final GetRecipeDetail _getRecipeDetail;
+  final UploadRecipeThumbnail _uploadRecipeThumbnail;
+  final UploadRecipeImages _uploadRecipeImages;
+  // Optionally used for uploading images later
+  // final UploadRecipeThumbnail _uploadRecipeThumbnail;
 
   RecipeCreateCubit(
     this._createRecipeDraft,
@@ -26,6 +32,8 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
     this._getMyDraft,
     this._updateRecipeDraft,
     this._getRecipeDetail,
+    this._uploadRecipeThumbnail,
+    this._uploadRecipeImages,
   ) : super(RecipeCreateInitial());
 
   /// 진입 시 임시 저장 불러오기 후 편집 모드 전환
@@ -228,6 +236,30 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
       if (kDebugMode) {
         print('📸 Thumbnail set: $imagePath');
       }
+
+      // If draft exists, try background upload to server to exchange for URL
+      final draftId = currentState.draftId;
+      if (draftId != null && draftId.isNotEmpty) {
+        _uploadThumbnailInBackground(draftId, imagePath);
+      }
+    }
+  }
+
+  Future<void> _uploadThumbnailInBackground(
+      String draftId, String filePath) async {
+    try {
+      final userResult = await _getCurrentUser();
+      final userId = userResult.fold((_) => null, (u) => u?.id);
+      if (userId == null) return;
+      final uploaded = await _uploadRecipeThumbnail(draftId, userId, filePath);
+      uploaded.fold((_) {}, (url) {
+        final currentState = state;
+        if (currentState is RecipeCreateEditing) {
+          emit(currentState.copyWith(thumbnailPath: url, isDirty: true));
+        }
+      });
+    } catch (_) {
+      // ignore background errors
     }
   }
 
@@ -308,6 +340,34 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
       if (kDebugMode) {
         print('📸 Step ${index + 1} image set: $imagePath');
       }
+
+      // background upload if draft exists and local file chosen
+      final draftId = currentState.draftId;
+      final isLocal = imagePath.isNotEmpty && !imagePath.startsWith('http');
+      if (draftId != null && draftId.isNotEmpty && isLocal) {
+        _uploadStepImageInBackground(index, imagePath);
+      }
+    }
+  }
+
+  Future<void> _uploadStepImageInBackground(int index, String filePath) async {
+    try {
+      final userResult = await _getCurrentUser();
+      final userId = userResult.fold((_) => null, (u) => u?.id);
+      if (userId == null) return;
+      final uploaded = await _uploadRecipeImages(userId, [filePath]);
+      uploaded.fold((_) {}, (urls) {
+        if (urls.isEmpty) return;
+        final currentState = state;
+        if (currentState is RecipeCreateEditing &&
+            index < currentState.steps.length) {
+          final steps = List<RecipeStep>.from(currentState.steps);
+          steps[index] = steps[index].copyWith(imageUrl: urls.first);
+          emit(currentState.copyWith(steps: steps));
+        }
+      });
+    } catch (_) {
+      // ignore
     }
   }
 
@@ -460,6 +520,15 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
               isDirty: false,
               errors: const {},
             ));
+
+            // If thumbnail is local file path, upload in background now that we have draft id
+            final isLocalThumb = (currentState.thumbnailPath != null) &&
+                !(currentState.thumbnailPath!.startsWith('http')) &&
+                currentState.thumbnailPath!.isNotEmpty;
+            if (isLocalThumb) {
+              _uploadThumbnailInBackground(
+                  full.id, currentState.thumbnailPath!);
+            }
           });
         });
       } else {
@@ -520,6 +589,15 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
               isDirty: false,
               errors: const {},
             ));
+
+            // Background upload thumbnail if it's local
+            final isLocalThumb = (currentState.thumbnailPath != null) &&
+                !(currentState.thumbnailPath!.startsWith('http')) &&
+                currentState.thumbnailPath!.isNotEmpty;
+            if (isLocalThumb) {
+              _uploadThumbnailInBackground(
+                  full.id, currentState.thumbnailPath!);
+            }
           });
         });
       }

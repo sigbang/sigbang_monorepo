@@ -25,6 +25,7 @@ import '../domain/usecases/publish_recipe.dart';
 import '../domain/usecases/get_recommended_recipes.dart';
 import '../domain/usecases/get_my_draft.dart';
 import '../domain/usecases/upload_recipe_images.dart';
+import '../domain/usecases/upload_recipe_thumbnail.dart';
 
 // Presentation Layer
 import '../presentation/login/cubits/login_cubit.dart';
@@ -100,6 +101,8 @@ Future<void> setupDependencyInjection() async {
       () => GetMyDraft(getIt<RecipeRepository>()));
   getIt.registerLazySingleton<UploadRecipeImages>(
       () => UploadRecipeImages(getIt<RecipeRepository>()));
+  getIt.registerLazySingleton<UploadRecipeThumbnail>(
+      () => UploadRecipeThumbnail(getIt<RecipeRepository>()));
 
   // Cubits (as factories to create new instances each time)
   getIt.registerFactory<LoginCubit>(() => LoginCubit(
@@ -126,5 +129,7 @@ Future<void> setupDependencyInjection() async {
         getIt<GetMyDraft>(),
         getIt<UpdateRecipeDraft>(),
         getIt<GetRecipeDetail>(),
+        getIt<UploadRecipeThumbnail>(),
+        getIt<UploadRecipeImages>(),
       ));
 }

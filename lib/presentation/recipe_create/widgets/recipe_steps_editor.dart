@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
 import '../../../domain/entities/recipe.dart';
 import 'photo_upload_widget.dart';
+import '../../../core/image/image_processing_service.dart';
 
 class RecipeStepsEditor extends StatefulWidget {
   final List<RecipeStep> steps;
@@ -341,11 +343,17 @@ class _RecipeStepsEditorState extends State<RecipeStepsEditor> {
                 final picker = ImagePicker();
                 final XFile? picked = await picker.pickImage(
                   source: ImageSource.gallery,
-                  imageQuality: 85,
-                  maxWidth: 2048,
                 );
                 if (picked != null) {
-                  widget.onSetStepImage(stepIndex, picked.path);
+                  final Uint8List original = await picked.readAsBytes();
+                  final processed =
+                      await ImageProcessingService.processCroppedBytes(
+                    croppedBytes: original,
+                    format: OutputFormat.webp,
+                  );
+                  if (processed.tempFile != null) {
+                    widget.onSetStepImage(stepIndex, processed.tempFile!.path);
+                  }
                 }
               },
             ),

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
+import '../../../core/image/image_processing_service.dart';
 import '../../../injection/injection.dart';
 import '../cubits/recipe_create_cubit.dart';
 import '../cubits/recipe_create_state.dart';
@@ -272,56 +274,23 @@ class RecipeCreateView extends StatelessWidget {
 
   Future<void> _showImagePicker(BuildContext context,
       {bool isThumbnail = false}) async {
-    final parentContext = context;
-    showModalBottomSheet(
-      context: parentContext,
-      builder: (sheetContext) => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '이미지 선택',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 16),
-            // ListTile(
-            //   leading: const Icon(Icons.camera_alt),
-            //   title: const Text('카메라로 촬영'),
-            //   onTap: () {
-            //     Navigator.pop(context);
-            //     // TODO: 카메라 촬영 구현
-            //     final imagePath =
-            //         '/mock/camera/${isThumbnail ? 'thumbnail' : 'image'}.jpg';
-            //     if (isThumbnail) {
-            //       context.read<RecipeCreateCubit>().setThumbnail(imagePath);
-            //     }
-            //   },
-            // ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('갤러리에서 선택'),
-              onTap: () async {
-                Navigator.pop(sheetContext);
-                final picker = ImagePicker();
-                final XFile? picked = await picker.pickImage(
-                  source: ImageSource.gallery,
-                  imageQuality: 85,
-                  maxWidth: 2048,
-                );
-                if (picked != null && isThumbnail) {
-                  parentContext
-                      .read<RecipeCreateCubit>()
-                      .setThumbnail(picked.path);
-                }
-              },
-            ),
-          ],
-        ),
-      ),
+    // Directly open native gallery picker
+    final picker = ImagePicker();
+    final XFile? picked = await picker.pickImage(
+      source: ImageSource.gallery,
     );
+    if (picked != null && isThumbnail) {
+      final Uint8List original = await picked.readAsBytes();
+      final processed = await ImageProcessingService.processCroppedBytes(
+        croppedBytes: original,
+        format: OutputFormat.webp,
+      );
+      if (processed.tempFile != null) {
+        context
+            .read<RecipeCreateCubit>()
+            .setThumbnail(processed.tempFile!.path);
+      }
+    }
   }
 
   void _showExitDialog(BuildContext context, RecipeCreateState state) {
