@@ -36,7 +36,7 @@ class RecipeListItem extends StatelessWidget {
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
-                        color: Theme.of(context).colorScheme.surfaceVariant,
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
                         child: Icon(
                           Icons.restaurant,
                           size: 48,
@@ -51,7 +51,7 @@ class RecipeListItem extends StatelessWidget {
               Container(
                 height: 200,
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceVariant,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius:
                       const BorderRadius.vertical(top: Radius.circular(8)),
                 ),

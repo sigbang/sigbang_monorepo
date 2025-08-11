@@ -55,7 +55,7 @@ class _RecipeImageGalleryState extends State<RecipeImageGallery> {
       return _buildPlaceholder();
     }
 
-    return Container(
+    return SizedBox(
       height: 300,
       child: Stack(
         children: [
@@ -137,7 +137,7 @@ class _RecipeImageGalleryState extends State<RecipeImageGallery> {
     return Container(
       height: 300,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
       ),
       child: Center(
         child: Column(

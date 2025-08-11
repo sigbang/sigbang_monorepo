@@ -249,7 +249,7 @@ class _BasicInfoFormState extends State<BasicInfoForm> {
               onPressed: value > min ? () => onChanged(value - 1) : null,
               icon: const Icon(Icons.remove),
               style: IconButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
               ),
             ),
 
@@ -276,7 +276,7 @@ class _BasicInfoFormState extends State<BasicInfoForm> {
               onPressed: value < max ? () => onChanged(value + 1) : null,
               icon: const Icon(Icons.add),
               style: IconButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
               ),
             ),
           ],
@@ -307,7 +307,7 @@ class _BasicInfoFormState extends State<BasicInfoForm> {
                   selected: isSelected,
                   onSelected: (_) => widget.onDifficultyChanged(diff),
                   selectedColor: Theme.of(context).colorScheme.primaryContainer,
-                  backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                 ),
               ),
             );

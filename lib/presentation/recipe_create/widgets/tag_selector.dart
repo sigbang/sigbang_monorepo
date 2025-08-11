@@ -130,7 +130,7 @@ class TagSelector extends StatelessWidget {
                   ? Theme.of(context).colorScheme.surface
                   : Theme.of(context)
                       .colorScheme
-                      .surfaceVariant
+                      .surfaceContainerHighest
                       .withOpacity(0.5),
               side: BorderSide(
                 color: canSelect

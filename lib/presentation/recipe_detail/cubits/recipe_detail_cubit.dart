@@ -235,7 +235,9 @@ class RecipeDetailCubit extends Cubit<RecipeDetailState> {
     final currentState = state;
     if (currentState is! RecipeDetailLoaded ||
         currentState.hasReachedEnd ||
-        currentState.isLoadingNext) return;
+        currentState.isLoadingNext) {
+      return;
+    }
 
     emit(currentState.copyWith(isLoadingNext: true));
 
