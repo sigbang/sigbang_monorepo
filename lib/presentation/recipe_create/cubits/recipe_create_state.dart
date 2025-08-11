@@ -122,6 +122,24 @@ class RecipeCreateUploading extends RecipeCreateEditing {
   List<Object?> get props => [...super.props, progress, currentStep];
 }
 
+/// 임시 저장 성공 (화면 유지, 스낵바만 표시)
+class RecipeDraftSaved extends RecipeCreateEditing {
+  const RecipeDraftSaved({
+    super.draftId,
+    required super.title,
+    required super.description,
+    required super.ingredients,
+    required super.steps,
+    required super.cookingTime,
+    required super.servings,
+    required super.difficulty,
+    required super.tags,
+    super.thumbnailPath,
+    super.isDirty = false,
+    super.errors = const {},
+  });
+}
+
 class RecipeCreateSuccess extends RecipeCreateState {
   final Recipe recipe;
 

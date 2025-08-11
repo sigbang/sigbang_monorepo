@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../injection/injection.dart';
-import '../../../domain/entities/recipe.dart';
 import '../cubits/recipe_create_cubit.dart';
 import '../cubits/recipe_create_state.dart';
 import '../widgets/photo_upload_widget.dart';
@@ -30,20 +29,23 @@ class RecipeCreateView extends StatelessWidget {
     return BlocConsumer<RecipeCreateCubit, RecipeCreateState>(
       listener: (context, state) {
         if (state is RecipeCreateSuccess) {
-          // 성공 시 알림 및 화면 이동
+          // 발행 성공 시 알림 및 화면 이동
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                state.recipe.status == RecipeStatus.published
-                    ? '레시피가 성공적으로 발행되었습니다!'
-                    : '레시피가 임시 저장되었습니다',
-              ),
+            const SnackBar(
+              content: Text('레시피가 성공적으로 발행되었습니다!'),
               backgroundColor: Colors.green,
             ),
           );
 
-          // 레시피 상세 화면으로 이동
           context.pushReplacement('/recipe/${state.recipe.id}');
+        } else if (state is RecipeDraftSaved) {
+          // 임시 저장 성공: 화면 유지, 스낵바만
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('레시피가 임시 저장되었습니다'),
+              backgroundColor: Colors.green,
+            ),
+          );
         } else if (state is RecipeCreateError) {
           // 에러 시 알림
           ScaffoldMessenger.of(context).showSnackBar(

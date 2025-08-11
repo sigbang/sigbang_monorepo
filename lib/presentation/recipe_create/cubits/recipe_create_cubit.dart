@@ -424,7 +424,21 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
               previousState: currentState,
             ));
           }, (full) {
-            emit(RecipeCreateSuccess(recipe: full));
+            // 화면 유지용 상태로 전환 (스낵바만 표시)
+            emit(RecipeDraftSaved(
+              draftId: full.id,
+              title: full.title,
+              description: full.description,
+              ingredients: full.ingredients ?? currentState.ingredients,
+              steps: full.steps,
+              cookingTime: full.cookingTime ?? currentState.cookingTime,
+              servings: full.servings ?? currentState.servings,
+              difficulty: full.difficulty ?? currentState.difficulty,
+              tags: full.tags,
+              thumbnailPath: full.thumbnailUrl,
+              isDirty: false,
+              errors: const {},
+            ));
           });
         });
       } else {
@@ -449,7 +463,21 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
               previousState: currentState,
             ));
           }, (full) {
-            emit(RecipeCreateSuccess(recipe: full));
+            // 화면 유지용 상태로 전환 (스낵바만 표시)
+            emit(RecipeDraftSaved(
+              draftId: full.id,
+              title: full.title,
+              description: full.description,
+              ingredients: full.ingredients ?? currentState.ingredients,
+              steps: full.steps,
+              cookingTime: full.cookingTime ?? currentState.cookingTime,
+              servings: full.servings ?? currentState.servings,
+              difficulty: full.difficulty ?? currentState.difficulty,
+              tags: full.tags,
+              thumbnailPath: full.thumbnailUrl,
+              isDirty: false,
+              errors: const {},
+            ));
           });
         });
       }
@@ -493,11 +521,12 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
         progress: 0.2,
       ));
 
-      // 먼저 임시 저장
+      // 먼저 임시 저장 (임시 저장은 화면 유지 상태를 내보내므로 결과 id를 확보하도록 다시 조회)
       await saveDraft();
 
-      final successState = state;
-      if (successState is! RecipeCreateSuccess) return;
+      // saveDraft 이후 상태가 RecipeDraftSaved 여야 함. 아니라면 중단
+      final draftSaved = state;
+      if (draftSaved is! RecipeDraftSaved || draftSaved.draftId == null) return;
 
       emit(RecipeCreateUploading(
         title: currentState.title,
@@ -521,8 +550,7 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
       );
 
       // 발행 API 호출
-      final publishResult =
-          await _publishRecipe(successState.recipe.id, userId);
+      final publishResult = await _publishRecipe(draftSaved.draftId!, userId);
 
       publishResult.fold(
         (failure) {
