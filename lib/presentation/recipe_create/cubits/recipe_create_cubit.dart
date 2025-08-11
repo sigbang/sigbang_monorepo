@@ -424,18 +424,39 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
               previousState: currentState,
             ));
           }, (full) {
-            // 화면 유지용 상태로 전환 (스낵바만 표시)
+            // 서버 상세와 현재 편집 상태를 병합하여 로컬 이미지 경로를 보존
+            final List<RecipeStep> mergedSteps = full.steps.isEmpty
+                ? currentState.steps
+                : full.steps.map((serverStep) {
+                    final hasMatch = currentState.steps
+                        .any((s) => s.order == serverStep.order);
+                    final RecipeStep? matchingCurrent = hasMatch
+                        ? currentState.steps
+                            .firstWhere((s) => s.order == serverStep.order)
+                        : null;
+                    final mergedImage = (serverStep.imageUrl == null ||
+                            serverStep.imageUrl!.isEmpty)
+                        ? matchingCurrent?.imageUrl
+                        : serverStep.imageUrl;
+                    return serverStep.copyWith(imageUrl: mergedImage);
+                  }).toList();
+
+            final String? mergedThumbnail =
+                (full.thumbnailUrl == null || full.thumbnailUrl!.isEmpty)
+                    ? currentState.thumbnailPath
+                    : full.thumbnailUrl;
+
             emit(RecipeDraftSaved(
               draftId: full.id,
               title: full.title,
               description: full.description,
               ingredients: full.ingredients ?? currentState.ingredients,
-              steps: full.steps,
+              steps: mergedSteps,
               cookingTime: full.cookingTime ?? currentState.cookingTime,
               servings: full.servings ?? currentState.servings,
               difficulty: full.difficulty ?? currentState.difficulty,
               tags: full.tags,
-              thumbnailPath: full.thumbnailUrl,
+              thumbnailPath: mergedThumbnail,
               isDirty: false,
               errors: const {},
             ));
@@ -463,18 +484,39 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
               previousState: currentState,
             ));
           }, (full) {
-            // 화면 유지용 상태로 전환 (스낵바만 표시)
+            // 서버 상세와 현재 편집 상태를 병합하여 로컬 이미지 경로를 보존
+            final List<RecipeStep> mergedSteps = full.steps.isEmpty
+                ? currentState.steps
+                : full.steps.map((serverStep) {
+                    final hasMatch = currentState.steps
+                        .any((s) => s.order == serverStep.order);
+                    final RecipeStep? matchingCurrent = hasMatch
+                        ? currentState.steps
+                            .firstWhere((s) => s.order == serverStep.order)
+                        : null;
+                    final mergedImage = (serverStep.imageUrl == null ||
+                            serverStep.imageUrl!.isEmpty)
+                        ? matchingCurrent?.imageUrl
+                        : serverStep.imageUrl;
+                    return serverStep.copyWith(imageUrl: mergedImage);
+                  }).toList();
+
+            final String? mergedThumbnail =
+                (full.thumbnailUrl == null || full.thumbnailUrl!.isEmpty)
+                    ? currentState.thumbnailPath
+                    : full.thumbnailUrl;
+
             emit(RecipeDraftSaved(
               draftId: full.id,
               title: full.title,
               description: full.description,
               ingredients: full.ingredients ?? currentState.ingredients,
-              steps: full.steps,
+              steps: mergedSteps,
               cookingTime: full.cookingTime ?? currentState.cookingTime,
               servings: full.servings ?? currentState.servings,
               difficulty: full.difficulty ?? currentState.difficulty,
               tags: full.tags,
-              thumbnailPath: full.thumbnailUrl,
+              thumbnailPath: mergedThumbnail,
               isDirty: false,
               errors: const {},
             ));

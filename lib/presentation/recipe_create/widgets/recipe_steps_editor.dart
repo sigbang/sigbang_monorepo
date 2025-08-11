@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../domain/entities/recipe.dart';
 import 'photo_upload_widget.dart';
 
@@ -158,7 +159,10 @@ class _RecipeStepsEditorState extends State<RecipeStepsEditor> {
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        color: Theme.of(context)
+            .colorScheme
+            .surfaceContainerHighest
+            .withOpacity(0.3),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
@@ -298,9 +302,10 @@ class _RecipeStepsEditorState extends State<RecipeStepsEditor> {
   }
 
   void _showImagePicker(BuildContext context, int stepIndex) {
+    final parentContext = context;
     showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
+      context: parentContext,
+      builder: (sheetContext) => Container(
         padding: const EdgeInsets.all(16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -312,24 +317,36 @@ class _RecipeStepsEditorState extends State<RecipeStepsEditor> {
                   ),
             ),
             const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('카메라로 촬영'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: 카메라 촬영 구현
-                widget.onSetStepImage(
-                    stepIndex, '/mock/camera/step_$stepIndex.jpg');
-              },
-            ),
+            // ListTile(
+            //   leading: const Icon(Icons.camera_alt),
+            //   title: const Text('카메라로 촬영'),
+            //   onTap: () async {
+            //     Navigator.pop(context);
+            //     final picker = ImagePicker();
+            //     final XFile? picked = await picker.pickImage(
+            //       source: ImageSource.camera,
+            //       imageQuality: 85,
+            //       maxWidth: 2048,
+            //     );
+            //     if (picked != null) {
+            //       widget.onSetStepImage(stepIndex, picked.path);
+            //     }
+            //   },
+            // ),
             ListTile(
               leading: const Icon(Icons.photo_library),
               title: const Text('갤러리에서 선택'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: 갤러리 선택 구현
-                widget.onSetStepImage(
-                    stepIndex, '/mock/gallery/step_$stepIndex.jpg');
+              onTap: () async {
+                Navigator.pop(sheetContext);
+                final picker = ImagePicker();
+                final XFile? picked = await picker.pickImage(
+                  source: ImageSource.gallery,
+                  imageQuality: 85,
+                  maxWidth: 2048,
+                );
+                if (picked != null) {
+                  widget.onSetStepImage(stepIndex, picked.path);
+                }
               },
             ),
           ],
