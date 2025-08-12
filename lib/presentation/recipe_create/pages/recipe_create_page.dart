@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:typed_data';
-import 'package:image_picker/image_picker.dart';
 import '../../../core/image/image_processing_service.dart';
+import '../../../core/image/gallery_picker_service.dart';
 import '../../../injection/injection.dart';
 import '../cubits/recipe_create_cubit.dart';
 import '../cubits/recipe_create_state.dart';
@@ -274,22 +274,20 @@ class RecipeCreateView extends StatelessWidget {
 
   Future<void> _showImagePicker(BuildContext context,
       {bool isThumbnail = false}) async {
-    // Directly open native gallery picker
-    final picker = ImagePicker();
-    final XFile? picked = await picker.pickImage(
-      source: ImageSource.gallery,
+    // Advanced gallery picker: image-only, MIME filtered, prefer camera roll
+    final Uint8List? bytes = await GalleryPickerService.pickSingleImageBytes(
+      context,
+      preferCameraRoll: true,
     );
-    if (picked != null && isThumbnail) {
-      final Uint8List original = await picked.readAsBytes();
-      final processed = await ImageProcessingService.processCroppedBytes(
-        croppedBytes: original,
-        format: OutputFormat.webp,
-      );
-      if (processed.tempFile != null) {
-        context
-            .read<RecipeCreateCubit>()
-            .setThumbnail(processed.tempFile!.path);
-      }
+    if (bytes == null) return;
+
+    // No edit modal: directly center-crop 1:1 and optimize
+    final processed = await ImageProcessingService.processCroppedBytes(
+      croppedBytes: bytes,
+      format: OutputFormat.webp,
+    );
+    if (processed.tempFile != null && isThumbnail) {
+      context.read<RecipeCreateCubit>().setThumbnail(processed.tempFile!.path);
     }
   }
 

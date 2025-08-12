@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
-import 'package:image_picker/image_picker.dart';
 import '../../../domain/entities/recipe.dart';
 import 'photo_upload_widget.dart';
 import '../../../core/image/image_processing_service.dart';
+import '../../../core/image/gallery_picker_service.dart';
 
 class RecipeStepsEditor extends StatefulWidget {
   final List<RecipeStep> steps;
@@ -340,20 +340,20 @@ class _RecipeStepsEditorState extends State<RecipeStepsEditor> {
               title: const Text('갤러리에서 선택'),
               onTap: () async {
                 Navigator.pop(sheetContext);
-                final picker = ImagePicker();
-                final XFile? picked = await picker.pickImage(
-                  source: ImageSource.gallery,
+                final Uint8List? bytes =
+                    await GalleryPickerService.pickSingleImageBytes(
+                  parentContext,
+                  preferCameraRoll: true,
                 );
-                if (picked != null) {
-                  final Uint8List original = await picked.readAsBytes();
-                  final processed =
-                      await ImageProcessingService.processCroppedBytes(
-                    croppedBytes: original,
-                    format: OutputFormat.webp,
-                  );
-                  if (processed.tempFile != null) {
-                    widget.onSetStepImage(stepIndex, processed.tempFile!.path);
-                  }
+                if (bytes == null) return;
+
+                final processed =
+                    await ImageProcessingService.processCroppedBytes(
+                  croppedBytes: bytes,
+                  format: OutputFormat.webp,
+                );
+                if (processed.tempFile != null) {
+                  widget.onSetStepImage(stepIndex, processed.tempFile!.path);
                 }
               },
             ),
