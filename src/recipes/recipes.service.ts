@@ -14,12 +14,14 @@ import {
   DraftRecipeResponseDto,
   RecipeStatus 
 } from './dto/recipes.dto';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class RecipesService {
   constructor(
     private prismaService: PrismaService,
     private supabaseService: SupabaseService,
+    private configService: ConfigService,
   ) {}
 
   // 1. 레시피 임시 저장 생성
@@ -491,21 +493,12 @@ export class RecipesService {
   // 기존 메소드들 (이미지 업로드, 삭제 등)
   async uploadImages(files: Express.Multer.File[], userId: string) {
     try {
+      const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
       const uploadPromises = files.map(async (file) => {
-        const fileName = `recipes/${userId}/${Date.now()}_${file.originalname}`;
-        const { data, error } = await this.supabaseService.getClient().storage
-          .from('recipe-images')
-          .upload(fileName, file.buffer, {
-            contentType: file.mimetype,
-          });
-
-        if (error) throw error;
-
-        const { data: urlData } = this.supabaseService.getClient().storage
-          .from('recipe-images')  
-          .getPublicUrl(data.path);
-
-        return urlData.publicUrl;
+        const path = `recipes/${userId}/steps/${Date.now()}_${file.originalname}`;
+        const data = await this.supabaseService.uploadFile(bucketName, path, file.buffer, file.mimetype);
+        const publicUrl = this.supabaseService.getPublicUrl(bucketName, data.path);
+        return publicUrl;
       });
 
       const imageUrls = await Promise.all(uploadPromises);
@@ -530,42 +523,57 @@ export class RecipesService {
     }
 
     try {
-      const fileName = `recipes/${userId}/thumbnails/${Date.now()}_${file.originalname}`;
-      const { data, error } = await this.supabaseService.getClient().storage
-        .from('recipe-images')
-        .upload(fileName, file.buffer, {
-          contentType: file.mimetype,
-        });
+      const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
+      const path = `recipes/${userId}/thumbnails/${Date.now()}_${file.originalname}`;
+      const data = await this.supabaseService.uploadFile(bucketName, path, file.buffer, file.mimetype);
+      const publicUrl = this.supabaseService.getPublicUrl(bucketName, data.path);
 
-      if (error) throw error;
-
-      const { data: urlData } = this.supabaseService.getClient().storage
-        .from('recipe-images')
-        .getPublicUrl(data.path);
-
-      // 기존 대표 이미지가 있으면 삭제
+      // 기존 대표 이미지가 있으면 삭제 (URL에서 스토리지 경로 추출)
       if (recipe.thumbnailImage) {
-        const oldPath = recipe.thumbnailImage.split('/').slice(-1)[0];
-        if (oldPath) {
-          await this.supabaseService.getClient().storage
-            .from('recipe-images')
-            .remove([`recipes/${userId}/thumbnails/${oldPath}`]);
+        const existingPath = this.extractStoragePathFromPublicUrl(recipe.thumbnailImage, bucketName);
+        if (existingPath) {
+          await this.supabaseService.deleteFile(bucketName, [existingPath]);
         }
       }
 
       // DB 업데이트
       await this.prismaService.recipe.update({
         where: { id },
-        data: { thumbnailImage: urlData.publicUrl },
+        data: { thumbnailImage: publicUrl },
       });
 
       return {
         success: true,
         message: '대표 이미지가 업로드되었습니다.',
-        thumbnailUrl: urlData.publicUrl,
+        thumbnailUrl: publicUrl,
       };
     } catch (error) {
       throw new BadRequestException('대표 이미지 업로드에 실패했습니다.');
+    }
+  }
+
+  // 단일 스텝 이미지 업로드 (Flutter 편의용)
+  async uploadStepImage(file: Express.Multer.File, userId: string) {
+    try {
+      const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
+      const path = `recipes/${userId}/steps/${Date.now()}_${file.originalname}`;
+      const data = await this.supabaseService.uploadFile(bucketName, path, file.buffer, file.mimetype);
+      const publicUrl = this.supabaseService.getPublicUrl(bucketName, data.path);
+      return { imageUrl: publicUrl };
+    } catch (error) {
+      throw new BadRequestException('스텝 이미지 업로드에 실패했습니다.');
+    }
+  }
+
+  private extractStoragePathFromPublicUrl(publicUrl: string, bucketName: string): string | null {
+    try {
+      // 예: https://<proj>.supabase.co/storage/v1/object/public/<bucket>/<path>
+      const marker = `/object/public/${bucketName}/`;
+      const idx = publicUrl.indexOf(marker);
+      if (idx === -1) return null;
+      return publicUrl.substring(idx + marker.length);
+    } catch {
+      return null;
     }
   }
 

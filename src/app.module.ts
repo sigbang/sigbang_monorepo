@@ -12,6 +12,7 @@ import { LikesModule } from './likes/likes.module';
 import { SavesModule } from './saves/saves.module';
 import { AdminModule } from './admin/admin.module';
 import { JwtModule } from '@nestjs/jwt';
+import { MediaModule } from './media/media.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { JwtModule } from '@nestjs/jwt';
     LikesModule,
     SavesModule,
     AdminModule,
+    MediaModule,
   ],
   controllers: [AppController],
   providers: [AppService],

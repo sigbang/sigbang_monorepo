@@ -22,7 +22,7 @@ import {
   ApiParam,
   ApiBody,
 } from '@nestjs/swagger';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { RecipesService } from './recipes.service';
 import { 
   CreateRecipeDto, 
@@ -324,6 +324,28 @@ export class RecipesController {
     @UploadedFiles() files: Express.Multer.File[],
   ) {
     return this.recipesService.uploadImages(files, user.id);
+  }
+
+  // Flutter 단일 스텝 이미지 업로드 (form-data: file)
+  @Post('images/step')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({
+    summary: '단일 스텝 이미지 업로드',
+    description: '요청 받은 파일을 Supabase Storage에 업로드하고 공개 URL을 반환합니다.'
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiResponse({ status: 200, description: '업로드 성공', schema: { example: { imageUrl: 'https://.../public/recipe-images/recipes/<userId>/steps/<file>.jpg' } } })
+  @ApiResponse({ status: 400, description: '업로드 실패' })
+  async uploadStepImage(
+    @CurrentUser() user: any,
+    @UploadedFiles() file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('파일이 제공되지 않았습니다.');
+    }
+    return this.recipesService.uploadStepImage(file, user.id);
   }
 
   // 추가: 레시피 삭제 (Soft Delete)
