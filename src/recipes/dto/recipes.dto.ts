@@ -52,13 +52,13 @@ export class RecipeStepDto {
   description: string;
 
   @ApiProperty({
-    example: 'https://example.com/step1.jpg',
-    description: '단계별 이미지 URL',
+    example: 'temp/u_123/20250101/step1.jpg',
+    description: '단계별 이미지 스토리지 경로 (presign path)',
     required: false,
   })
   @IsOptional()
-  @IsUrl({}, { message: '유효한 URL을 입력해주세요.' })
-  imageUrl?: string;
+  @IsString()
+  imagePath?: string;
 }
 
 // 태그 DTO
@@ -83,7 +83,7 @@ export class TagDto {
   emoji?: string;
 }
 
-// 레시피 임시 저장/등록 DTO
+// 레시피 등록 DTO
 export class CreateRecipeDto {
   @ApiProperty({
     example: '레몬 고소 부타',
@@ -113,13 +113,13 @@ export class CreateRecipeDto {
   ingredients: string;
 
   @ApiProperty({
-    example: 'https://example.com/recipe-thumbnail.jpg',
-    description: '레시피 대표 이미지 URL',
-    required: false,
-  })
-  @IsOptional()
-  @IsUrl({}, { message: '유효한 URL을 입력해주세요.' })
-  thumbnailImage?: string;
+      example: 'temp/u_123/20250101/thumbnail.jpg',
+      description: '레시피 대표 이미지 스토리지 경로 (presign path)',
+      required: false,
+    })
+    @IsOptional()
+    @IsString()
+    thumbnailPath?: string;
 
   @ApiProperty({
     example: 30,

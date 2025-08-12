@@ -61,6 +61,16 @@ export class SupabaseService {
     return data;
   }
 
+  // 파일 이동 (Storage)
+  async moveFile(bucketName: string, fromPath: string, toPath: string) {
+    const { data, error } = await this.serviceClient.storage
+      .from(bucketName)
+      .move(fromPath, toPath);
+
+    if (error) throw error;
+    return data;
+  }
+
   // 파일 URL 가져오기
   getPublicUrl(bucketName: string, path: string) {
     const { data } = this.serviceClient.storage

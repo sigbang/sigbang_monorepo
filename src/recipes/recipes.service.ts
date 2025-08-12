@@ -24,6 +24,78 @@ export class RecipesService {
     private configService: ConfigService,
   ) {}
 
+  // 레시피 생성 (즉시 공개)
+  async create(userId: string, createRecipeDto: CreateRecipeDto) {
+    const { tags, steps, thumbnailPath, ...recipeData } = createRecipeDto as any;
+
+    // Supabase 버킷명
+    const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
+
+    console.log(bucketName);
+
+    // 이미지 경로 정리: temp 경로를 정식 경로로 이동
+    const now = Date.now();
+    let finalThumbnailUrl: string | undefined = undefined;
+
+    // temp/{userId}/... 에서 오는 경우 이동
+    const isTempPath = (p?: string) => !!p && p.startsWith(`temp/${userId}/`);
+    const toPublicUrl = (path: string) => this.supabaseService.getPublicUrl(bucketName, path);
+
+    console.log(isTempPath(   ));
+
+    try {
+      // 1) 썸네일 이동
+      if (isTempPath(thumbnailPath)) {
+        const tempKey = thumbnailPath!;
+        const fileName = tempKey.split('/').pop() || `${now}.jpg`;
+        const finalThumbKey = `recipes/${userId}/thumbnails/${now}_${fileName}`;
+        await this.supabaseService.moveFile(bucketName, tempKey, finalThumbKey);
+        finalThumbnailUrl = toPublicUrl(finalThumbKey);
+      }
+
+      // 2) DB에 레시피 생성 (PUBLISHED)
+      const recipe = await this.prismaService.recipe.create({
+        data: {
+          ...recipeData,
+          authorId: userId,
+          status: RecipeStatus.PUBLISHED,
+          ...(finalThumbnailUrl && { thumbnailImage: finalThumbnailUrl }),
+        },
+      });
+
+      // 3) 태그 생성/연결
+      if (tags && tags.length > 0) {
+        await this.handleTags(recipe.id, tags);
+      }
+
+      // 4) 단계 생성 (스텝 이미지 이동 포함)
+      if (steps && steps.length > 0) {
+        const normalizedSteps = [] as Array<{ order: number; description: string; imageUrl?: string }>; 
+        for (const step of steps as Array<{ order: number; description: string; imagePath?: string }>) {
+          let imageUrl: string | undefined = undefined;
+          if (isTempPath(step.imagePath)) {
+            const tempKey = step.imagePath!;
+            const fileName = tempKey.split('/').pop() || `${now}.jpg`;
+            const finalStepKey = `recipes/${userId}/steps/${now}_${fileName}`;
+            await this.supabaseService.moveFile(bucketName, tempKey, finalStepKey);
+            imageUrl = toPublicUrl(finalStepKey);
+          } else if (step.imagePath) {
+            // imagePath가 이미 최종 key이거나 URL인 경우 처리
+            imageUrl = step.imagePath.startsWith('http')
+              ? step.imagePath
+              : toPublicUrl(step.imagePath);
+          }
+          normalizedSteps.push({ order: step.order, description: step.description, imageUrl });
+        }
+        await this.handleSteps(recipe.id, normalizedSteps);
+      }
+
+      return { id: recipe.id };
+    } catch (error) {
+      throw new BadRequestException('레시피 생성에 실패했습니다.');
+    }
+  }
+
   // 1. 레시피 임시 저장 생성
   async createDraft(userId: string, createRecipeDto: CreateRecipeDto) {
     const { tags, steps, ...recipeData } = createRecipeDto;

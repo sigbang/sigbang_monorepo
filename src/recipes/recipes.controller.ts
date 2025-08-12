@@ -40,6 +40,18 @@ import { CurrentUser } from '../common/decorators/user.decorator';
 export class RecipesController {
   constructor(private readonly recipesService: RecipesService) {}
 
+  // 임시 저장 제외: 바로 공개 등록
+  @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: '레시피 생성 (즉시 공개)' })
+  @ApiBody({ type: CreateRecipeDto })
+  @ApiResponse({ status: 201, description: '레시피 생성 성공' })
+  async create(@CurrentUser() user: any, @Body() createRecipeDto: CreateRecipeDto) {
+    console.log(user);
+    return this.recipesService.create(user.id, createRecipeDto);
+  }
+
   // 1. 레시피 임시 저장 생성 (기존 임시 저장 전부 제거 후 새로 생성)
   @Post('draft')
   @UseGuards(JwtAuthGuard)
