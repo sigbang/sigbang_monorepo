@@ -19,13 +19,10 @@ import '../domain/usecases/get_current_user.dart';
 import '../domain/usecases/initialize_auth.dart';
 import '../domain/usecases/get_recipe_feed.dart';
 import '../domain/usecases/get_recipe_detail.dart';
-import '../domain/usecases/create_recipe_draft.dart';
-import '../domain/usecases/update_recipe_draft.dart';
-import '../domain/usecases/publish_recipe.dart';
+import '../domain/usecases/create_recipe.dart';
+import '../domain/usecases/upload_image_with_presign.dart';
 import '../domain/usecases/get_recommended_recipes.dart';
-import '../domain/usecases/get_my_draft.dart';
-import '../domain/usecases/upload_recipe_images.dart';
-import '../domain/usecases/upload_recipe_thumbnail.dart';
+// removed draft/image legacy usecases
 
 // Presentation Layer
 import '../presentation/login/cubits/login_cubit.dart';
@@ -89,20 +86,13 @@ Future<void> setupDependencyInjection() async {
       () => GetRecipeFeed(getIt<RecipeRepository>()));
   getIt.registerLazySingleton<GetRecipeDetail>(
       () => GetRecipeDetail(getIt<RecipeRepository>()));
-  getIt.registerLazySingleton<CreateRecipeDraft>(
-      () => CreateRecipeDraft(getIt<RecipeRepository>()));
-  getIt.registerLazySingleton<UpdateRecipeDraft>(
-      () => UpdateRecipeDraft(getIt<RecipeRepository>()));
-  getIt.registerLazySingleton<PublishRecipe>(
-      () => PublishRecipe(getIt<RecipeRepository>()));
+  getIt.registerLazySingleton<CreateRecipe>(
+      () => CreateRecipe(getIt<RecipeRepository>()));
+  getIt.registerLazySingleton<UploadImageWithPresign>(
+      () => UploadImageWithPresign(getIt<RecipeRepository>()));
   getIt.registerLazySingleton<GetRecommendedRecipes>(
       () => GetRecommendedRecipes(getIt<RecipeRepository>()));
-  getIt.registerLazySingleton<GetMyDraft>(
-      () => GetMyDraft(getIt<RecipeRepository>()));
-  getIt.registerLazySingleton<UploadRecipeImages>(
-      () => UploadRecipeImages(getIt<RecipeRepository>()));
-  getIt.registerLazySingleton<UploadRecipeThumbnail>(
-      () => UploadRecipeThumbnail(getIt<RecipeRepository>()));
+  // removed draft/image legacy registrations
 
   // Cubits (as factories to create new instances each time)
   getIt.registerFactory<LoginCubit>(() => LoginCubit(
@@ -123,13 +113,7 @@ Future<void> setupDependencyInjection() async {
         getIt<GetCurrentUser>(),
       ));
   getIt.registerFactory<RecipeCreateCubit>(() => RecipeCreateCubit(
-        getIt<CreateRecipeDraft>(),
-        getIt<PublishRecipe>(),
-        getIt<GetCurrentUser>(),
-        getIt<GetMyDraft>(),
-        getIt<UpdateRecipeDraft>(),
-        getIt<GetRecipeDetail>(),
-        getIt<UploadRecipeThumbnail>(),
-        getIt<UploadRecipeImages>(),
+        getIt<CreateRecipe>(),
+        getIt<UploadImageWithPresign>(),
       ));
 }

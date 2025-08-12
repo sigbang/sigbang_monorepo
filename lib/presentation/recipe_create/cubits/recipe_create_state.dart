@@ -11,7 +11,7 @@ abstract class RecipeCreateState extends Equatable {
 class RecipeCreateInitial extends RecipeCreateState {}
 
 /// 초기에 임시 저장 존재 여부 확인 중 상태 (편집 차단)
-class RecipeCreateChecking extends RecipeCreateState {}
+// removed draft checking state
 
 class RecipeCreateEditing extends RecipeCreateState {
   final String? draftId;
@@ -123,22 +123,7 @@ class RecipeCreateUploading extends RecipeCreateEditing {
 }
 
 /// 임시 저장 성공 (화면 유지, 스낵바만 표시)
-class RecipeDraftSaved extends RecipeCreateEditing {
-  const RecipeDraftSaved({
-    super.draftId,
-    required super.title,
-    required super.description,
-    required super.ingredients,
-    required super.steps,
-    required super.cookingTime,
-    required super.servings,
-    required super.difficulty,
-    required super.tags,
-    super.thumbnailPath,
-    super.isDirty = false,
-    super.errors = const {},
-  });
-}
+// removed draft state
 
 class RecipeCreateSuccess extends RecipeCreateState {
   final Recipe recipe;

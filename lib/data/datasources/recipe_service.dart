@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../../domain/entities/recipe.dart';
@@ -57,90 +57,23 @@ class RecipeService {
     }
   }
 
-  /// 레시피 임시 저장 생성
-  Future<RecipeModel> createDraft(Recipe recipe, String userId) async {
+  /// 레시피 즉시 생성(공개)
+  Future<RecipeModel> createRecipe(Recipe recipe) async {
     if (kDebugMode) {
-      print('📝 Creating recipe draft: ${recipe.title}');
+      print('📝 Creating recipe (publish immediately): ${recipe.title}');
     }
 
     final createDto = _recipeToCreateDto(recipe);
     final response = await _apiClient.dio.post(
-      '/recipes/draft',
+      '/recipes',
       data: createDto,
     );
 
-    if (response.statusCode == 201) {
-      if (kDebugMode) {
-        print('✅ Recipe draft created: ${response.data['data']['id']}');
-      }
-      return RecipeModel.fromJson(response.data['data']);
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      final data = response.data['data'] ?? response.data;
+      return RecipeModel.fromJson(data as Map<String, dynamic>);
     } else {
-      throw Exception('레시피 임시 저장 실패: ${response.statusCode}');
-    }
-  }
-
-  /// 레시피 임시 저장 수정 (성공 시 id 반환)
-  Future<String> updateDraft(String id, Recipe recipe, String userId) async {
-    if (kDebugMode) {
-      print('✏️ Updating recipe draft: $id');
-    }
-
-    final updateDto = _recipeToUpdateDto(recipe);
-    final response = await _apiClient.dio.put(
-      '/recipes/draft/$id',
-      data: updateDto,
-    );
-
-    if (response.statusCode == 200) {
-      if (kDebugMode) {
-        print('✅ Recipe draft updated: $id');
-      }
-      final data = response.data['data'] as Map<String, dynamic>;
-      return data['id'] as String? ?? id;
-    } else {
-      throw Exception('레시피 수정 실패: ${response.statusCode}');
-    }
-  }
-
-  /// 레시피 공개
-  Future<RecipeModel> publishRecipe(String id, String userId) async {
-    if (kDebugMode) {
-      print('📢 Publishing recipe: $id');
-    }
-
-    final response = await _apiClient.dio.post('/recipes/$id/publish');
-
-    if (response.statusCode == 200) {
-      if (kDebugMode) {
-        print('✅ Recipe published: $id');
-      }
-      return RecipeModel.fromJson(response.data['data']);
-    } else {
-      throw Exception('레시피 공개 실패: ${response.statusCode}');
-    }
-  }
-
-  /// 단일 임시 저장 조회 (정책상 사용자당 하나)
-  Future<RecipeModel> getDraft(String userId) async {
-    if (kDebugMode) {
-      print('📄 Fetching single draft for user: $userId');
-    }
-
-    final response = await _apiClient.dio.get('/recipes/draft');
-
-    if (response.statusCode == 200) {
-      final data = response.data;
-      final payload = (data is Map<String, dynamic>)
-          ? (data['data'] ?? data['draft'] ?? data)
-          : data;
-      if (kDebugMode) {
-        print('✅ Draft loaded (single): ${payload['id']}');
-      }
-      return RecipeModel.fromJson(payload as Map<String, dynamic>);
-    } else if (response.statusCode == 404) {
-      throw Exception('임시 저장 없음');
-    } else {
-      throw Exception('임시 저장 조회 실패: ${response.statusCode}');
+      throw Exception('레시피 생성 실패: ${response.statusCode}');
     }
   }
 
@@ -161,68 +94,52 @@ class RecipeService {
     }
   }
 
-  /// 레시피 대표 이미지 업로드
-  Future<String> uploadThumbnail(
-      String id, String userId, String filePath) async {
-    if (kDebugMode) {
-      print('🖼️ Uploading thumbnail for recipe: $id');
-    }
-
-    final file = File(filePath);
-    final fileName = file.path.split('/').last;
-
-    final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(filePath, filename: fileName),
-    });
-
-    final response = await _apiClient.dio.post(
-      '/recipes/$id/thumbnail',
-      data: formData,
+  /// presign + PUT 업로드를 통해 썸네일/스텝 이미지 업로드 후 경로 반환
+  Future<String> uploadImageWithPresign({
+    required String contentType,
+    required Uint8List bytes,
+  }) async {
+    // Use direct endpoint through ApiClient to avoid extra service dependency here
+    final presignRes = await _apiClient.dio.post(
+      '/media/presign',
+      data: {'contentType': contentType},
     );
-
-    if (response.statusCode == 200) {
-      final thumbnailUrl = response.data['thumbnailUrl'] as String;
-      if (kDebugMode) {
-        print('✅ Thumbnail uploaded: $thumbnailUrl');
-      }
-      return thumbnailUrl;
-    } else {
-      throw Exception('대표 이미지 업로드 실패: ${response.statusCode}');
+    if (presignRes.statusCode != 200 && presignRes.statusCode != 201) {
+      throw Exception('Presign failed: ${presignRes.statusCode}');
     }
+    final data = presignRes.data is Map<String, dynamic>
+        ? presignRes.data
+        : (presignRes.data['data'] ?? presignRes.data);
+    final uploadUrl = (data['uploadUrl'] ?? data['url']) as String;
+    final path = (data['path'] ?? data['key']) as String;
+
+    final dio = Dio();
+    await dio.put(
+      uploadUrl,
+      data: Stream.fromIterable(bytes.map((b) => [b])),
+      options: Options(
+        headers: {'Content-Type': contentType},
+        followRedirects: false,
+        validateStatus: (code) => code != null && code >= 200 && code < 400,
+      ),
+    );
+    return path;
   }
 
-  /// 레시피 이미지 업로드 (단계별 이미지용)
-  Future<List<String>> uploadImages(
-      String userId, List<String> filePaths) async {
-    if (kDebugMode) {
-      print('📷 Uploading ${filePaths.length} images');
+  /// 다중 이미지 presign 업로드 helper
+  Future<List<String>> uploadMultipleWithPresign({
+    required String contentType,
+    required List<Uint8List> images,
+  }) async {
+    final paths = <String>[];
+    for (final bytes in images) {
+      final path = await uploadImageWithPresign(
+        contentType: contentType,
+        bytes: bytes,
+      );
+      paths.add(path);
     }
-
-    final files = <MultipartFile>[];
-    for (final filePath in filePaths) {
-      final file = File(filePath);
-      final fileName = file.path.split('/').last;
-      files.add(await MultipartFile.fromFile(filePath, filename: fileName));
-    }
-
-    final formData = FormData.fromMap({
-      'files': files,
-    });
-
-    final response = await _apiClient.dio.post(
-      '/recipes/images',
-      data: formData,
-    );
-
-    if (response.statusCode == 200) {
-      final imageUrls = List<String>.from(response.data['imageUrls']);
-      if (kDebugMode) {
-        print('✅ Images uploaded: ${imageUrls.length} files');
-      }
-      return imageUrls;
-    } else {
-      throw Exception('이미지 업로드 실패: ${response.statusCode}');
-    }
+    return paths;
   }
 
   /// 홈 화면 추천 레시피 조회 (더미 데이터 - 추후 API 구현 필요)
@@ -273,21 +190,22 @@ class RecipeService {
     }
   }
 
-  /// Recipe to CreateDto 변환
+  /// Recipe to CreateDto 변환 (즉시 공개용 DTO와 서버의 CreateRecipeDto에 맞춤)
   Map<String, dynamic> _recipeToCreateDto(Recipe recipe) {
     return {
       'title': recipe.title,
       'description': recipe.description,
-      if (recipe.ingredients != null) 'ingredients': recipe.ingredients,
+      'ingredients': recipe.ingredients ?? '',
       if (recipe.cookingTime != null) 'cookingTime': recipe.cookingTime,
       if (recipe.servings != null) 'servings': recipe.servings,
       if (recipe.difficulty != null) 'difficulty': recipe.difficulty!.value,
+      if (recipe.thumbnailUrl != null) 'thumbnailPath': recipe.thumbnailUrl,
       if (recipe.steps.isNotEmpty)
         'steps': recipe.steps
             .map((step) => {
                   'order': step.order,
                   'description': step.description,
-                  if (step.imageUrl != null) 'imageUrl': step.imageUrl,
+                  if (step.imageUrl != null) 'imagePath': step.imageUrl,
                 })
             .toList(),
       if (recipe.tags.isNotEmpty)
@@ -300,10 +218,7 @@ class RecipeService {
     };
   }
 
-  /// Recipe to UpdateDto 변환
-  Map<String, dynamic> _recipeToUpdateDto(Recipe recipe) {
-    return _recipeToCreateDto(recipe); // 동일한 구조 사용
-  }
+  // removed update dto
 
   /// Mock 추천 레시피 데이터
   List<RecipeModel> _getMockRecommendedRecipes() {

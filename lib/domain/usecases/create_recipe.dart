@@ -3,12 +3,12 @@ import '../../core/errors/failure.dart';
 import '../entities/recipe.dart';
 import '../repositories/recipe_repository.dart';
 
-class CreateRecipeDraft {
+class CreateRecipe {
   final RecipeRepository _repository;
 
-  CreateRecipeDraft(this._repository);
+  CreateRecipe(this._repository);
 
-  Future<Either<Failure, Recipe>> call(Recipe recipe, String userId) async {
-    return await _repository.createDraft(recipe, userId);
+  Future<Either<Failure, Recipe>> call(Recipe recipe) async {
+    return await _repository.createRecipe(recipe);
   }
 }

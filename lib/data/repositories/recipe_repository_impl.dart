@@ -1,4 +1,5 @@
 import 'package:dartz/dartz.dart';
+import 'dart:typed_data';
 import '../../core/errors/failure.dart';
 import '../../domain/entities/recipe.dart';
 import '../../domain/entities/recipe_query.dart';
@@ -33,51 +34,13 @@ class RecipeRepositoryImpl implements RecipeRepository {
     }
   }
 
-  @override
-  Future<Either<Failure, Recipe>> createDraft(
-      Recipe recipe, String userId) async {
-    try {
-      final result = await _recipeService.createDraft(recipe, userId);
-      return Right(result.toDomain());
-    } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
-    }
-  }
+  // Removed draft flow
 
-  @override
-  Future<Either<Failure, String>> updateDraft(
-    String id,
-    Recipe recipe,
-    String userId,
-  ) async {
-    try {
-      final updatedId = await _recipeService.updateDraft(id, recipe, userId);
-      return Right(updatedId);
-    } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
-    }
-  }
+  // Removed draft flow
 
-  @override
-  Future<Either<Failure, Recipe>> publishRecipe(
-      String id, String userId) async {
-    try {
-      final result = await _recipeService.publishRecipe(id, userId);
-      return Right(result.toDomain());
-    } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
-    }
-  }
+  // Removed draft flow
 
-  @override
-  Future<Either<Failure, Recipe>> getDraft(String userId) async {
-    try {
-      final result = await _recipeService.getDraft(userId);
-      return Right(result.toDomain());
-    } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
-    }
-  }
+  // Removed draft flow
 
   @override
   Future<Either<Failure, void>> deleteRecipe(String id, String userId) async {
@@ -89,32 +52,9 @@ class RecipeRepositoryImpl implements RecipeRepository {
     }
   }
 
-  @override
-  Future<Either<Failure, String>> uploadThumbnail(
-    String id,
-    String userId,
-    String filePath,
-  ) async {
-    try {
-      final result = await _recipeService.uploadThumbnail(id, userId, filePath);
-      return Right(result);
-    } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
-    }
-  }
+  // Removed old thumbnail multipart flow
 
-  @override
-  Future<Either<Failure, List<String>>> uploadImages(
-    String userId,
-    List<String> filePaths,
-  ) async {
-    try {
-      final result = await _recipeService.uploadImages(userId, filePaths);
-      return Right(result);
-    } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
-    }
-  }
+  // Removed old batch image upload
 
   @override
   Future<Either<Failure, List<Recipe>>> getRecommendedRecipes(
@@ -122,6 +62,32 @@ class RecipeRepositoryImpl implements RecipeRepository {
     try {
       final result = await _recipeService.getRecommendedRecipes(userId);
       return Right(result.map((r) => r.toDomain()).toList());
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Recipe>> createRecipe(Recipe recipe) async {
+    try {
+      final result = await _recipeService.createRecipe(recipe);
+      return Right(result.toDomain());
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, String>> uploadImageWithPresign({
+    required String contentType,
+    required List<int> bytes,
+  }) async {
+    try {
+      final path = await _recipeService.uploadImageWithPresign(
+        contentType: contentType,
+        bytes: Uint8List.fromList(bytes),
+      );
+      return Right(path);
     } catch (e) {
       return Left(ServerFailure(message: e.toString()));
     }

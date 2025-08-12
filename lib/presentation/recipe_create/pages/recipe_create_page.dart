@@ -41,14 +41,6 @@ class RecipeCreateView extends StatelessWidget {
           );
 
           context.pushReplacement('/recipe/${state.recipe.id}');
-        } else if (state is RecipeDraftSaved) {
-          // 임시 저장 성공: 화면 유지, 스낵바만
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('레시피가 임시 저장되었습니다'),
-              backgroundColor: Colors.green,
-            ),
-          );
         } else if (state is RecipeCreateError) {
           // 에러 시 알림
           ScaffoldMessenger.of(context).showSnackBar(
@@ -83,36 +75,12 @@ class RecipeCreateView extends StatelessWidget {
         icon: const Icon(Icons.close),
         onPressed: () => _showExitDialog(context, state),
       ),
-      actions: [
-        if (state is RecipeCreateEditing && state.isDirty)
-          TextButton(
-            onPressed: () => context.read<RecipeCreateCubit>().saveDraft(),
-            child: const Text('임시저장'),
-          ),
-      ],
+      actions: const [],
     );
   }
 
   Widget _buildBody(BuildContext context, RecipeCreateState state) {
-    if (state is RecipeCreateChecking) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              SizedBox(
-                width: 72,
-                height: 72,
-                child: CircularProgressIndicator(strokeWidth: 6),
-              ),
-              SizedBox(height: 16),
-              Text('임시 저장 확인 중...'),
-            ],
-          ),
-        ),
-      );
-    }
+    // no draft checking
 
     if (state is RecipeCreateUploading) {
       return _buildUploadingView(context, state);
@@ -246,25 +214,12 @@ class RecipeCreateView extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // 임시 저장 버튼
           Expanded(
-            child: OutlinedButton(
-              onPressed: state.title.trim().isNotEmpty
-                  ? () => context.read<RecipeCreateCubit>().saveDraft()
-                  : null,
-              child: const Text('임시 저장'),
-            ),
-          ),
-          const SizedBox(width: 16),
-
-          // 발행 버튼
-          Expanded(
-            flex: 2,
             child: ElevatedButton(
               onPressed: state.isValid
                   ? () => context.read<RecipeCreateCubit>().publishRecipe()
                   : null,
-              child: const Text('발행하기'),
+              child: const Text('바로 공개하기'),
             ),
           ),
         ],
@@ -303,7 +258,7 @@ class RecipeCreateView extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('작성 중인 내용이 있습니다'),
-        content: const Text('저장하지 않고 나가시면 작성한 내용이 모두 삭제됩니다. 정말 나가시겠습니까?'),
+        content: const Text('나가시면 작성한 내용이 모두 삭제됩니다. 정말 나가시겠습니까?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -318,13 +273,6 @@ class RecipeCreateView extends StatelessWidget {
               foregroundColor: Theme.of(context).colorScheme.error,
             ),
             child: const Text('나가기'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context); // 다이얼로그 닫기
-              context.read<RecipeCreateCubit>().saveDraft();
-            },
-            child: const Text('저장 후 나가기'),
           ),
         ],
       ),

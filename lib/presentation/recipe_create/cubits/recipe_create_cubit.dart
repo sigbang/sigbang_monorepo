@@ -1,106 +1,28 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:io';
 import '../../../domain/entities/recipe.dart';
-import '../../../domain/usecases/create_recipe_draft.dart';
-import '../../../domain/usecases/publish_recipe.dart';
+import '../../../domain/usecases/create_recipe.dart';
 
 // import '../../../domain/usecases/upload_recipe_images.dart';
-import '../../../domain/usecases/get_current_user.dart';
-import '../../../domain/usecases/get_my_draft.dart';
-import '../../../domain/usecases/update_recipe_draft.dart';
-import '../../../domain/usecases/get_recipe_detail.dart';
-import '../../../domain/usecases/upload_recipe_thumbnail.dart';
-import '../../../domain/usecases/upload_recipe_images.dart';
+import '../../../domain/usecases/upload_image_with_presign.dart';
 import 'recipe_create_state.dart';
 
 class RecipeCreateCubit extends Cubit<RecipeCreateState> {
-  final CreateRecipeDraft _createRecipeDraft;
-  final PublishRecipe _publishRecipe;
-  final GetCurrentUser _getCurrentUser;
-  final GetMyDraft _getMyDraft;
-  final UpdateRecipeDraft _updateRecipeDraft;
-  final GetRecipeDetail _getRecipeDetail;
-  final UploadRecipeThumbnail _uploadRecipeThumbnail;
-  final UploadRecipeImages _uploadRecipeImages;
+  final CreateRecipe _createRecipe;
+  final UploadImageWithPresign _uploadImageWithPresign;
   // Optionally used for uploading images later
   // final UploadRecipeThumbnail _uploadRecipeThumbnail;
 
   RecipeCreateCubit(
-    this._createRecipeDraft,
-    this._publishRecipe,
-    this._getCurrentUser,
-    this._getMyDraft,
-    this._updateRecipeDraft,
-    this._getRecipeDetail,
-    this._uploadRecipeThumbnail,
-    this._uploadRecipeImages,
+    this._createRecipe,
+    this._uploadImageWithPresign,
   ) : super(RecipeCreateInitial());
 
-  /// 진입 시 임시 저장 불러오기 후 편집 모드 전환
+  /// 진입 시 빈 편집 모드 전환 (임시저장 제거)
   Future<void> startEditing() async {
     if (state is RecipeCreateEditing) return;
-
-    // 편집 차단 상태로 진입
-    emit(RecipeCreateChecking());
-
-    try {
-      // 현재 사용자
-      final userResult = await _getCurrentUser();
-      final userId = userResult.fold((_) => null, (user) => user?.id);
-      if (userId == null) {
-        emit(const RecipeCreateEditing());
-        return;
-      }
-
-      // 단일 임시 저장 조회
-      final draftResult = await _getMyDraft(userId);
-      await draftResult.fold((failure) async {
-        emit(const RecipeCreateEditing());
-      }, (draft) async {
-        // id로 상세 데이터 갱신 후 폼 채우기
-        final detailResult = await _getRecipeDetail(draft.id, userId);
-        await detailResult.fold((_) async {
-          // 상세 실패 시 드래프트로라도 채움
-          final editing = (state is RecipeCreateEditing)
-              ? state as RecipeCreateEditing
-              : const RecipeCreateEditing();
-          emit(editing.copyWith(
-            draftId: draft.id,
-            title: draft.title,
-            description: draft.description,
-            ingredients: draft.ingredients ?? editing.ingredients,
-            steps: draft.steps,
-            cookingTime: draft.cookingTime ?? editing.cookingTime,
-            servings: draft.servings ?? editing.servings,
-            difficulty: draft.difficulty ?? editing.difficulty,
-            tags: draft.tags,
-            thumbnailPath: draft.thumbnailUrl,
-            isDirty: false,
-            errors: const {},
-          ));
-        }, (full) async {
-          final editing = (state is RecipeCreateEditing)
-              ? state as RecipeCreateEditing
-              : const RecipeCreateEditing();
-          emit(editing.copyWith(
-            draftId: full.id,
-            title: full.title,
-            description: full.description,
-            ingredients: full.ingredients ?? editing.ingredients,
-            steps: full.steps,
-            cookingTime: full.cookingTime ?? editing.cookingTime,
-            servings: full.servings ?? editing.servings,
-            difficulty: full.difficulty ?? editing.difficulty,
-            tags: full.tags,
-            thumbnailPath: full.thumbnailUrl,
-            isDirty: false,
-            errors: const {},
-          ));
-        });
-      });
-    } catch (_) {
-      emit(const RecipeCreateEditing());
-    }
+    emit(const RecipeCreateEditing());
   }
 
   /// 제목 변경
@@ -237,31 +159,11 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
         print('📸 Thumbnail set: $imagePath');
       }
 
-      // If draft exists, try background upload to server to exchange for URL
-      final draftId = currentState.draftId;
-      if (draftId != null && draftId.isNotEmpty) {
-        _uploadThumbnailInBackground(draftId, imagePath);
-      }
+      // no-op: presign upload will happen on publish
     }
   }
 
-  Future<void> _uploadThumbnailInBackground(
-      String draftId, String filePath) async {
-    try {
-      final userResult = await _getCurrentUser();
-      final userId = userResult.fold((_) => null, (u) => u?.id);
-      if (userId == null) return;
-      final uploaded = await _uploadRecipeThumbnail(draftId, userId, filePath);
-      uploaded.fold((_) {}, (url) {
-        final currentState = state;
-        if (currentState is RecipeCreateEditing) {
-          emit(currentState.copyWith(thumbnailPath: url, isDirty: true));
-        }
-      });
-    } catch (_) {
-      // ignore background errors
-    }
-  }
+  // removed background upload
 
   /// 단계 추가
   void addStep() {
@@ -341,35 +243,11 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
         print('📸 Step ${index + 1} image set: $imagePath');
       }
 
-      // background upload if draft exists and local file chosen
-      final draftId = currentState.draftId;
-      final isLocal = imagePath.isNotEmpty && !imagePath.startsWith('http');
-      if (draftId != null && draftId.isNotEmpty && isLocal) {
-        _uploadStepImageInBackground(index, imagePath);
-      }
+      // no-op: presign upload will happen on publish
     }
   }
 
-  Future<void> _uploadStepImageInBackground(int index, String filePath) async {
-    try {
-      final userResult = await _getCurrentUser();
-      final userId = userResult.fold((_) => null, (u) => u?.id);
-      if (userId == null) return;
-      final uploaded = await _uploadRecipeImages(userId, [filePath]);
-      uploaded.fold((_) {}, (urls) {
-        if (urls.isEmpty) return;
-        final currentState = state;
-        if (currentState is RecipeCreateEditing &&
-            index < currentState.steps.length) {
-          final steps = List<RecipeStep>.from(currentState.steps);
-          steps[index] = steps[index].copyWith(imageUrl: urls.first);
-          emit(currentState.copyWith(steps: steps));
-        }
-      });
-    } catch (_) {
-      // ignore
-    }
-  }
+  // removed background upload
 
   /// 단계 순서 변경
   void reorderSteps(int oldIndex, int newIndex) {
@@ -400,221 +278,11 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
     }
   }
 
-  /// 임시 저장
-  Future<void> saveDraft() async {
-    final currentState = state;
-    if (currentState is! RecipeCreateEditing) return;
-
-    try {
-      // 기본 유효성 검사
-      if (currentState.title.trim().isEmpty) {
-        emit(RecipeCreateError(
-          message: '제목을 입력해주세요',
-          previousState: currentState,
-        ));
-        return;
-      }
-
-      emit(RecipeCreateUploading(
-        title: currentState.title,
-        description: currentState.description,
-        ingredients: currentState.ingredients,
-        steps: currentState.steps,
-        cookingTime: currentState.cookingTime,
-        servings: currentState.servings,
-        difficulty: currentState.difficulty,
-        tags: currentState.tags,
-        thumbnailPath: currentState.thumbnailPath,
-        currentStep: '임시 저장 중...',
-        progress: 0.5,
-      ));
-
-      // 사용자 확인
-      final userResult = await _getCurrentUser();
-      final userId = userResult.fold(
-        (failure) => throw Exception('로그인이 필요합니다'),
-        (user) => user?.id ?? 'anonymous',
-      );
-
-      // 레시피 객체 생성
-      final recipe = Recipe(
-        id: '', // 서버에서 생성
-        title: currentState.title,
-        description: currentState.description,
-        ingredients: currentState.ingredients,
-        steps: currentState.steps,
-        cookingTime: currentState.cookingTime,
-        servings: currentState.servings,
-        difficulty: currentState.difficulty,
-        status: RecipeStatus.draft,
-        tags: currentState.tags,
-        thumbnailUrl: currentState.thumbnailPath,
-        viewCount: 0,
-        likesCount: 0,
-        commentsCount: 0,
-        isLiked: false,
-        isSaved: false,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        author: null, // 서버에서 설정
-      );
-
-      // 임시 저장 API 호출 (있으면 업데이트, 없으면 생성)
-      final bool hasDraftId =
-          currentState.draftId != null && currentState.draftId!.isNotEmpty;
-      if (hasDraftId) {
-        final updateResult =
-            await _updateRecipeDraft(currentState.draftId!, recipe, userId);
-        await updateResult.fold((failure) async {
-          if (kDebugMode) {
-            print('❌ Draft update failed: ${failure.toString()}');
-          }
-          emit(RecipeCreateError(
-            message: '임시 저장에 실패했습니다',
-            previousState: currentState,
-          ));
-        }, (updatedId) async {
-          if (kDebugMode) {
-            print('✅ Draft updated: $updatedId');
-          }
-          final detail = await _getRecipeDetail(updatedId, userId);
-          detail.fold((f) {
-            emit(RecipeCreateError(
-              message: '임시 저장은 완료됐지만 상세 조회에 실패했습니다',
-              previousState: currentState,
-            ));
-          }, (full) {
-            // 서버 상세와 현재 편집 상태를 병합하여 로컬 이미지 경로를 보존
-            final List<RecipeStep> mergedSteps = full.steps.isEmpty
-                ? currentState.steps
-                : full.steps.map((serverStep) {
-                    final hasMatch = currentState.steps
-                        .any((s) => s.order == serverStep.order);
-                    final RecipeStep? matchingCurrent = hasMatch
-                        ? currentState.steps
-                            .firstWhere((s) => s.order == serverStep.order)
-                        : null;
-                    final mergedImage = (serverStep.imageUrl == null ||
-                            serverStep.imageUrl!.isEmpty)
-                        ? matchingCurrent?.imageUrl
-                        : serverStep.imageUrl;
-                    return serverStep.copyWith(imageUrl: mergedImage);
-                  }).toList();
-
-            final String? mergedThumbnail =
-                (full.thumbnailUrl == null || full.thumbnailUrl!.isEmpty)
-                    ? currentState.thumbnailPath
-                    : full.thumbnailUrl;
-
-            emit(RecipeDraftSaved(
-              draftId: full.id,
-              title: full.title,
-              description: full.description,
-              ingredients: full.ingredients ?? currentState.ingredients,
-              steps: mergedSteps,
-              cookingTime: full.cookingTime ?? currentState.cookingTime,
-              servings: full.servings ?? currentState.servings,
-              difficulty: full.difficulty ?? currentState.difficulty,
-              tags: full.tags,
-              thumbnailPath: mergedThumbnail,
-              isDirty: false,
-              errors: const {},
-            ));
-
-            // If thumbnail is local file path, upload in background now that we have draft id
-            final isLocalThumb = (currentState.thumbnailPath != null) &&
-                !(currentState.thumbnailPath!.startsWith('http')) &&
-                currentState.thumbnailPath!.isNotEmpty;
-            if (isLocalThumb) {
-              _uploadThumbnailInBackground(
-                  full.id, currentState.thumbnailPath!);
-            }
-          });
-        });
-      } else {
-        final createResult = await _createRecipeDraft(recipe, userId);
-        await createResult.fold((failure) async {
-          if (kDebugMode) {
-            print('❌ Draft create failed: ${failure.toString()}');
-          }
-          emit(RecipeCreateError(
-            message: '임시 저장에 실패했습니다',
-            previousState: currentState,
-          ));
-        }, (savedRecipe) async {
-          if (kDebugMode) {
-            print('✅ Draft created: ${savedRecipe.id}');
-          }
-          final detail = await _getRecipeDetail(savedRecipe.id, userId);
-          detail.fold((f) {
-            // 상세 실패 시 최소한 생성된 정보로 성공 처리할 수도 있으나, 일관성을 위해 에러 처리
-            emit(RecipeCreateError(
-              message: '임시 저장은 완료됐지만 상세 조회에 실패했습니다',
-              previousState: currentState,
-            ));
-          }, (full) {
-            // 서버 상세와 현재 편집 상태를 병합하여 로컬 이미지 경로를 보존
-            final List<RecipeStep> mergedSteps = full.steps.isEmpty
-                ? currentState.steps
-                : full.steps.map((serverStep) {
-                    final hasMatch = currentState.steps
-                        .any((s) => s.order == serverStep.order);
-                    final RecipeStep? matchingCurrent = hasMatch
-                        ? currentState.steps
-                            .firstWhere((s) => s.order == serverStep.order)
-                        : null;
-                    final mergedImage = (serverStep.imageUrl == null ||
-                            serverStep.imageUrl!.isEmpty)
-                        ? matchingCurrent?.imageUrl
-                        : serverStep.imageUrl;
-                    return serverStep.copyWith(imageUrl: mergedImage);
-                  }).toList();
-
-            final String? mergedThumbnail =
-                (full.thumbnailUrl == null || full.thumbnailUrl!.isEmpty)
-                    ? currentState.thumbnailPath
-                    : full.thumbnailUrl;
-
-            emit(RecipeDraftSaved(
-              draftId: full.id,
-              title: full.title,
-              description: full.description,
-              ingredients: full.ingredients ?? currentState.ingredients,
-              steps: mergedSteps,
-              cookingTime: full.cookingTime ?? currentState.cookingTime,
-              servings: full.servings ?? currentState.servings,
-              difficulty: full.difficulty ?? currentState.difficulty,
-              tags: full.tags,
-              thumbnailPath: mergedThumbnail,
-              isDirty: false,
-              errors: const {},
-            ));
-
-            // Background upload thumbnail if it's local
-            final isLocalThumb = (currentState.thumbnailPath != null) &&
-                !(currentState.thumbnailPath!.startsWith('http')) &&
-                currentState.thumbnailPath!.isNotEmpty;
-            if (isLocalThumb) {
-              _uploadThumbnailInBackground(
-                  full.id, currentState.thumbnailPath!);
-            }
-          });
-        });
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Draft save error: $e');
-      }
-      emit(RecipeCreateError(
-        message: '임시 저장 중 오류가 발생했습니다',
-        previousState: currentState,
-      ));
-    }
-  }
+  // removed draft save
 
   // no-op
 
-  /// 발행 (공개)
+  /// 발행 (즉시 생성/공개)
   Future<void> publishRecipe() async {
     final currentState = state;
     if (currentState is! RecipeCreateEditing) return;
@@ -637,58 +305,105 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
         difficulty: currentState.difficulty,
         tags: currentState.tags,
         thumbnailPath: currentState.thumbnailPath,
-        currentStep: '발행 준비 중...',
-        progress: 0.2,
+        currentStep: '이미지 업로드 준비 중...',
+        progress: 0.1,
       ));
 
-      // 먼저 임시 저장 (임시 저장은 화면 유지 상태를 내보내므로 결과 id를 확보하도록 다시 조회)
-      await saveDraft();
+      // Upload thumbnail if needed
+      String? uploadedThumbnailPath = currentState.thumbnailPath;
+      if (uploadedThumbnailPath != null &&
+          uploadedThumbnailPath.isNotEmpty &&
+          !_isRemoteUrl(uploadedThumbnailPath)) {
+        final bytes = await File(uploadedThumbnailPath).readAsBytes();
+        final res = await _uploadImageWithPresign(
+          contentType: _detectMimeType(uploadedThumbnailPath),
+          bytes: bytes,
+        );
+        final path = await res.fold<String?>((_) => null, (p) => p);
+        if (path == null) {
+          emit(RecipeCreateError(
+            message: '대표 이미지 업로드에 실패했습니다',
+            previousState: currentState,
+          ));
+          return;
+        }
+        uploadedThumbnailPath = path;
+      }
 
-      // saveDraft 이후 상태가 RecipeDraftSaved 여야 함. 아니라면 중단
-      final draftSaved = state;
-      if (draftSaved is! RecipeDraftSaved || draftSaved.draftId == null) return;
+      // Upload step images if needed
+      final uploadedSteps = <RecipeStep>[];
+      for (final s in currentState.steps) {
+        String? img = s.imageUrl;
+        if (img != null && img.isNotEmpty && !_isRemoteUrl(img)) {
+          final bytes = await File(img).readAsBytes();
+          final res = await _uploadImageWithPresign(
+            contentType: _detectMimeType(img),
+            bytes: bytes,
+          );
+          final path = await res.fold<String?>((_) => null, (p) => p);
+          if (path == null) {
+            emit(RecipeCreateError(
+              message: '단계 이미지 업로드에 실패했습니다',
+              previousState: currentState,
+            ));
+            return;
+          }
+          img = path;
+        }
+        uploadedSteps.add(s.copyWith(imageUrl: img));
+      }
 
       emit(RecipeCreateUploading(
         title: currentState.title,
         description: currentState.description,
         ingredients: currentState.ingredients,
-        steps: currentState.steps,
+        steps: uploadedSteps,
         cookingTime: currentState.cookingTime,
         servings: currentState.servings,
         difficulty: currentState.difficulty,
         tags: currentState.tags,
-        thumbnailPath: currentState.thumbnailPath,
+        thumbnailPath: uploadedThumbnailPath,
         currentStep: '레시피 발행 중...',
         progress: 0.8,
       ));
 
-      // 사용자 확인
-      final userResult = await _getCurrentUser();
-      final userId = userResult.fold(
-        (failure) => throw Exception('로그인이 필요합니다'),
-        (user) => user?.id ?? 'anonymous',
+      final recipe = Recipe(
+        id: '',
+        title: currentState.title,
+        description: currentState.description,
+        ingredients: currentState.ingredients,
+        steps: uploadedSteps,
+        cookingTime: currentState.cookingTime,
+        servings: currentState.servings,
+        difficulty: currentState.difficulty,
+        status: RecipeStatus.published,
+        tags: currentState.tags,
+        thumbnailUrl: uploadedThumbnailPath,
+        viewCount: 0,
+        likesCount: 0,
+        commentsCount: 0,
+        isLiked: false,
+        isSaved: false,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        author: null,
       );
 
-      // 발행 API 호출
-      final publishResult = await _publishRecipe(draftSaved.draftId!, userId);
-
-      publishResult.fold(
-        (failure) {
-          if (kDebugMode) {
-            print('❌ Publish failed: ${failure.toString()}');
-          }
-          emit(RecipeCreateError(
-            message: '레시피 발행에 실패했습니다',
-            previousState: currentState,
-          ));
-        },
-        (publishedRecipe) {
-          if (kDebugMode) {
-            print('✅ Recipe published: ${publishedRecipe.id}');
-          }
-          emit(RecipeCreateSuccess(recipe: publishedRecipe));
-        },
-      );
+      final result = await _createRecipe(recipe);
+      result.fold((failure) {
+        if (kDebugMode) {
+          print('❌ Create failed: ${failure.toString()}');
+        }
+        emit(RecipeCreateError(
+          message: '레시피 발행에 실패했습니다',
+          previousState: currentState,
+        ));
+      }, (created) {
+        if (kDebugMode) {
+          print('✅ Recipe created: ${created.id}');
+        }
+        emit(RecipeCreateSuccess(recipe: created));
+      });
     } catch (e) {
       if (kDebugMode) {
         print('❌ Publish error: $e');
@@ -698,6 +413,17 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
         previousState: currentState,
       ));
     }
+  }
+
+  bool _isRemoteUrl(String path) {
+    return path.startsWith('http://') || path.startsWith('https://');
+  }
+
+  String _detectMimeType(String path) {
+    final lower = path.toLowerCase();
+    if (lower.endsWith('.webp')) return 'image/webp';
+    if (lower.endsWith('.png')) return 'image/png';
+    return 'image/jpeg';
   }
 
   /// 발행용 유효성 검사
