@@ -34,7 +34,8 @@ export class SavesService {
       await this.prismaService.save.delete({
         where: { id: existingSave.id },
       });
-      return { message: '저장이 취소되었습니다.', isSaved: false };
+      const savesCount = await this.prismaService.save.count({ where: { recipeId } });
+      return { message: '저장이 취소되었습니다.', isSaved: false, savesCount };
     } else {
       // 저장 추가
       await this.prismaService.save.create({
@@ -43,7 +44,8 @@ export class SavesService {
           recipeId,
         },
       });
-      return { message: '레시피가 저장되었습니다.', isSaved: true };
+      const savesCount = await this.prismaService.save.count({ where: { recipeId } });
+      return { message: '레시피가 저장되었습니다.', isSaved: true, savesCount };
     }
   }
 } 

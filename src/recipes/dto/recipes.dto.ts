@@ -181,19 +181,17 @@ export class UpdateRecipeDto extends PartialType(CreateRecipeDto) {}
 // 피드 조회 DTO
 export class RecipeQueryDto {
   @ApiProperty({
-    example: 1,
-    description: '페이지 번호',
+    example: 'cmVjaXBlX2lkOjEyMy0uLi4=',
+    description: '커서(키셋) 페이징용 cursor. 이전 응답의 nextCursor를 그대로 전달',
     required: false,
-    default: 1,
   })
   @IsOptional()
-  @IsInt()
-  @Min(1)
-  page?: number = 1;
+  @IsString()
+  cursor?: string;
 
   @ApiProperty({
     example: 10,
-    description: '페이지당 아이템 수',
+    description: '페이지 크기 (커서 기반 take)',
     required: false,
     default: 10,
   })
@@ -251,6 +249,23 @@ export class RecipeQueryDto {
   @IsInt()
   @Min(1)
   maxCookingTime?: number;
+
+  @ApiProperty({
+    example: true,
+    description: '팔로잉 우선 믹스 비중 상향 여부 (실험용)',
+    required: false,
+  })
+  @IsOptional()
+  followingBoost?: boolean;
+
+  @ApiProperty({
+    example: '2025-08-13T12:34:56.000Z',
+    description: '해당 시각 이후로 생성된 새 글 개수(newCount) 계산용 기준 시각',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  since?: string;
 }
 
 // 레시피 응답 DTO

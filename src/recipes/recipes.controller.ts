@@ -218,7 +218,7 @@ export class RecipesController {
   @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ 
     summary: '레시피 피드 조회',
-    description: '공개된 레시피만 목록으로 조회합니다. 페이징, 태그 필터, 검색 등을 지원합니다.'
+    description: '커서 기반 키셋 페이지네이션과 블렌디드 랭킹을 적용한 피드. 필터/토글 지원.'
   })
   @ApiQuery({ type: RecipeQueryDto })
   @ApiResponse({ 
@@ -260,11 +260,11 @@ export class RecipesController {
             isSaved: false
           }
         ],
-        pagination: {
-          page: 1,
+        pageInfo: {
           limit: 10,
-          total: 1,
-          totalPages: 1
+          nextCursor: 'cmVjaXBlX2lkOjEyMy0uLi4=',
+          hasMore: true,
+          newCount: 3
         }
       }
     }

@@ -34,7 +34,8 @@ export class LikesService {
       await this.prismaService.like.delete({
         where: { id: existingLike.id },
       });
-      return { message: '좋아요가 취소되었습니다.', isLiked: false };
+      const likesCount = await this.prismaService.like.count({ where: { recipeId } });
+      return { message: '좋아요가 취소되었습니다.', isLiked: false, likesCount };
     } else {
       // 좋아요 추가
       await this.prismaService.like.create({
@@ -43,7 +44,8 @@ export class LikesService {
           recipeId,
         },
       });
-      return { message: '좋아요가 추가되었습니다.', isLiked: true };
+      const likesCount = await this.prismaService.like.count({ where: { recipeId } });
+      return { message: '좋아요가 추가되었습니다.', isLiked: true, likesCount };
     }
   }
 } 

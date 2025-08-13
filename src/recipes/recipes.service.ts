@@ -29,9 +29,7 @@ export class RecipesService {
     const { tags, steps, thumbnailPath, ...recipeData } = createRecipeDto as any;
 
     // Supabase 버킷명
-    const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
-
-    console.log(bucketName);
+    const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';    
 
     // 이미지 경로 정리: temp 경로를 정식 경로로 이동
     const now = Date.now();
@@ -40,8 +38,6 @@ export class RecipesService {
     // temp/{userId}/... 에서 오는 경우 이동
     const isTempPath = (p?: string) => !!p && p.startsWith(`temp/${userId}/`);
     const toPublicUrl = (path: string) => this.supabaseService.getPublicUrl(bucketName, path);
-
-    console.log(isTempPath(   ));
 
     try {
       // 1) 썸네일 이동
@@ -384,135 +380,240 @@ export class RecipesService {
     return formattedRecipe;
   }
 
-  // 6. 피드 조회 (공개된 레시피만)
+  // 6. 피드 조회 (커서 기반 블렌디드 피드)
   async getFeed(recipeQueryDto: RecipeQueryDto, userId?: string) {
-    const { 
-      page = 1, 
-      limit = 10, 
-      sortBy = 'latest', 
-      difficulty, 
-      search, 
-      tag, 
-      maxCookingTime 
-    } = recipeQueryDto;
+    const {
+      cursor,
+      limit = 10,
+      sortBy = 'latest',
+      difficulty,
+      search,
+      tag,
+      maxCookingTime,
+      followingBoost,
+      since,
+    } = recipeQueryDto as any;
 
-    const skip = (page - 1) * limit;
-
-    // 기본 조건: 공개된 레시피만
-    const where: any = {
+    // 필터 공통 where
+    const baseWhere: any = {
       status: RecipeStatus.PUBLISHED,
       isHidden: false,
+      ...(difficulty && { difficulty }),
+      ...(maxCookingTime && { cookingTime: { lte: maxCookingTime } }),
+      ...(tag && {
+        tags: {
+          some: { tag: { name: { contains: tag, mode: 'insensitive' } } },
+        },
+      }),
     };
-
-    // 필터 조건 추가
-    if (difficulty) {
-      where.difficulty = difficulty;
-    }
-
-    if (maxCookingTime) {
-      where.cookingTime = { lte: maxCookingTime };
-    }
-
     if (search) {
-      where.OR = [
+      baseWhere.OR = [
         { title: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
         { ingredients: { contains: search, mode: 'insensitive' } },
       ];
     }
 
-    if (tag) {
-      where.tags = {
-        some: {
-          tag: {
-            name: { contains: tag, mode: 'insensitive' },
-          },
-        },
-      };
+    // 후보 상위 K 로드 (키셋: createdAt desc + id)
+    const candidateTake = Math.max(limit * 5, 100); // 상위 후보 풀
+
+    // 커서 디코딩: createdAt, id
+    let decodedCursor: { createdAt: string; id: string } | null = null;
+    if (cursor) {
+      try {
+        decodedCursor = JSON.parse(Buffer.from(cursor, 'base64').toString('utf-8'));
+      } catch {}
     }
 
-    // 정렬 조건
-    let orderBy: any = { createdAt: 'desc' };
-    if (sortBy === 'popular') {
-      orderBy = { likes: { _count: 'desc' } };
-    } else if (sortBy === 'views') {
-      orderBy = { viewCount: 'desc' };
+    // 정렬: 최신 우선. 인기/조회 정렬은 MVP에선 점수식으로 흡수
+    const orderBy: any = [{ createdAt: 'desc' }, { id: 'desc' }];
+
+    // 내가 팔로잉하는 작성자 집합
+    let followingAuthorIds: string[] = [];
+    if (userId) {
+      const followRows = await (this.prismaService as any).follow.findMany({
+        where: { followerId: userId },
+        select: { followingId: true },
+      });
+      followingAuthorIds = followRows.map(r => r.followingId);
     }
 
-    try {
-      const [recipes, total] = await Promise.all([
-        this.prismaService.recipe.findMany({
-          where,
-          skip,
-          take: limit,
-          orderBy,
-          include: {
-            author: {
-              select: {
-                id: true,
-                nickname: true,
-                profileImage: true,
-              },
-            },
-            tags: {
-              include: {
-                tag: true,
-              },
-            },
-            steps: {
-              orderBy: { order: 'asc' },
-              take: 1, // 피드에서는 첫 번째 단계만
-            },
-            _count: {
-              select: {
-                likes: true,
-                comments: true,
-              },
-            },
-            ...(userId && {
-              likes: {
-                where: { userId },
-                select: { id: true },
-              },
-              saves: {
-                where: { userId },
-                select: { id: true },
-              },
-            }),
-          },
+    // 상위 후보 K 로드 (키셋 커서 고려)
+    const candidates = await this.prismaService.recipe.findMany({
+      where: baseWhere,
+      take: candidateTake,
+      ...(decodedCursor && {
+        cursor: { id: decodedCursor.id },
+        skip: 1,
+      }),
+      orderBy,
+      include: {
+        author: { select: { id: true, nickname: true, profileImage: true } },
+        tags: { include: { tag: true } },
+        steps: { orderBy: { order: 'asc' }, take: 1 },
+        _count: { select: { likes: true, comments: true, saves: true } },
+        ...(userId && {
+          likes: { where: { userId }, select: { id: true } },
+          saves: { where: { userId }, select: { id: true } },
         }),
-        this.prismaService.recipe.count({ where }),
-      ]);
+      },
+    });
 
-      const formattedRecipes = recipes.map(recipe => ({
-        ...recipe,
-        tags: recipe.tags.map(t => ({
-          name: t.tag.name,
-          emoji: t.tag.emoji,
-        })),
-        steps: recipe.steps.map(step => ({
-          order: step.order,
-          description: step.description,
-          imageUrl: step.imageUrl,
-        })),
-        likesCount: recipe._count.likes,
-        commentsCount: recipe._count.comments,
-        isLiked: userId ? recipe.likes?.length > 0 : false,
-        isSaved: userId ? recipe.saves?.length > 0 : false,
-      }));
-
-      return {
-        recipes: formattedRecipes,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      };
-    } catch (error) {
-      throw new BadRequestException('피드 조회에 실패했습니다.');
+    // 점수 계산 파라미터 (MVP)
+    const tauHours = 36;
+    const wNew = 1.0;
+    const wEng = 0.6;
+    const wRecencyBurst = 0.3;
+    let wFollow = 0.9;
+    if (!followingAuthorIds || followingAuthorIds.length < 3) {
+      wFollow = 0.3;
     }
+    if (followingBoost) {
+      wFollow = Math.max(wFollow, 0.9);
+    }
+    const alpha = 1;
+    const beta = 2;
+    const gamma = 1.5;
+
+    const now = new Date().getTime();
+
+    const categoryCooldown: Record<string, number> = {};
+
+    function computeScore(r: any): number {
+      const ageHours = (now - new Date(r.createdAt).getTime()) / (1000 * 60 * 60);
+      const decay = Math.exp(-ageHours / tauHours);
+      const likes = r._count?.likes || 0;
+      const comments = r._count?.comments || 0;
+      const saves = r._count?.saves || 0;
+      const engagement = Math.log(1 + alpha * likes + beta * comments + gamma * saves);
+      const isFollowing = userId ? followingAuthorIds.includes(r.authorId) : false;
+      const isVeryNew = ageHours * 60 < 30; // 30분 이내
+      // 단순 카테고리 페널티: 동일 태그 반복을 경감 (MVP: 상수 0)
+      const diversityPenalty = 0;
+      return wNew * decay + wEng * engagement + wFollow * (isFollowing ? 1 : 0) + wRecencyBurst * (isVeryNew ? 1 : 0) + diversityPenalty;
+    }
+
+    // 후보 정렬
+    const ranked = candidates
+      .map(r => ({ r, score: computeScore(r) }))
+      .sort((a, b) => b.score - a.score)
+      .map(x => x.r);
+
+    // 인터리빙 + 제약조건 적용
+    const followingPool = ranked.filter(r => userId && followingAuthorIds.includes(r.authorId));
+    const globalPool = ranked.filter(r => !userId || !followingAuthorIds.includes(r.authorId));
+    const targetFollowingRatio = 0.6;
+    const targetGlobalRatio = 0.4;
+
+    const result: any[] = [];
+    const recentAuthorWindow: string[] = [];
+    const recentCategoryWindow: string[] = [];
+    const pushWithConstraints = (candidate: any): boolean => {
+      // 저자 쿨다운: 최근 5개 내 동일 저자 1회 이하
+      if (recentAuthorWindow.slice(-5).filter(a => a === candidate.authorId).length >= 1) {
+        return false;
+      }
+      // 카테고리 다양성: 같은 카테고리 3연속 금지 (단순: 첫 태그 기준)
+      const cat = candidate.tags?.[0]?.tag?.name || '';
+      const last3 = recentCategoryWindow.slice(-3);
+      if (cat && last3.length >= 3 && last3.every(c => c === cat)) {
+        return false;
+      }
+      result.push(candidate);
+      recentAuthorWindow.push(candidate.authorId);
+      recentCategoryWindow.push(cat);
+      return true;
+    };
+
+    let fIdx = 0;
+    let gIdx = 0;
+    while (result.length < limit && (fIdx < followingPool.length || gIdx < globalPool.length)) {
+      const fNeed = (result.length + 1) * targetFollowingRatio - result.filter(r => userId && followingAuthorIds.includes(r.authorId)).length;
+      let picked = false;
+      if (fNeed > 0 && fIdx < followingPool.length) {
+        if (pushWithConstraints(followingPool[fIdx])) {
+          picked = true;
+        }
+        fIdx += 1;
+      }
+      if (!picked && gIdx < globalPool.length) {
+        if (pushWithConstraints(globalPool[gIdx])) {
+          picked = true;
+        }
+        gIdx += 1;
+      }
+      if (!picked && fIdx < followingPool.length) {
+        // 마지막 시도
+        if (pushWithConstraints(followingPool[fIdx])) {
+          picked = true;
+        }
+        fIdx += 1;
+      }
+      if (!picked) break;
+    }
+
+    // 신규 보호: 10개당 최소 1개 (가능 시)
+    if (result.length > 0) {
+      const veryNewExists = ranked.some(r => (now - new Date(r.createdAt).getTime()) / (1000 * 60) < 30);
+      if (veryNewExists) {
+        const chunk = 10;
+        for (let i = 0; i < result.length; i += chunk) {
+          const slice = result.slice(i, i + chunk);
+          const hasVeryNew = slice.some(r => (now - new Date(r.createdAt).getTime()) / (1000 * 60) < 30);
+          if (!hasVeryNew) {
+            const candidate = ranked.find(r => (now - new Date(r.createdAt).getTime()) / (1000 * 60) < 30 && !slice.find(s => s.id === r.id));
+            if (candidate) {
+              slice.pop();
+              slice.push(candidate);
+              // 재배치
+              result.splice(i, slice.length, ...slice);
+            }
+          }
+        }
+      }
+    }
+
+    // 다음 커서
+    const last = result[result.length - 1];
+    const nextCursor = last
+      ? Buffer.from(JSON.stringify({ id: last.id, createdAt: last.createdAt })).toString('base64')
+      : null;
+
+    const formattedRecipes = result.map(recipe => ({
+      ...recipe,
+      tags: recipe.tags.map(t => ({ name: t.tag.name, emoji: t.tag.emoji })),
+      steps: recipe.steps.map(step => ({ order: step.order, description: step.description, imageUrl: step.imageUrl })),
+      likesCount: recipe._count.likes,
+      commentsCount: recipe._count.comments,
+      isLiked: userId ? recipe.likes?.length > 0 : false,
+      isSaved: userId ? recipe.saves?.length > 0 : false,
+    }));
+
+    // 새 글 카운트 (스켈레톤/배지용): since 이후 생성된 공개 글 수
+    let newCount: number | undefined = undefined;
+    if (since) {
+      try {
+        const sinceDate = new Date(since);
+        if (!isNaN(sinceDate.getTime())) {
+          newCount = await this.prismaService.recipe.count({
+            where: {
+              ...baseWhere,
+              createdAt: { gt: sinceDate },
+            },
+          });
+        }
+      } catch {}
+    }
+
+    return {
+      recipes: formattedRecipes,
+      pageInfo: {
+        limit,
+        nextCursor,
+        hasMore: (decodedCursor ? candidates.length >= candidateTake : formattedRecipes.length === limit) && !!nextCursor,
+        ...(newCount !== undefined ? { newCount } : {}),
+      },
+    };
   }
 
   // 태그 처리 헬퍼 메소드
