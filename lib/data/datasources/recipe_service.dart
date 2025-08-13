@@ -21,7 +21,7 @@ class RecipeService {
     }
 
     final response = await _apiClient.dio.get(
-      '/recipes/feed',
+      '/feed',
       queryParameters: query.toQueryParameters(),
     );
 

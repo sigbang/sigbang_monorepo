@@ -10,6 +10,8 @@ class RecipeQuery extends Equatable {
     this.tag,
     this.difficulty,
     this.maxCookingTime,
+    this.sortBy,
+    this.followingBoost,
     this.servings,
     this.authorId,
   });
@@ -21,6 +23,8 @@ class RecipeQuery extends Equatable {
   final String? tag; // 경량 카테고리 필터 (단일)
   final String? difficulty; // EASY|MEDIUM|HARD
   final int? maxCookingTime;
+  final String? sortBy; // latest|popular|views
+  final bool? followingBoost;
   final int? servings;
   final String? authorId;
 
@@ -33,6 +37,8 @@ class RecipeQuery extends Equatable {
         tag,
         difficulty,
         maxCookingTime,
+        sortBy,
+        followingBoost,
         servings,
         authorId,
       ];
@@ -45,6 +51,8 @@ class RecipeQuery extends Equatable {
     String? tag,
     String? difficulty,
     int? maxCookingTime,
+    String? sortBy,
+    bool? followingBoost,
     int? servings,
     String? authorId,
   }) {
@@ -56,6 +64,8 @@ class RecipeQuery extends Equatable {
       tag: tag ?? this.tag,
       difficulty: difficulty ?? this.difficulty,
       maxCookingTime: maxCookingTime ?? this.maxCookingTime,
+      sortBy: sortBy ?? this.sortBy,
+      followingBoost: followingBoost ?? this.followingBoost,
       servings: servings ?? this.servings,
       authorId: authorId ?? this.authorId,
     );
@@ -63,14 +73,16 @@ class RecipeQuery extends Equatable {
 
   Map<String, dynamic> toQueryParameters() {
     final params = <String, dynamic>{
-      'limit': limit,
+      // Clamp to server constraints to prevent 400 validation errors
+      'limit': limit.clamp(1, 50).toInt(),
     };
 
     if (cursor != null && cursor!.isNotEmpty) {
       params['cursor'] = cursor;
     }
     if (since != null) {
-      params['since'] = since!.toIso8601String();
+      // Use UTC to match server examples like 2025-08-13T12:34:56.000Z
+      params['since'] = since!.toUtc().toIso8601String();
     }
     if (search != null && search!.isNotEmpty) {
       params['search'] = search;
@@ -79,17 +91,19 @@ class RecipeQuery extends Equatable {
       params['tag'] = tag;
     }
     if (difficulty != null && difficulty!.isNotEmpty) {
-      params['difficulty'] = difficulty;
+      // Normalize to server enum format (EASY|MEDIUM|HARD)
+      params['difficulty'] = difficulty!.toUpperCase();
     }
     if (maxCookingTime != null) {
       params['maxCookingTime'] = maxCookingTime;
     }
-    if (servings != null) {
-      params['servings'] = servings;
+    if (sortBy != null && sortBy!.isNotEmpty) {
+      params['sortBy'] = sortBy;
     }
-    if (authorId != null) {
-      params['authorId'] = authorId;
+    if (followingBoost != null) {
+      params['followingBoost'] = followingBoost;
     }
+    // Note: Do not include non-DTO fields (e.g., servings, authorId) for /recipes/feed
 
     return params;
   }
