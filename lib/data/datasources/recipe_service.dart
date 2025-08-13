@@ -58,7 +58,7 @@ class RecipeService {
   }
 
   /// 레시피 즉시 생성(공개)
-  Future<RecipeModel> createRecipe(Recipe recipe) async {
+  Future<String> createRecipe(Recipe recipe) async {
     if (kDebugMode) {
       print('📝 Creating recipe (publish immediately): ${recipe.title}');
     }
@@ -70,8 +70,11 @@ class RecipeService {
     );
 
     if (response.statusCode == 201 || response.statusCode == 200) {
-      final data = response.data['data'] ?? response.data;
-      return RecipeModel.fromJson(data as Map<String, dynamic>);
+      final id = response.data['id'] as String?;
+      if (id == null || id.isEmpty) {
+        throw Exception('레시피 생성 응답에 id가 없습니다');
+      }
+      return id;
     } else {
       throw Exception('레시피 생성 실패: ${response.statusCode}');
     }

@@ -68,10 +68,10 @@ class RecipeRepositoryImpl implements RecipeRepository {
   }
 
   @override
-  Future<Either<Failure, Recipe>> createRecipe(Recipe recipe) async {
+  Future<Either<Failure, String>> createRecipe(Recipe recipe) async {
     try {
-      final result = await _recipeService.createRecipe(recipe);
-      return Right(result.toDomain());
+      final id = await _recipeService.createRecipe(recipe);      
+      return Right(id);        
     } catch (e) {
       return Left(ServerFailure(message: e.toString()));
     }

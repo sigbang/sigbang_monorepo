@@ -398,11 +398,11 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
           message: '레시피 발행에 실패했습니다',
           previousState: currentState,
         ));
-      }, (created) {
+      }, (createdId) {
         if (kDebugMode) {
-          print('✅ Recipe created: ${created.id}');
+          print('✅ Recipe created: $createdId');
         }
-        emit(RecipeCreateSuccess(recipe: created));
+        emit(RecipeCreateSuccess(recipeId: createdId));
       });
     } catch (e) {
       if (kDebugMode) {

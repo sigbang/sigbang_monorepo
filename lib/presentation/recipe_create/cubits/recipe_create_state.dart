@@ -126,12 +126,12 @@ class RecipeCreateUploading extends RecipeCreateEditing {
 // removed draft state
 
 class RecipeCreateSuccess extends RecipeCreateState {
-  final Recipe recipe;
+  final String recipeId;
 
-  const RecipeCreateSuccess({required this.recipe});
+  const RecipeCreateSuccess({required this.recipeId});
 
   @override
-  List<Object?> get props => [recipe];
+  List<Object?> get props => [recipeId];
 }
 
 class RecipeCreateError extends RecipeCreateState {

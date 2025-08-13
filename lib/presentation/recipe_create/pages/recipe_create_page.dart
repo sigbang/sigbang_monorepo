@@ -32,7 +32,7 @@ class RecipeCreateView extends StatelessWidget {
     return BlocConsumer<RecipeCreateCubit, RecipeCreateState>(
       listener: (context, state) {
         if (state is RecipeCreateSuccess) {
-          // 발행 성공 시 알림 및 화면 이동
+          // 발행 성공 시 알림 및 피드로 이동
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('레시피가 성공적으로 발행되었습니다!'),
@@ -40,7 +40,7 @@ class RecipeCreateView extends StatelessWidget {
             ),
           );
 
-          context.pushReplacement('/recipe/${state.recipe.id}');
+          context.go('/');
         } else if (state is RecipeCreateError) {
           // 에러 시 알림
           ScaffoldMessenger.of(context).showSnackBar(

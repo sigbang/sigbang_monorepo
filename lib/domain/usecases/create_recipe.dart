@@ -8,7 +8,7 @@ class CreateRecipe {
 
   CreateRecipe(this._repository);
 
-  Future<Either<Failure, Recipe>> call(Recipe recipe) async {
+  Future<Either<Failure, String>> call(Recipe recipe) async {
     return await _repository.createRecipe(recipe);
   }
 }
