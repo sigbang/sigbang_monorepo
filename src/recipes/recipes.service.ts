@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { SupabaseService } from '../database/supabase.service';
@@ -23,6 +24,8 @@ export class RecipesService {
     private supabaseService: SupabaseService,
     private configService: ConfigService,
   ) {}
+
+  private readonly logger = new Logger(RecipesService.name);
 
   // 레시피 생성 (즉시 공개)
   async create(userId: string, createRecipeDto: CreateRecipeDto) {
@@ -382,6 +385,7 @@ export class RecipesService {
 
   // 6. 피드 조회 (커서 기반 블렌디드 피드)
   async getFeed(recipeQueryDto: RecipeQueryDto, userId?: string) {
+    const tStart = Date.now();
     const {
       cursor,
       limit = 10,
@@ -393,6 +397,10 @@ export class RecipesService {
       followingBoost,
       since,
     } = recipeQueryDto as any;
+
+    this.logger.log(
+      `getFeed params u=${userId ?? 'anon'} limit=${limit} cursor=${cursor ? 'y' : 'n'} sortBy=${sortBy} diff=${difficulty ?? '-'} tag=${tag ?? '-'} maxCook=${maxCookingTime ?? '-'} search=${search ? 'y' : 'n'} fBoost=${!!followingBoost} since=${since ?? '-'}`,
+    );
 
     // 필터 공통 where
     const baseWhere: any = {
@@ -422,7 +430,10 @@ export class RecipesService {
     if (cursor) {
       try {
         decodedCursor = JSON.parse(Buffer.from(cursor, 'base64').toString('utf-8'));
-      } catch {}
+        this.logger.debug(`cursor decoded id=${decodedCursor.id}`);
+      } catch (e) {
+        this.logger.warn(`cursor decode failed: ${String(e)}`);
+      }
     }
 
     // 정렬: 최신 우선. 인기/조회 정렬은 MVP에선 점수식으로 흡수
@@ -431,14 +442,21 @@ export class RecipesService {
     // 내가 팔로잉하는 작성자 집합
     let followingAuthorIds: string[] = [];
     if (userId) {
-      const followRows = await (this.prismaService as any).follow.findMany({
-        where: { followerId: userId },
-        select: { followingId: true },
-      });
-      followingAuthorIds = followRows.map(r => r.followingId);
+      const tFollow = Date.now();
+      try {
+        const followRows = await (this.prismaService as any).follow.findMany({
+          where: { followerId: userId },
+          select: { followingId: true },
+        });
+        followingAuthorIds = followRows.map(r => r.followingId);
+        this.logger.debug(`following count=${followingAuthorIds.length} in ${Date.now() - tFollow}ms`);
+      } catch (e) {
+        this.logger.warn(`follow query failed (using empty): ${String(e)}`);
+      }
     }
 
     // 상위 후보 K 로드 (키셋 커서 고려)
+    const tCandidates = Date.now();
     const candidates = await this.prismaService.recipe.findMany({
       where: baseWhere,
       take: candidateTake,
@@ -458,6 +476,7 @@ export class RecipesService {
         }),
       },
     });
+    this.logger.debug(`candidates loaded=${candidates.length} in ${Date.now() - tCandidates}ms`);
 
     // 점수 계산 파라미터 (MVP)
     const tauHours = 36;
@@ -494,14 +513,17 @@ export class RecipesService {
     }
 
     // 후보 정렬
+    const tRank = Date.now();
     const ranked = candidates
       .map(r => ({ r, score: computeScore(r) }))
       .sort((a, b) => b.score - a.score)
       .map(x => x.r);
+    this.logger.debug(`ranked=${ranked.length} in ${Date.now() - tRank}ms`);
 
     // 인터리빙 + 제약조건 적용
     const followingPool = ranked.filter(r => userId && followingAuthorIds.includes(r.authorId));
     const globalPool = ranked.filter(r => !userId || !followingAuthorIds.includes(r.authorId));
+    this.logger.debug(`pool sizes following=${followingPool.length} global=${globalPool.length}`);
     const targetFollowingRatio = 0.6;
     const targetGlobalRatio = 0.4;
 
@@ -578,6 +600,7 @@ export class RecipesService {
     const nextCursor = last
       ? Buffer.from(JSON.stringify({ id: last.id, createdAt: last.createdAt })).toString('base64')
       : null;
+    this.logger.debug(`result len=${result.length} nextCursor=${nextCursor ? 'y' : 'n'}`);
 
     const formattedRecipes = result.map(recipe => ({
       ...recipe,
@@ -602,8 +625,13 @@ export class RecipesService {
             },
           });
         }
-      } catch {}
+      } catch (e) {
+        this.logger.warn(`newCount calc failed: ${String(e)}`);
+      }
     }
+
+    const totalMs = Date.now() - tStart;
+    this.logger.log(`getFeed done in ${totalMs}ms (recipes=${result.length}, newCount=${newCount ?? '-'})`);
 
     return {
       recipes: formattedRecipes,

@@ -13,8 +13,9 @@ import {
   ArrayMaxSize,
   ValidateNested,
   IsUrl,
+  IsBoolean,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 import { Difficulty as PrismaDifficulty } from '../../../generated/prisma';
 
@@ -199,6 +200,7 @@ export class RecipeQueryDto {
   @IsInt()
   @Min(1)
   @Max(50)
+  @Type(() => Number)
   limit?: number = 10;
 
   @ApiProperty({
@@ -248,6 +250,7 @@ export class RecipeQueryDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Type(() => Number)
   maxCookingTime?: number;
 
   @ApiProperty({
@@ -256,6 +259,8 @@ export class RecipeQueryDto {
     required: false,
   })
   @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
   followingBoost?: boolean;
 
   @ApiProperty({
