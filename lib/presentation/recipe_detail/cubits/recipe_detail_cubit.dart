@@ -94,10 +94,9 @@ class RecipeDetailCubit extends Cubit<RecipeDetailState> {
       Recipe targetRecipe, bool isLoggedIn) async {
     try {
       final query = RecipeQuery(
-        page: 1,
         limit: _pageSize,
         search: _currentFeedQuery,
-        tags: _currentTags,
+        tag: _currentTags.isNotEmpty ? _currentTags.first : null,
       );
 
       final feedResult =
@@ -161,9 +160,8 @@ class RecipeDetailCubit extends Cubit<RecipeDetailState> {
       final tags = targetRecipe.tags.map((tag) => tag.name).toList();
 
       final query = RecipeQuery(
-        page: 1,
         limit: _pageSize,
-        tags: tags.isNotEmpty ? tags.take(3).toList() : null,
+        tag: tags.isNotEmpty ? tags.first : null,
       );
 
       final recommendationResult =
@@ -242,13 +240,10 @@ class RecipeDetailCubit extends Cubit<RecipeDetailState> {
     emit(currentState.copyWith(isLoadingNext: true));
 
     try {
-      final currentPage = (currentState.recipes.length / _pageSize).floor() + 1;
-
       final query = RecipeQuery(
-        page: currentPage,
         limit: _pageSize,
         search: _currentFeedQuery,
-        tags: _currentTags,
+        tag: _currentTags.isNotEmpty ? _currentTags.first : null,
       );
 
       final result = await _getRecipeFeed(

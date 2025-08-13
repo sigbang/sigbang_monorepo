@@ -12,7 +12,7 @@ class RecipeService {
 
   RecipeService(this._apiClient);
 
-  /// 피드 조회 (공개된 레시피만)
+  /// 피드 조회 (커서 기반)
   Future<PaginatedRecipesModel> getFeed(
       RecipeQuery query, String? userId) async {
     if (kDebugMode) {
@@ -27,10 +27,16 @@ class RecipeService {
 
     if (response.statusCode == 200) {
       if (kDebugMode) {
-        print(
-            '✅ Feed loaded: ${response.data['recipes']?.length ?? 0} recipes');
+        final res = response.data is Map<String, dynamic>
+            ? response.data
+            : (response.data['data'] ?? response.data);
+        try {
+          print(
+              '✅ Feed loaded: ${(res['recipes'] as List<dynamic>?)?.length ?? 0} recipes');
+        } catch (_) {}
       }
-      return PaginatedRecipesModel.fromJson(response.data);
+      return PaginatedRecipesModel.fromJson(
+          response.data as Map<String, dynamic>);
     } else {
       throw Exception('피드 조회 실패: ${response.statusCode}');
     }
@@ -154,7 +160,7 @@ class RecipeService {
     // TODO: 실제 추천 API 구현 필요
     // 현재는 피드에서 일부 데이터를 가져와서 추천으로 사용
     try {
-      final query = const RecipeQuery(page: 1, limit: 6);
+      final query = const RecipeQuery(limit: 6);
       final feedResult = await getFeed(query, userId);
       return feedResult.recipes.cast<RecipeModel>();
     } catch (e) {

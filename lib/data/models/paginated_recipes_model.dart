@@ -8,12 +8,13 @@ class PaginatedRecipesModel extends PaginatedRecipes {
   });
 
   factory PaginatedRecipesModel.fromJson(Map<String, dynamic> json) {
+    final data = json['data'] ?? json;
     return PaginatedRecipesModel(
-      recipes: (json['recipes'] as List<dynamic>)
+      recipes: (data['recipes'] as List<dynamic>)
           .map((recipe) => RecipeModel.fromJson(recipe as Map<String, dynamic>))
           .toList(),
-      pagination:
-          PaginationModel.fromJson(json['pagination'] as Map<String, dynamic>),
+      pagination: PaginationModel.fromJson(
+          (data['pageInfo'] ?? data['pagination']) as Map<String, dynamic>),
     );
   }
 
@@ -21,7 +22,7 @@ class PaginatedRecipesModel extends PaginatedRecipes {
     return {
       'recipes':
           recipes.map((recipe) => (recipe as RecipeModel).toJson()).toList(),
-      'pagination': (pagination as PaginationModel).toJson(),
+      'pageInfo': (pagination as PaginationModel).toJson(),
     };
   }
 
@@ -36,18 +37,22 @@ class PaginatedRecipesModel extends PaginatedRecipes {
 
 class PaginationModel extends Pagination {
   const PaginationModel({
-    required super.page,
-    required super.limit,
-    required super.total,
-    required super.totalPages,
+    super.page,
+    super.limit,
+    super.total,
+    super.totalPages,
+    super.nextCursor,
+    super.newCount,
   });
 
   factory PaginationModel.fromJson(Map<String, dynamic> json) {
     return PaginationModel(
-      page: json['page'] as int,
-      limit: json['limit'] as int,
-      total: json['total'] as int,
-      totalPages: json['totalPages'] as int,
+      page: json['page'] as int? ?? 1,
+      limit: json['limit'] as int? ?? 10,
+      total: json['total'] as int? ?? 0,
+      totalPages: json['totalPages'] as int? ?? 1,
+      nextCursor: json['nextCursor'] as String?,
+      newCount: json['newCount'] as int?,
     );
   }
 
@@ -57,6 +62,8 @@ class PaginationModel extends Pagination {
       'limit': limit,
       'total': total,
       'totalPages': totalPages,
+      if (nextCursor != null) 'nextCursor': nextCursor,
+      if (newCount != null) 'newCount': newCount,
     };
   }
 }

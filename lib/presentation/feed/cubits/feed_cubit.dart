@@ -16,6 +16,7 @@ class FeedCubit extends Cubit<FeedState> {
   ) : super(FeedInitial());
 
   static const int _pageSize = 10;
+  DateTime? _since;
 
   /// 피드 초기 로드
   Future<void> loadFeed() async {
@@ -36,10 +37,8 @@ class FeedCubit extends Cubit<FeedState> {
       }
 
       // 2. 피드 데이터 로드
-      final query = RecipeQuery(
-        page: 1,
-        limit: _pageSize,
-      );
+      _since = DateTime.now();
+      final query = RecipeQuery(limit: _pageSize);
 
       final result =
           await _getRecipeFeed(query, isLoggedIn ? 'current_user_id' : null);
@@ -60,9 +59,11 @@ class FeedCubit extends Cubit<FeedState> {
           }
           emit(FeedLoaded(
             recipes: paginatedRecipes.recipes,
-            hasReachedMax: paginatedRecipes.recipes.length < _pageSize,
+            hasReachedMax: !(paginatedRecipes.pagination.hasNextPage),
             isLoggedIn: isLoggedIn,
-            currentPage: 1,
+            nextCursor: paginatedRecipes.pagination.nextCursor,
+            since: _since,
+            newCount: 0,
           ));
         },
       );
@@ -92,11 +93,13 @@ class FeedCubit extends Cubit<FeedState> {
     ));
 
     try {
+      _since = DateTime.now();
       final query = RecipeQuery(
-        page: 1,
         limit: _pageSize,
         search: currentState.searchQuery,
-        tags: currentState.selectedTags,
+        tag: currentState.selectedTags.isNotEmpty
+            ? currentState.selectedTags.first
+            : null,
       );
 
       final result = await _getRecipeFeed(
@@ -116,11 +119,13 @@ class FeedCubit extends Cubit<FeedState> {
           }
           emit(FeedLoaded(
             recipes: paginatedRecipes.recipes,
-            hasReachedMax: paginatedRecipes.recipes.length < _pageSize,
+            hasReachedMax: !(paginatedRecipes.pagination.hasNextPage),
             isLoggedIn: currentState.isLoggedIn,
             searchQuery: currentState.searchQuery,
             selectedTags: currentState.selectedTags,
-            currentPage: 1,
+            nextCursor: paginatedRecipes.pagination.nextCursor,
+            since: _since,
+            newCount: 0,
           ));
         },
       );
@@ -147,16 +152,19 @@ class FeedCubit extends Cubit<FeedState> {
       isLoggedIn: currentState.isLoggedIn,
       searchQuery: currentState.searchQuery,
       selectedTags: currentState.selectedTags,
-      currentPage: currentState.currentPage,
+      nextCursor: currentState.nextCursor,
+      since: currentState.since,
+      newCount: currentState.newCount,
     ));
 
     try {
-      final nextPage = currentState.currentPage + 1;
       final query = RecipeQuery(
-        page: nextPage,
         limit: _pageSize,
+        cursor: currentState.nextCursor,
         search: currentState.searchQuery,
-        tags: currentState.selectedTags,
+        tag: currentState.selectedTags.isNotEmpty
+            ? currentState.selectedTags.first
+            : null,
       );
 
       final result = await _getRecipeFeed(
@@ -171,8 +179,7 @@ class FeedCubit extends Cubit<FeedState> {
         },
         (paginatedRecipes) {
           if (kDebugMode) {
-            print(
-                '📄 Loaded more: ${paginatedRecipes.recipes.length} recipes (page $nextPage)');
+            print('📄 Loaded more: ${paginatedRecipes.recipes.length} recipes');
           }
 
           final allRecipes = List<Recipe>.from(currentState.recipes)
@@ -180,11 +187,13 @@ class FeedCubit extends Cubit<FeedState> {
 
           emit(FeedLoaded(
             recipes: allRecipes,
-            hasReachedMax: paginatedRecipes.recipes.length < _pageSize,
+            hasReachedMax: !(paginatedRecipes.pagination.hasNextPage),
             isLoggedIn: currentState.isLoggedIn,
             searchQuery: currentState.searchQuery,
             selectedTags: currentState.selectedTags,
-            currentPage: nextPage,
+            nextCursor: paginatedRecipes.pagination.nextCursor,
+            since: currentState.since,
+            newCount: currentState.newCount,
           ));
         },
       );
@@ -208,11 +217,13 @@ class FeedCubit extends Cubit<FeedState> {
     emit(FeedLoading());
 
     try {
+      _since = DateTime.now();
       final searchQuery = RecipeQuery(
-        page: 1,
         limit: _pageSize,
         search: query.trim().isEmpty ? null : query.trim(),
-        tags: currentState.selectedTags,
+        tag: currentState.selectedTags.isNotEmpty
+            ? currentState.selectedTags.first
+            : null,
       );
 
       final result = await _getRecipeFeed(
@@ -235,11 +246,13 @@ class FeedCubit extends Cubit<FeedState> {
           }
           emit(FeedLoaded(
             recipes: paginatedRecipes.recipes,
-            hasReachedMax: paginatedRecipes.recipes.length < _pageSize,
+            hasReachedMax: !(paginatedRecipes.pagination.hasNextPage),
             isLoggedIn: currentState.isLoggedIn,
             searchQuery: query.trim().isEmpty ? null : query.trim(),
             selectedTags: currentState.selectedTags,
-            currentPage: 1,
+            nextCursor: paginatedRecipes.pagination.nextCursor,
+            since: _since,
+            newCount: 0,
           ));
         },
       );
@@ -266,11 +279,11 @@ class FeedCubit extends Cubit<FeedState> {
     emit(FeedLoading());
 
     try {
+      _since = DateTime.now();
       final query = RecipeQuery(
-        page: 1,
         limit: _pageSize,
         search: currentState.searchQuery,
-        tags: tags,
+        tag: tags.isNotEmpty ? tags.first : null,
       );
 
       final result = await _getRecipeFeed(
@@ -293,11 +306,13 @@ class FeedCubit extends Cubit<FeedState> {
           }
           emit(FeedLoaded(
             recipes: paginatedRecipes.recipes,
-            hasReachedMax: paginatedRecipes.recipes.length < _pageSize,
+            hasReachedMax: !(paginatedRecipes.pagination.hasNextPage),
             isLoggedIn: currentState.isLoggedIn,
             searchQuery: currentState.searchQuery,
             selectedTags: tags,
-            currentPage: 1,
+            nextCursor: paginatedRecipes.pagination.nextCursor,
+            since: _since,
+            newCount: 0,
           ));
         },
       );

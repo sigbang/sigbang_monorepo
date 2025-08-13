@@ -18,7 +18,9 @@ class FeedLoaded extends FeedState {
   final bool isLoggedIn;
   final String? searchQuery;
   final List<String> selectedTags;
-  final int currentPage;
+  final String? nextCursor;
+  final DateTime? since;
+  final int? newCount;
 
   const FeedLoaded({
     required this.recipes,
@@ -26,7 +28,9 @@ class FeedLoaded extends FeedState {
     this.isLoggedIn = false,
     this.searchQuery,
     this.selectedTags = const [],
-    this.currentPage = 1,
+    this.nextCursor,
+    this.since,
+    this.newCount,
   });
 
   FeedLoaded copyWith({
@@ -35,7 +39,9 @@ class FeedLoaded extends FeedState {
     bool? isLoggedIn,
     String? searchQuery,
     List<String>? selectedTags,
-    int? currentPage,
+    String? nextCursor,
+    DateTime? since,
+    int? newCount,
   }) {
     return FeedLoaded(
       recipes: recipes ?? this.recipes,
@@ -43,7 +49,9 @@ class FeedLoaded extends FeedState {
       isLoggedIn: isLoggedIn ?? this.isLoggedIn,
       searchQuery: searchQuery ?? this.searchQuery,
       selectedTags: selectedTags ?? this.selectedTags,
-      currentPage: currentPage ?? this.currentPage,
+      nextCursor: nextCursor ?? this.nextCursor,
+      since: since ?? this.since,
+      newCount: newCount ?? this.newCount,
     );
   }
 
@@ -54,7 +62,9 @@ class FeedLoaded extends FeedState {
         isLoggedIn,
         searchQuery,
         selectedTags,
-        currentPage,
+        nextCursor,
+        since,
+        newCount,
       ];
 }
 
@@ -65,7 +75,9 @@ class FeedLoadingMore extends FeedLoaded {
     super.isLoggedIn,
     super.searchQuery,
     super.selectedTags,
-    super.currentPage,
+    super.nextCursor,
+    super.since,
+    super.newCount,
   });
 }
 
@@ -76,7 +88,9 @@ class FeedRefreshing extends FeedLoaded {
     super.isLoggedIn,
     super.searchQuery,
     super.selectedTags,
-    super.currentPage,
+    super.nextCursor,
+    super.since,
+    super.newCount,
   });
 }
 
