@@ -79,4 +79,14 @@ export class SupabaseService {
 
     return data.publicUrl;
   }
+
+  // 서명된 다운로드 URL 생성 (Private 버킷용)
+  async createSignedUrl(bucketName: string, path: string, expiresInSeconds = 300) {
+    const { data, error } = await this.serviceClient.storage
+      .from(bucketName)
+      .createSignedUrl(path, expiresInSeconds);
+
+    if (error) throw error;
+    return data.signedUrl;
+  }
 } 

@@ -1,5 +1,5 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Post, Query, Redirect, UseGuards, BadRequestException } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { MediaService } from './media.service';
 import { PresignDto } from './dto/media.dto';
 import { JwtAuthGuard } from '../common/guards/jwt.guard';
@@ -18,6 +18,19 @@ export class MediaController {
   async presign(@CurrentUser() user: any, @Body() dto: PresignDto) {
     const userId = user.id;
     return this.media.createUploadUrl(userId, dto);
+  }
+
+  // Private 버킷 파일 접근용: 스토리지 경로를 받아 서명URL로 리다이렉트
+  @Get('image')
+  @ApiOperation({ summary: '스토리지 이미지 서명 URL 리다이렉트' })
+  @ApiQuery({ name: 'path', required: true, description: 'Storage 파일 경로 (예: recipes/{userId}/thumbnails/xxx.webp)' })
+  @ApiQuery({ name: 'expires', required: false, description: '만료(초). 기본 300, 최소 30, 최대 86400' })
+  @Redirect(undefined, 302)
+  async image(@Query('path') path: string, @Query('expires') expires?: string) {
+    if (!path) throw new BadRequestException('path is required');
+    const ttl = Math.max(30, Math.min(86400, Number(expires) || 300));
+    const url = await this.media.getSignedDownloadUrl(path, ttl);
+    return { url };
   }
 }
 

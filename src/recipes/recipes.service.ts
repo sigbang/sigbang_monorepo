@@ -365,6 +365,7 @@ export class RecipesService {
 
     const formattedRecipe = {
       ...recipe,
+      thumbnailImage: this.toProxyUrl(recipe.thumbnailImage),
       tags: recipe.tags.map(t => ({
         name: t.tag.name,
         emoji: t.tag.emoji,
@@ -372,7 +373,7 @@ export class RecipesService {
       steps: recipe.steps.map(step => ({
         order: step.order,
         description: step.description,
-        imageUrl: step.imageUrl,
+        imageUrl: this.toProxyUrl(step.imageUrl),
       })),
       likesCount: recipe._count.likes,
       commentsCount: recipe._count.comments,
@@ -604,8 +605,9 @@ export class RecipesService {
 
     const formattedRecipes = result.map(recipe => ({
       ...recipe,
+      thumbnailImage: this.toProxyUrl(recipe.thumbnailImage),
       tags: recipe.tags.map(t => ({ name: t.tag.name, emoji: t.tag.emoji })),
-      steps: recipe.steps.map(step => ({ order: step.order, description: step.description, imageUrl: step.imageUrl })),
+      steps: recipe.steps.map(step => ({ order: step.order, description: step.description, imageUrl: this.toProxyUrl(step.imageUrl) })),
       likesCount: recipe._count.likes,
       commentsCount: recipe._count.comments,
       isLiked: userId ? recipe.likes?.length > 0 : false,
@@ -699,7 +701,7 @@ export class RecipesService {
         const path = `recipes/${userId}/steps/${Date.now()}_${file.originalname}`;
         const data = await this.supabaseService.uploadFile(bucketName, path, file.buffer, file.mimetype);
         const publicUrl = this.supabaseService.getPublicUrl(bucketName, data.path);
-        return publicUrl;
+        return this.toProxyUrl(publicUrl);
       });
 
       const imageUrls = await Promise.all(uploadPromises);
@@ -746,7 +748,7 @@ export class RecipesService {
       return {
         success: true,
         message: '대표 이미지가 업로드되었습니다.',
-        thumbnailUrl: publicUrl,
+        thumbnailUrl: this.toProxyUrl(publicUrl),
       };
     } catch (error) {
       throw new BadRequestException('대표 이미지 업로드에 실패했습니다.');
@@ -760,7 +762,7 @@ export class RecipesService {
       const path = `recipes/${userId}/steps/${Date.now()}_${file.originalname}`;
       const data = await this.supabaseService.uploadFile(bucketName, path, file.buffer, file.mimetype);
       const publicUrl = this.supabaseService.getPublicUrl(bucketName, data.path);
-      return { imageUrl: publicUrl };
+      return { imageUrl: this.toProxyUrl(publicUrl) };
     } catch (error) {
       throw new BadRequestException('스텝 이미지 업로드에 실패했습니다.');
     }
@@ -776,6 +778,15 @@ export class RecipesService {
     } catch {
       return null;
     }
+  }
+
+  private toProxyUrl(storedUrl?: string): string | undefined {
+    if (!storedUrl) return undefined;
+    const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
+    const path = this.extractStoragePathFromPublicUrl(storedUrl, bucketName) || storedUrl;
+    const base = this.configService.get<string>('PUBLIC_API_BASE_URL') || '';
+    const proxyPath = `/media/image?path=${encodeURIComponent(path)}`;
+    return base ? `${base}${proxyPath}` : proxyPath;
   }
 
   async remove(id: string, userId: string) {

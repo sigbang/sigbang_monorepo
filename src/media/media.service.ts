@@ -47,6 +47,12 @@ export class MediaService {
     if (ct === 'image/webp') return '.webp';
     return '.jpg';
   }
+
+  async getSignedDownloadUrl(path: string, expiresInSec = 300) {
+    const bucketName =
+      this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
+    return this.supabaseService.createSignedUrl(bucketName, path, expiresInSec);
+  }
 }
 
 
