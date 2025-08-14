@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../domain/entities/recipe.dart';
+import '../../../core/config/env_config.dart';
 
 class RecipeCard extends StatelessWidget {
   final Recipe recipe;
@@ -125,8 +126,11 @@ class RecipeCard extends StatelessWidget {
         errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
       );
     } else {
+      final resolvedUrl = imageUrl.startsWith('http')
+          ? imageUrl
+          : _joinUrl(EnvConfig.baseUrl, imageUrl);
       return Image.network(
-        imageUrl,
+        resolvedUrl,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
         loadingBuilder: (context, child, loadingProgress) {
@@ -142,6 +146,12 @@ class RecipeCard extends StatelessWidget {
         },
       );
     }
+  }
+
+  String _joinUrl(String base, String path) {
+    final b = base.endsWith('/') ? base.substring(0, base.length - 1) : base;
+    final p = path.startsWith('/') ? path.substring(1) : path;
+    return '$b/$p';
   }
 
   Widget _buildPlaceholder() {

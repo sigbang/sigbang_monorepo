@@ -40,7 +40,7 @@ class RecipeModel extends Recipe {
       viewCount: json['viewCount'] as int? ?? 0,
       likesCount: json['likesCount'] as int? ?? 0,
       commentsCount: json['commentsCount'] as int? ?? 0,
-      thumbnailUrl: json['thumbnailUrl'] as String?,
+      thumbnailUrl: json['thumbnailImage'] as String?,
       author: json['author'] != null
           ? AuthorModel.fromJson(json['author'] as Map<String, dynamic>)
           : null,

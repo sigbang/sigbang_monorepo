@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/config/env_config.dart';
 import '../../../domain/entities/recipe.dart';
 
 class RecipeImageGallery extends StatefulWidget {
@@ -72,7 +73,7 @@ class _RecipeImageGalleryState extends State<RecipeImageGallery> {
               return GestureDetector(
                 onTap: () => _showFullScreenImage(images[index]),
                 child: Image.network(
-                  images[index],
+                  _resolveUrl(images[index]),
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
                     return _buildPlaceholder();
@@ -173,7 +174,7 @@ class _RecipeImageGalleryState extends State<RecipeImageGallery> {
             Center(
               child: InteractiveViewer(
                 child: Image.network(
-                  imageUrl,
+                  _resolveUrl(imageUrl),
                   fit: BoxFit.contain,
                   errorBuilder: (context, error, stackTrace) {
                     return const Center(
@@ -203,5 +204,16 @@ class _RecipeImageGalleryState extends State<RecipeImageGallery> {
         ),
       ),
     );
+  }
+
+  String _resolveUrl(String url) {
+    if (url.startsWith('assets/'))
+      return url; // 에셋은 그대로 사용 (호출 측에서 Image.asset이 아님)
+    if (url.startsWith('http')) return url;
+    final b = EnvConfig.baseUrl.endsWith('/')
+        ? EnvConfig.baseUrl.substring(0, EnvConfig.baseUrl.length - 1)
+        : EnvConfig.baseUrl;
+    final p = url.startsWith('/') ? url.substring(1) : url;
+    return '$b/$p';
   }
 }

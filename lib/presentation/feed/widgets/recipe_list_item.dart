@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../domain/entities/recipe.dart';
+import '../../../core/config/env_config.dart';
 
 class RecipeListItem extends StatelessWidget {
   final Recipe recipe;
@@ -31,20 +32,7 @@ class RecipeListItem extends StatelessWidget {
                     const BorderRadius.vertical(top: Radius.circular(8)),
                 child: AspectRatio(
                   aspectRatio: 16 / 9,
-                  child: Image.network(
-                    recipe.thumbnailUrl!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                        child: Icon(
-                          Icons.restaurant,
-                          size: 48,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      );
-                    },
-                  ),
+                  child: _buildImage(context, recipe.thumbnailUrl!),
                 ),
               )
             else
@@ -248,6 +236,57 @@ class RecipeListItem extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildImage(BuildContext context, String imageUrl) {
+    // 에셋 경로 처리
+    if (imageUrl.startsWith('assets/')) {
+      return Image.asset(
+        imageUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            _buildPlaceholder(context),
+      );
+    }
+
+    // 상대 경로 처리 -> 서버 baseUrl 프리픽스
+    final resolvedUrl = imageUrl.startsWith('http')
+        ? imageUrl
+        : _joinUrl(EnvConfig.baseUrl, imageUrl);
+
+    return Image.network(
+      resolvedUrl,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => _buildPlaceholder(context),
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Center(
+          child: CircularProgressIndicator(
+            value: loadingProgress.expectedTotalBytes != null
+                ? loadingProgress.cumulativeBytesLoaded /
+                    loadingProgress.expectedTotalBytes!
+                : null,
+          ),
+        );
+      },
+    );
+  }
+
+  String _joinUrl(String base, String path) {
+    final b = base.endsWith('/') ? base.substring(0, base.length - 1) : base;
+    final p = path.startsWith('/') ? path.substring(1) : path;
+    return '$b/$p';
+  }
+
+  Widget _buildPlaceholder(BuildContext context) {
+    return Container(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: Icon(
+        Icons.restaurant,
+        size: 48,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
       ),
     );
   }
