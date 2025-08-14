@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:photo_manager/photo_manager.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 
 class GalleryPickerService {

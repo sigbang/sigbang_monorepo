@@ -319,7 +319,7 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
           contentType: _detectMimeType(uploadedThumbnailPath),
           bytes: bytes,
         );
-        final path = await res.fold<String?>((_) => null, (p) => p);
+        final path = res.fold<String?>((_) => null, (p) => p);
         if (path == null) {
           emit(RecipeCreateError(
             message: '대표 이미지 업로드에 실패했습니다',
@@ -340,7 +340,7 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
             contentType: _detectMimeType(img),
             bytes: bytes,
           );
-          final path = await res.fold<String?>((_) => null, (p) => p);
+          final path = res.fold<String?>((_) => null, (p) => p);
           if (path == null) {
             emit(RecipeCreateError(
               message: '단계 이미지 업로드에 실패했습니다',

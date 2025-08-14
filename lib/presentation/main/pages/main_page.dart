@@ -23,7 +23,7 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   int _currentIndex = 0;
 
-  late final List<Widget> _pages;
+  late List<Widget> _pages;
 
   @override
   void initState() {
@@ -33,13 +33,32 @@ class _MainPageState extends State<MainPage> {
       const FeedPage(), // 피드
       const RecipeCreatePlaceholder(), // 레시피 추가 화면
       widget.isLoggedIn
-          ? const ProfilePage() // 프로필 (로그인 시)
+          ? ProfilePage(user: widget.user) // 프로필 (로그인 시)
           : const Scaffold(
               body: Center(
                 child: Text('로그인이 필요합니다'), // 로그인 유도 (비로그인 시)
               ),
             ),
     ];
+  }
+
+  @override
+  void didUpdateWidget(covariant MainPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isLoggedIn != widget.isLoggedIn) {
+      _pages[3] = widget.isLoggedIn
+          ? ProfilePage(user: widget.user)
+          : const Scaffold(
+              body: Center(
+                child: Text('로그인이 필요합니다'),
+              ),
+            );
+      // 유지 중인 탭 인덱스가 범위를 벗어나지 않도록 보정
+      if (_currentIndex > _pages.length - 1) {
+        _currentIndex = 0;
+      }
+      setState(() {});
+    }
   }
 
   void _onTabTapped(int index) {

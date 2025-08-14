@@ -6,6 +6,7 @@ import '../../presentation/main/pages/main_page.dart';
 import '../../presentation/settings/pages/settings_page.dart';
 import '../../presentation/recipe_detail/pages/recipe_detail_page.dart';
 import '../../presentation/recipe_create/pages/recipe_create_page.dart';
+import '../../presentation/profile/pages/profile_page.dart';
 import '../../presentation/home/cubits/home_cubit.dart';
 import '../../presentation/home/cubits/home_state.dart';
 import '../../injection/injection.dart';
@@ -16,6 +17,7 @@ class AppRouter {
   static const String settings = '/settings';
   static const String recipeDetail = '/recipe';
   static const String recipeCreate = '/create-recipe';
+  static const String profile = '/profile';
 
   static final GoRouter _router = GoRouter(
     initialLocation: main,
@@ -61,6 +63,11 @@ class AppRouter {
         path: settings,
         name: 'settings',
         builder: (context, state) => const SettingsPage(),
+      ),
+      GoRoute(
+        path: profile,
+        name: 'profile',
+        builder: (context, state) => const ProfilePage(),
       ),
       GoRoute(
         path: '$recipeDetail/:recipeId',
