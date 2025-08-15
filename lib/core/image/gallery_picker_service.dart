@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
+import 'package:photo_manager/photo_manager.dart';
 
 class GalleryPickerService {
   static const Set<String> allowedMimeTypes = {
@@ -14,11 +15,9 @@ class GalleryPickerService {
   /// Returns the selected image bytes, or null if cancelled.
   static Future<Uint8List?> pickSingleImageBytes(BuildContext context,
       {bool preferCameraRoll = true}) async {
-    // Request permissions
-    final PermissionState ps = await PhotoManager.requestPermissionExtend();
-    if (!ps.isAuth) {
-      return null;
-    }
+    // Ensure permissions with user-facing flow when denied
+    final bool hasPermission = await _ensurePhotoPermission(context);
+    if (!hasPermission) return null;
 
     // Prepare assets picker config
     final ThemeData theme = Theme.of(context);
@@ -57,5 +56,44 @@ class GalleryPickerService {
     final AssetEntity asset = result.first;
     final Uint8List? bytes = await asset.originBytes;
     return bytes;
+  }
+
+  static Future<bool> _ensurePhotoPermission(BuildContext context) async {
+    PermissionState state = await PhotoManager.requestPermissionExtend();
+
+    bool isState = state.hasAccess;
+    if (state == PermissionState.authorized ||
+        state == PermissionState.limited) {
+      return true;
+    } // authorized or limited
+
+    final bool? openSettings = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('사진 접근 권한이 필요합니다'),
+        content: const Text('사진을 선택하려면 기기의 사진 접근 권한이 필요합니다. 설정에서 권한을 허용해 주세요.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('설정 열기'),
+          ),
+        ],
+      ),
+    );
+
+    if (openSettings == true) {
+      await PhotoManager.openSetting();
+      state = await PhotoManager.requestPermissionExtend();
+      if (state.isAuth) return true;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('권한이 허용되지 않아 사진을 선택할 수 없습니다.')),
+      );
+    }
+
+    return false;
   }
 }
