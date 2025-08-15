@@ -30,38 +30,72 @@ class RecipeStepsEditor extends StatefulWidget {
 }
 
 class _RecipeStepsEditorState extends State<RecipeStepsEditor> {
-  final Map<int, TextEditingController> _controllers = {};
+  // Controllers and focus nodes are kept stable across rebuilds to avoid
+  // breaking IME composition and cursor position while typing.
+  final List<TextEditingController> _controllers = [];
+  final List<FocusNode> _focusNodes = [];
 
   @override
   void initState() {
     super.initState();
-    _initializeControllers();
+    _initializeControllers(initial: true);
   }
 
   @override
   void didUpdateWidget(RecipeStepsEditor oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _initializeControllers();
+    _initializeControllers(initial: false);
   }
 
-  void _initializeControllers() {
-    // 기존 컨트롤러들을 정리
-    for (var controller in _controllers.values) {
-      controller.dispose();
-    }
-    _controllers.clear();
+  void _initializeControllers({required bool initial}) {
+    final int desiredCount = widget.steps.length;
 
-    // 새로운 컨트롤러들 생성
-    for (int i = 0; i < widget.steps.length; i++) {
-      _controllers[i] =
-          TextEditingController(text: widget.steps[i].description);
+    // Add missing controllers/focus nodes
+    while (_controllers.length < desiredCount) {
+      final index = _controllers.length;
+      _controllers.add(TextEditingController(
+        text: widget.steps[index].description,
+      ));
+      _focusNodes.add(FocusNode());
+    }
+
+    // Remove extra controllers/focus nodes
+    while (_controllers.length > desiredCount) {
+      final removedController = _controllers.removeLast();
+      removedController.dispose();
+      final removedFocus = _focusNodes.removeLast();
+      removedFocus.dispose();
+    }
+
+    // Sync text for existing items only when not focused to avoid IME issues
+    final int minLen = _controllers.length < widget.steps.length
+        ? _controllers.length
+        : widget.steps.length;
+    for (int i = 0; i < minLen; i++) {
+      final controller = _controllers[i];
+      final focusNode = _focusNodes[i];
+      final desiredText = widget.steps[i].description;
+
+      // On first build, the controller was created with correct text
+      if (initial) continue;
+
+      if (!focusNode.hasFocus && controller.text != desiredText) {
+        controller.text = desiredText;
+        // Keep cursor at end after external update
+        controller.selection = TextSelection.fromPosition(
+          TextPosition(offset: controller.text.length),
+        );
+      }
     }
   }
 
   @override
   void dispose() {
-    for (var controller in _controllers.values) {
+    for (var controller in _controllers) {
       controller.dispose();
+    }
+    for (var focus in _focusNodes) {
+      focus.dispose();
     }
     super.dispose();
   }
@@ -267,6 +301,7 @@ class _RecipeStepsEditorState extends State<RecipeStepsEditor> {
             // 단계 설명
             TextField(
               controller: _controllers[index],
+              focusNode: _focusNodes[index],
               onChanged: (value) =>
                   widget.onUpdateStepDescription(index, value),
               maxLines: 3,
