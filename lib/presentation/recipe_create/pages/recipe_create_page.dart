@@ -59,7 +59,6 @@ class RecipeCreateView extends StatelessWidget {
       },
       builder: (context, state) {
         return Scaffold(
-          appBar: _buildAppBar(context, state),
           body: _buildBody(context, state),
           bottomNavigationBar: _buildBottomBar(context, state),
         );
@@ -67,95 +66,105 @@ class RecipeCreateView extends StatelessWidget {
     );
   }
 
-  PreferredSizeWidget _buildAppBar(
-      BuildContext context, RecipeCreateState state) {
-    return AppBar(
-      title: const Text('레시피 등록'),
-      leading: IconButton(
-        icon: const Icon(Icons.close),
-        onPressed: () => _showExitDialog(context, state),
-      ),
-      actions: const [],
-    );
-  }
-
   Widget _buildBody(BuildContext context, RecipeCreateState state) {
     // no draft checking
 
     if (state is RecipeCreateUploading) {
-      return _buildUploadingView(context, state);
+      return SafeArea(child: _buildUploadingView(context, state));
     }
 
     if (state is RecipeCreateEditing) {
-      return SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 대표 이미지
-            PhotoUploadWidget(
-              imagePath: state.thumbnailPath,
-              onTap: () => _showImagePicker(context, isThumbnail: true),
-              onRemove: state.thumbnailPath != null
-                  ? () => context.read<RecipeCreateCubit>().setThumbnail('')
-                  : null,
-              label: '대표 이미지',
-              isRequired: true,
-              error: state.errors['thumbnail'],
-            ),
-            const SizedBox(height: 32),
+      return SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 헤더 (AppBar 대체)
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => _showExitDialog(context, state),
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      '레시피 등록',
+                      textAlign: TextAlign.center,
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  const SizedBox(width: 48), // balance for leading button
+                ],
+              ),
+              const SizedBox(height: 8),
+              // 대표 이미지
+              PhotoUploadWidget(
+                imagePath: state.thumbnailPath,
+                onTap: () => _showImagePicker(context, isThumbnail: true),
+                onRemove: state.thumbnailPath != null
+                    ? () => context.read<RecipeCreateCubit>().setThumbnail('')
+                    : null,
+                label: '대표 이미지',
+                isRequired: true,
+                error: state.errors['thumbnail'],
+              ),
+              const SizedBox(height: 32),
 
-            // 기본 정보
-            BasicInfoForm(
-              title: state.title,
-              description: state.description,
-              ingredients: state.ingredients,
-              cookingTime: state.cookingTime,
-              servings: state.servings,
-              difficulty: state.difficulty,
-              errors: state.errors,
-              onTitleChanged: (value) =>
-                  context.read<RecipeCreateCubit>().updateTitle(value),
-              onDescriptionChanged: (value) =>
-                  context.read<RecipeCreateCubit>().updateDescription(value),
-              onIngredientsChanged: (value) =>
-                  context.read<RecipeCreateCubit>().updateIngredients(value),
-              onCookingTimeChanged: (value) =>
-                  context.read<RecipeCreateCubit>().updateCookingTime(value),
-              onServingsChanged: (value) =>
-                  context.read<RecipeCreateCubit>().updateServings(value),
-              onDifficultyChanged: (value) =>
-                  context.read<RecipeCreateCubit>().updateDifficulty(value),
-            ),
-            const SizedBox(height: 32),
+              // 기본 정보
+              BasicInfoForm(
+                title: state.title,
+                description: state.description,
+                ingredients: state.ingredients,
+                cookingTime: state.cookingTime,
+                servings: state.servings,
+                difficulty: state.difficulty,
+                errors: state.errors,
+                onTitleChanged: (value) =>
+                    context.read<RecipeCreateCubit>().updateTitle(value),
+                onDescriptionChanged: (value) =>
+                    context.read<RecipeCreateCubit>().updateDescription(value),
+                onIngredientsChanged: (value) =>
+                    context.read<RecipeCreateCubit>().updateIngredients(value),
+                onCookingTimeChanged: (value) =>
+                    context.read<RecipeCreateCubit>().updateCookingTime(value),
+                onServingsChanged: (value) =>
+                    context.read<RecipeCreateCubit>().updateServings(value),
+                onDifficultyChanged: (value) =>
+                    context.read<RecipeCreateCubit>().updateDifficulty(value),
+              ),
+              const SizedBox(height: 32),
 
-            // 조리 과정
-            RecipeStepsEditor(
-              steps: state.steps,
-              errors: state.errors,
-              onAddStep: () => context.read<RecipeCreateCubit>().addStep(),
-              onRemoveStep: (index) =>
-                  context.read<RecipeCreateCubit>().removeStep(index),
-              onUpdateStepDescription: (index, description) => context
-                  .read<RecipeCreateCubit>()
-                  .updateStepDescription(index, description),
-              onSetStepImage: (index, imagePath) => context
-                  .read<RecipeCreateCubit>()
-                  .setStepImage(index, imagePath),
-              onReorderSteps: (oldIndex, newIndex) => context
-                  .read<RecipeCreateCubit>()
-                  .reorderSteps(oldIndex, newIndex),
-            ),
-            const SizedBox(height: 32),
+              // 조리 과정
+              RecipeStepsEditor(
+                steps: state.steps,
+                errors: state.errors,
+                onAddStep: () => context.read<RecipeCreateCubit>().addStep(),
+                onRemoveStep: (index) =>
+                    context.read<RecipeCreateCubit>().removeStep(index),
+                onUpdateStepDescription: (index, description) => context
+                    .read<RecipeCreateCubit>()
+                    .updateStepDescription(index, description),
+                onSetStepImage: (index, imagePath) => context
+                    .read<RecipeCreateCubit>()
+                    .setStepImage(index, imagePath),
+                onReorderSteps: (oldIndex, newIndex) => context
+                    .read<RecipeCreateCubit>()
+                    .reorderSteps(oldIndex, newIndex),
+              ),
+              const SizedBox(height: 32),
 
-            // 태그 선택
-            TagSelector(
-              selectedTags: state.tags,
-              onTagToggle: (tag) =>
-                  context.read<RecipeCreateCubit>().toggleTag(tag),
-            ),
-            const SizedBox(height: 100), // 하단 바 공간
-          ],
+              // 태그 선택
+              TagSelector(
+                selectedTags: state.tags,
+                onTagToggle: (tag) =>
+                    context.read<RecipeCreateCubit>().toggleTag(tag),
+              ),
+              const SizedBox(height: 100), // 하단 바 공간
+            ],
+          ),
         ),
       );
     }
@@ -202,27 +211,30 @@ class RecipeCreateView extends StatelessWidget {
   Widget? _buildBottomBar(BuildContext context, RecipeCreateState state) {
     if (state is! RecipeCreateEditing) return null;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        border: Border(
-          top: BorderSide(
-            color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: ElevatedButton(
-              onPressed: state.isValid
-                  ? () => context.read<RecipeCreateCubit>().publishRecipe()
-                  : null,
-              child: const Text('바로 공개하기'),
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          border: Border(
+            top: BorderSide(
+              color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
             ),
           ),
-        ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: ElevatedButton(
+                onPressed: state.isValid
+                    ? () => context.read<RecipeCreateCubit>().publishRecipe()
+                    : null,
+                child: const Text('바로 공개하기'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

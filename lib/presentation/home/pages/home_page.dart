@@ -155,14 +155,18 @@ class HomeView extends StatelessWidget {
       );
     }
 
+    final textScale = MediaQuery.of(context).textScaleFactor;
+    final double aspectRatio =
+        (0.68 - (textScale - 1.0) * 0.12).clamp(0.56, 0.8);
+
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       sliver: SliverGrid(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
           mainAxisSpacing: 16,
           crossAxisSpacing: 16,
-          childAspectRatio: 0.75,
+          childAspectRatio: aspectRatio,
         ),
         delegate: SliverChildBuilderDelegate(
           (context, index) {

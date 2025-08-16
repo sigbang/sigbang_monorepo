@@ -26,7 +26,7 @@ class RecipeCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 이미지 영역
-            Expanded(
+            Flexible(
               flex: 3,
               child: Container(
                 width: double.infinity,
@@ -39,7 +39,7 @@ class RecipeCard extends StatelessWidget {
               ),
             ),
             // 정보 영역
-            Expanded(
+            Flexible(
               flex: 2,
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
@@ -70,6 +70,7 @@ class RecipeCard extends StatelessWidget {
                     ],
                     // 통계 정보
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Icon(
                           Icons.favorite,
