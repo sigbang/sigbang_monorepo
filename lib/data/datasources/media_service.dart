@@ -32,7 +32,8 @@ class MediaService {
     final dio = Dio();
     await dio.put(
       uploadUrl,
-      data: Stream.fromIterable(bytes.map((b) => [b])),
+      // Send as a single contiguous buffer for performance
+      data: bytes,
       options: Options(
         headers: {'Content-Type': contentType},
         followRedirects: false,
