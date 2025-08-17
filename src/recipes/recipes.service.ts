@@ -575,6 +575,18 @@ export class RecipesService {
       if (!picked) break;
     }
 
+    // 제약으로 인해 충분히 채워지지 않은 경우, 완화된 규칙으로 보강
+    if (result.length < limit) {
+      const tFallback = Date.now();
+      for (const r of ranked) {
+        if (result.length >= limit) break;
+        if (!result.find(x => x.id === r.id)) {
+          result.push(r);
+        }
+      }
+      this.logger.debug(`fallback filled to=${result.length} in ${Date.now() - tFallback}ms`);
+    }
+
     // 신규 보호: 10개당 최소 1개 (가능 시)
     if (result.length > 0) {
       const veryNewExists = ranked.some(r => (now - new Date(r.createdAt).getTime()) / (1000 * 60) < 30);
