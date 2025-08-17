@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
+import '../common/widgets/app_logo.dart';
 
 class ImageEditModal extends StatefulWidget {
   final Uint8List originalBytes;
@@ -53,7 +54,7 @@ class _ImageEditModalState extends State<ImageEditModal> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('이미지 편집'),
+        title: const AppLogo(),
         actions: [
           IconButton(
             icon: const Icon(Icons.check),

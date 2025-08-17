@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../domain/entities/user.dart';
+import '../../common/widgets/app_logo.dart';
 
 class HomeHeader extends StatelessWidget {
   final User? user;
@@ -20,8 +21,9 @@ class HomeHeader extends StatelessWidget {
         Row(
           children: [
             // 앱 로고 영역
+            const AppLogo(height: 32),
             Text(
-              '시그방',
+              '식방',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Theme.of(context).primaryColor,
@@ -73,7 +75,7 @@ class HomeHeader extends StatelessWidget {
           ),
         ] else ...[
           Text(
-            '시그방에 오신 것을 환영합니다!',
+            '식방에 오신 것을 환영합니다!',
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 4),

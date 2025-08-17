@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:crop_your_image/crop_your_image.dart';
 import 'package:flutter/material.dart';
+import '../common/widgets/app_logo.dart';
 
 class SquareCropPage extends StatefulWidget {
   final Uint8List imageBytes;
@@ -24,7 +25,7 @@ class _SquareCropPageState extends State<SquareCropPage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text(''),
+        title: const AppLogo(),
         actions: [
           IconButton(
             onPressed: _isCropping

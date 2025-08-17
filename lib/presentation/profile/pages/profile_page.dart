@@ -7,6 +7,7 @@ import '../../login/cubits/login_cubit.dart';
 import '../../login/cubits/login_state.dart';
 import '../../../domain/entities/user.dart';
 import '../../../domain/usecases/get_current_user.dart';
+import '../../common/widgets/app_logo.dart';
 
 class ProfilePage extends StatelessWidget {
   final User? user;
@@ -37,7 +38,7 @@ class _ProfileView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(AppStrings.profile),
+        title: const AppLogo(),
       ),
       body: BlocListener<LoginCubit, LoginState>(
         listener: (context, state) {

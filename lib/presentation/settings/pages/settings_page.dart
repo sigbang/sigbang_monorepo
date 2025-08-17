@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/router/app_router.dart';
 import '../../../injection/injection.dart';
+import '../../common/widgets/app_logo.dart';
 import '../../login/cubits/login_cubit.dart';
 import '../../login/cubits/login_state.dart';
 
@@ -26,7 +27,7 @@ class SettingsView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(AppStrings.settings),
+        title: const AppLogo(),
       ),
       body: BlocListener<LoginCubit, LoginState>(
         listener: (context, state) {

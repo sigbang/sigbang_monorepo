@@ -4,6 +4,7 @@ import '../../../injection/injection.dart';
 import '../cubits/recipe_detail_cubit.dart';
 import '../cubits/recipe_detail_state.dart';
 import '../widgets/recipe_detail_card.dart';
+import '../../common/widgets/app_logo.dart';
 
 class RecipeDetailPage extends StatelessWidget {
   final String recipeId;
@@ -80,30 +81,45 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                 : null,
             automaticallyImplyLeading: _isFirstPage,
             title: state is RecipeDetailLoaded
-                ? Column(
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        state.currentRecipe.title,
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (state.recipes.length > 1)
-                        Text(
-                          '${state.currentIndex + 1} / ${state.recipes.length}',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
+                      const AppLogo(height: 24),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text(
+                              state.currentRecipe.title,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w600,
                                   ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (state.recipes.length > 1)
+                              Text(
+                                '${state.currentIndex + 1} / ${state.recipes.length}',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                              ),
+                          ],
                         ),
+                      ),
                     ],
                   )
-                : const Text('레시피'),
+                : const AppLogo(),
             centerTitle: true,
             actions: [
               // 더보기 메뉴
