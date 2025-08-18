@@ -6,6 +6,8 @@ import '../../../core/router/app_router.dart';
 import '../../../injection/injection.dart';
 import '../cubits/login_cubit.dart';
 import '../cubits/login_state.dart';
+import '../../common/widgets/app_logo.dart';
+import '../../main/widgets/bottom_navigation_bar.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
@@ -19,17 +21,49 @@ class LoginPage extends StatelessWidget {
   }
 }
 
-class LoginView extends StatelessWidget {
+class LoginView extends StatefulWidget {
   const LoginView({super.key});
+
+  @override
+  State<LoginView> createState() => _LoginViewState();
+}
+
+class _LoginViewState extends State<LoginView> {
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    debugPrint('LoginView opened');
+  }
+
+  void _onLoginPressed(BuildContext context) {
+    debugPrint('Login button tapped: Google');
+    context.read<LoginCubit>().loginWithGoogle();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      bottomNavigationBar: CustomBottomNavigationBar(
+        currentIndex: _currentIndex,
+        isLoggedIn: false,
+        onTap: (index) {
+          debugPrint('BottomNav tapped on login page. index=$index');
+          setState(() => _currentIndex = index);
+          // Navigate to main for accessible tabs to keep UX consistent
+          if (index == 0 || index == 1) {
+            context.go(AppRouter.main);
+          }
+        },
+      ),
       body: BlocListener<LoginCubit, LoginState>(
         listener: (context, state) {
           if (state is LoginSuccess) {
+            debugPrint('Login success');
             context.go(AppRouter.main);
           } else if (state is LoginFailure) {
+            debugPrint('Login failed: ${state.message}');
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),
@@ -39,101 +73,104 @@ class LoginView extends StatelessWidget {
           }
         },
         child: SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Spacer(),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 560),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 24),
 
-                // 앱 로고/제목
-                Column(
-                  children: [
-                    Icon(
-                      Icons.restaurant_menu,
-                      size: 80,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      AppStrings.appName,
-                      style:
-                          Theme.of(context).textTheme.headlineLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '요리 레시피를 공유하고 발견하세요',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-
-                const Spacer(),
-
-                // 로그인 버튼
-                BlocBuilder<LoginCubit, LoginState>(
-                  builder: (context, state) {
-                    final isLoading = state is LoginLoading;
-
-                    return ElevatedButton.icon(
-                      onPressed: isLoading
-                          ? null
-                          : () => context.read<LoginCubit>().loginWithGoogle(),
-                      icon: isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Image.asset(
-                              'assets/images/google_logo.png',
-                              width: 20,
-                              height: 20,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Icon(
-                                  Icons.login,
-                                  size: 20,
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary,
-                                );
-                              },
+                  // 앱 로고/제목 (브랜드 룩 적용)
+                  Column(
+                    children: [
+                      const AppLogo(height: 56),
+                      const SizedBox(height: 16),
+                      Text(
+                        '식방방',
+                        style:
+                            Theme.of(context).textTheme.headlineLarge?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '요리 레시피를 공유하고 발견하세요',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
-                      label: Text(
-                        isLoading ? '로그인 중...' : AppStrings.loginWithGoogle,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 48),
+
+                  // 로그인 버튼
+                  BlocBuilder<LoginCubit, LoginState>(
+                    builder: (context, state) {
+                      final isLoading = state is LoginLoading;
+
+                      return ElevatedButton.icon(
+                        onPressed:
+                            isLoading ? null : () => _onLoginPressed(context),
+                        icon: isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Image.asset(
+                                'assets/images/google_logo.png',
+                                width: 20,
+                                height: 20,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Icon(
+                                    Icons.login,
+                                    size: 20,
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                  );
+                                },
+                              ),
+                        label: Text(
+                          isLoading ? '로그인 중...' : AppStrings.loginWithGoogle,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        foregroundColor:
-                            Theme.of(context).colorScheme.onPrimary,
-                        minimumSize: const Size(double.infinity, 56),
-                      ),
-                    );
-                  },
-                ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primary,
+                          foregroundColor:
+                              Theme.of(context).colorScheme.onPrimary,
+                          minimumSize: const Size(double.infinity, 56),
+                        ),
+                      );
+                    },
+                  ),
 
-                const SizedBox(height: 32),
+                  const SizedBox(height: 32),
 
-                // 서비스 약관 등
-                Text(
-                  '로그인하면 서비스 이용약관과 개인정보처리방침에 동의한 것으로 간주됩니다.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+                  // 서비스 약관 등
+                  Text(
+                    '로그인하면 서비스 이용약관과 개인정보처리방침에 동의한 것으로 간주됩니다.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+
+                  const SizedBox(height: 24),
+                ],
+              ),
             ),
           ),
         ),
