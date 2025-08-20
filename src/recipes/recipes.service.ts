@@ -16,6 +16,24 @@ import {
   RecipeStatus 
 } from './dto/recipes.dto';
 import { ConfigService } from '@nestjs/config';
+// sharp 로더: CJS/ESM 모두 호환되도록 런타임에서 안전하게 로드
+let _sharp: any | null = null;
+async function getSharp(): Promise<any> {
+  if (_sharp) return _sharp;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // @ts-ignore
+    _sharp = require('sharp');
+    return _sharp;
+  } catch (e: any) {
+    if (e && (e.code === 'ERR_REQUIRE_ESM' || String(e).includes('ERR_REQUIRE_ESM'))) {
+      const mod: any = await import('sharp');
+      _sharp = mod?.default ?? mod;
+      return _sharp;
+    }
+    throw e;
+  }
+}
 
 @Injectable()
 export class RecipesService {
@@ -34,7 +52,7 @@ export class RecipesService {
     // Supabase 버킷명
     const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';    
 
-    // 이미지 경로 정리: temp 경로를 정식 경로로 이동
+    // 이미지 경로 정리: temp 경로를 다운로드 후 전처리하여 정식 경로로 저장
     const now = Date.now();
     let finalThumbnailUrl: string | undefined = undefined;
 
@@ -43,12 +61,22 @@ export class RecipesService {
     const toPublicUrl = (path: string) => this.supabaseService.getPublicUrl(bucketName, path);
 
     try {
-      // 1) 썸네일 이동
+      // 1) 썸네일 처리: temp 이미지를 다운로드 → sharp(WebP) → 영구 경로 업로드(+cache) → temp 삭제
       if (isTempPath(thumbnailPath)) {
         const tempKey = thumbnailPath!;
-        const fileName = tempKey.split('/').pop() || `${now}.jpg`;
-        const finalThumbKey = `recipes/${userId}/thumbnails/${now}_${fileName}`;
-        await this.supabaseService.moveFile(bucketName, tempKey, finalThumbKey);
+        const original = await this.supabaseService.downloadFile(bucketName, tempKey);
+        const sharp = await getSharp();
+        const processed = await sharp(original)
+          .rotate()
+          .resize({ width: 1280, withoutEnlargement: true })
+          .webp({ quality: 82 })
+          .toBuffer();
+        const rawName = tempKey.split('/').pop() || `${now}.jpg`;
+        const base = rawName.replace(/\.[^.]+$/, '');
+        const finalThumbKey = `recipes/${userId}/thumbnails/${now}_${base}.webp`;
+        const cacheSeconds = 60 * 60 * 24 * 365;
+        await this.supabaseService.uploadFile(bucketName, finalThumbKey, processed, 'image/webp', cacheSeconds);
+        try { await this.supabaseService.deleteFile(bucketName, [tempKey]); } catch {}
         finalThumbnailUrl = toPublicUrl(finalThumbKey);
       }
 
@@ -74,9 +102,19 @@ export class RecipesService {
           let imageUrl: string | undefined = undefined;
           if (isTempPath(step.imagePath)) {
             const tempKey = step.imagePath!;
-            const fileName = tempKey.split('/').pop() || `${now}.jpg`;
-            const finalStepKey = `recipes/${userId}/steps/${now}_${fileName}`;
-            await this.supabaseService.moveFile(bucketName, tempKey, finalStepKey);
+            const original = await this.supabaseService.downloadFile(bucketName, tempKey);
+            const sharp = await getSharp();
+            const processed = await sharp(original)
+              .rotate()
+              .resize({ width: 1600, withoutEnlargement: true })
+              .webp({ quality: 82 })
+              .toBuffer();
+            const rawName = tempKey.split('/').pop() || `${now}.jpg`;
+            const base = rawName.replace(/\.[^.]+$/, '');
+            const finalStepKey = `recipes/${userId}/steps/${now}_${base}.webp`;
+            const cacheSeconds = 60 * 60 * 24 * 365;
+            await this.supabaseService.uploadFile(bucketName, finalStepKey, processed, 'image/webp', cacheSeconds);
+            try { await this.supabaseService.deleteFile(bucketName, [tempKey]); } catch {}
             imageUrl = toPublicUrl(finalStepKey);
           } else if (step.imagePath) {
             // imagePath가 이미 최종 key이거나 URL인 경우 처리
@@ -91,7 +129,8 @@ export class RecipesService {
 
       return { id: recipe.id };
     } catch (error) {
-      throw new BadRequestException('레시피 생성에 실패했습니다.');
+      this.logger.error(`레시피 생성 실패: ${String((error as any)?.message || error)}`, (error as any)?.stack);
+      throw new BadRequestException(`레시피 생성에 실패했습니다: ${String((error as any)?.message || error)}`);
     }
   }
 

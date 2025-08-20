@@ -47,8 +47,7 @@ export class RecipesController {
   @ApiOperation({ summary: '레시피 생성 (즉시 공개)' })
   @ApiBody({ type: CreateRecipeDto })
   @ApiResponse({ status: 201, description: '레시피 생성 성공' })
-  async create(@CurrentUser() user: any, @Body() createRecipeDto: CreateRecipeDto) {
-    console.log(user);
+  async create(@CurrentUser() user: any, @Body() createRecipeDto: CreateRecipeDto) {    
     return this.recipesService.create(user.id, createRecipeDto);
   }
 

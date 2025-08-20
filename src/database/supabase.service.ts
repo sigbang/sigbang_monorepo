@@ -39,16 +39,34 @@ export class SupabaseService {
   }
 
   // 파일 업로드 (Storage)
-  async uploadFile(bucketName: string, path: string, file: Buffer, contentType?: string) {
+  async uploadFile(
+    bucketName: string,
+    path: string,
+    file: Buffer,
+    contentType?: string,
+    cacheControlSeconds?: number,
+  ) {
     const { data, error } = await this.serviceClient.storage
       .from(bucketName)
       .upload(path, file, {
         contentType,
+        cacheControl: cacheControlSeconds ? String(cacheControlSeconds) : undefined,
         upsert: true,
       });
 
     if (error) throw error;
     return data;
+  }
+
+  // 파일 다운로드 (버퍼)
+  async downloadFile(bucketName: string, path: string): Promise<Buffer> {
+    const { data, error } = await this.serviceClient.storage
+      .from(bucketName)
+      .download(path);
+
+    if (error) throw error;
+    const arrayBuffer = await data.arrayBuffer();
+    return Buffer.from(arrayBuffer);
   }
 
   // 파일 삭제
