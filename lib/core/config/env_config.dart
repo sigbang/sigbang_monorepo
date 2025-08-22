@@ -6,6 +6,14 @@ class EnvConfig {
     return dotenv.env['BASE_URL'] ?? 'http://localhost:3000';
   }
 
+  static String get supabaseUrl {
+    return dotenv.env['SUPABASE_URL'] ?? '';
+  }
+
+  static String get supabaseAnonKey {
+    return dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+  }
+
   static bool get isProduction {
     return kReleaseMode;
   }
@@ -28,6 +36,9 @@ class EnvConfig {
       if (kDebugMode) {
         print('Environment loaded: $envFileName');
         print('BASE_URL: $baseUrl');
+        if ((supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty)) {
+          print('Supabase configured');
+        }
       }
     } catch (e) {
       if (kDebugMode) {

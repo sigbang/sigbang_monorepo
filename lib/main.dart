@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'core/config/env_config.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'domain/repositories/auth_repository.dart';
 import 'injection/injection.dart';
 import 'src/app.dart';
@@ -9,6 +10,15 @@ void main() async {
 
   // 환경 변수 로드
   await EnvConfig.load();
+
+  // Supabase 초기화 (옵션)
+  if (EnvConfig.supabaseUrl.isNotEmpty &&
+      EnvConfig.supabaseAnonKey.isNotEmpty) {
+    await Supabase.initialize(
+      url: EnvConfig.supabaseUrl,
+      anonKey: EnvConfig.supabaseAnonKey,
+    );
+  }
 
   // 의존성 주입 설정
   await setupDependencyInjection();

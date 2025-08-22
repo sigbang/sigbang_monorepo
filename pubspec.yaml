@@ -24,6 +24,7 @@ dependencies:
   
   # Networking
   dio: ^5.3.2
+  supabase_flutter: ^2.5.7
   
   # Routing
   go_router: ^13.0.1

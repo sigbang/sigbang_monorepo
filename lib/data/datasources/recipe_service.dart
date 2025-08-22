@@ -1,5 +1,8 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../domain/entities/recipe.dart';
 import '../../domain/entities/recipe_query.dart';
 import '../models/recipe_model.dart';
@@ -102,12 +105,12 @@ class RecipeService {
     }
   }
 
-  /// presign + PUT 업로드를 통해 썸네일/스텝 이미지 업로드 후 경로 반환
+  /// 서버에서 발급한 Supabase signed URL 정보를 사용해 업로드 후 경로 반환
   Future<String> uploadImageWithPresign({
     required String contentType,
     required Uint8List bytes,
   }) async {
-    // Use direct endpoint through ApiClient to avoid extra service dependency here
+    // 1) 서버에서 Supabase 업로드용 path/token/bucket을 발급받음
     final presignRes = await _apiClient.dio.post(
       '/media/presign',
       data: {'contentType': contentType},
@@ -118,13 +121,39 @@ class RecipeService {
     final data = presignRes.data is Map<String, dynamic>
         ? presignRes.data
         : (presignRes.data['data'] ?? presignRes.data);
-    final uploadUrl = (data['uploadUrl'] ?? data['url']) as String;
-    final path = (data['path'] ?? data['key']) as String;
 
+    // 서버 응답: { bucket, path, token } (권장)
+    // 하위호환: { uploadUrl/url, path/key } (기존 S3/PUT)
+    final bucket = data['bucket'] as String?;
+    final path = (data['path'] ?? data['key']) as String;
+    final token = data['token'] as String?;
+    final hasSupabase = bucket != null && token != null;
+
+    if (hasSupabase) {
+      // 2) Supabase SDK로 업로드
+      final supabase = Supabase.instance.client;
+      final storage = supabase.storage.from(bucket);
+      // Supabase uploadToSignedUrl는 File을 요구하므로 임시 파일 생성
+      final tempDir = await getTemporaryDirectory();
+      final tempPath =
+          '${tempDir.path}/sb_upload_${DateTime.now().millisecondsSinceEpoch}${_extFromContentType(contentType)}';
+      final tempFile = File(tempPath);
+      await tempFile.writeAsBytes(bytes, flush: true);
+      await storage.uploadToSignedUrl(path, token, tempFile);
+      try {
+        await tempFile.delete();
+      } catch (_) {}
+      return path;
+    }
+
+    // 3) Fallback: 기존 presigned PUT (uploadUrl)
+    final uploadUrl = (data['uploadUrl'] ?? data['url']) as String?;
+    if (uploadUrl == null) {
+      throw Exception('Presign response missing token/uploadUrl');
+    }
     final dio = Dio();
     await dio.put(
       uploadUrl,
-      // Send as a single contiguous buffer for performance
       data: bytes,
       options: Options(
         headers: {'Content-Type': contentType},
@@ -133,6 +162,22 @@ class RecipeService {
       ),
     );
     return path;
+  }
+
+  String _extFromContentType(String contentType) {
+    switch (contentType.toLowerCase()) {
+      case 'image/jpeg':
+      case 'image/jpg':
+        return '.jpg';
+      case 'image/png':
+        return '.png';
+      case 'image/webp':
+        return '.webp';
+      case 'image/gif':
+        return '.gif';
+      default:
+        return '';
+    }
   }
 
   /// 다중 이미지 presign 업로드 helper

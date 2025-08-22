@@ -89,7 +89,7 @@ class _LoginViewState extends State<LoginView> {
                       const AppLogo(height: 56),
                       const SizedBox(height: 16),
                       Text(
-                        '식방방',
+                        '식방',
                         style:
                             Theme.of(context).textTheme.headlineLarge?.copyWith(
                                   fontWeight: FontWeight.bold,
