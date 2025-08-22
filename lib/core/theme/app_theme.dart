@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // Brand colors
@@ -25,7 +26,7 @@ class AppTheme {
       onError: Colors.white,
     );
 
-    return ThemeData(
+    final ThemeData baseLight = ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
       scaffoldBackgroundColor: Colors.white,
@@ -103,6 +104,12 @@ class AppTheme {
         color: Colors.white,
       ),
     );
+
+    return baseLight.copyWith(
+      textTheme: GoogleFonts.notoSansKrTextTheme(baseLight.textTheme),
+      primaryTextTheme:
+          GoogleFonts.notoSansKrTextTheme(baseLight.primaryTextTheme),
+    );
   }
 
   static ThemeData get darkTheme {
@@ -122,7 +129,7 @@ class AppTheme {
       onError: Colors.white,
     );
 
-    return ThemeData(
+    final ThemeData baseDark = ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
       scaffoldBackgroundColor: scheme.background,
@@ -176,6 +183,12 @@ class AppTheme {
           borderRadius: BorderRadius.circular(16),
         ),
       ),
+    );
+
+    return baseDark.copyWith(
+      textTheme: GoogleFonts.notoSansKrTextTheme(baseDark.textTheme),
+      primaryTextTheme:
+          GoogleFonts.notoSansKrTextTheme(baseDark.primaryTextTheme),
     );
   }
 }
