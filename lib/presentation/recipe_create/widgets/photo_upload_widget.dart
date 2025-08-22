@@ -54,12 +54,7 @@ class PhotoUploadWidget extends StatelessWidget {
             width: double.infinity,
             height: 200,
             decoration: BoxDecoration(
-              color: imagePath != null
-                  ? Colors.transparent
-                  : Theme.of(context)
-                      .colorScheme
-                      .surfaceContainerHighest
-                      .withOpacity(0.3),
+              color: imagePath != null ? Colors.transparent : Colors.white,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: error != null

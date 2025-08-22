@@ -73,12 +73,8 @@ class RecipeCreateEditing extends RecipeCreateState {
   }
 
   bool get isValid {
-    return title.trim().isNotEmpty &&
-        description.trim().isNotEmpty &&
-        ingredients.trim().isNotEmpty &&
-        steps.isNotEmpty &&
-        thumbnailPath != null &&
-        errors.isEmpty;
+    // 필수값 최소화: 썸네일만 있으면 발행 버튼 활성화
+    return thumbnailPath != null && errors.isEmpty;
   }
 
   @override

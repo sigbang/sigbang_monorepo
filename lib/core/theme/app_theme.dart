@@ -4,7 +4,7 @@ class AppTheme {
   // Brand colors
   // Main: #0F0F0F, Sub: #F2F2F2, Third: #FEC722
   static const _primaryColor = Color(0xFF0F0F0F);
-  static const _secondaryColor = Color(0xFFF2F2F2);
+  // static const _secondaryColor = Color(0xFFF2F2F2); // no longer used (white background)
   static const _tertiaryColor = Color(0xFFFEC722);
   static const _errorColor = Color(0xFFFF3B30);
 
@@ -19,7 +19,7 @@ class AppTheme {
       onSecondary: Colors.black,
       surface: Colors.white,
       onSurface: Colors.black,
-      background: _secondaryColor,
+      background: Colors.white,
       onBackground: Colors.black,
       error: _errorColor,
       onError: Colors.white,
@@ -28,7 +28,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: scheme.background,
+      scaffoldBackgroundColor: Colors.white,
       appBarTheme: const AppBarTheme(
         centerTitle: true,
         elevation: 0,
@@ -62,16 +62,38 @@ class AppTheme {
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
         filled: true,
-        fillColor: _secondaryColor,
+        fillColor: Colors.white,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 16,
         ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(24),
+          borderSide: BorderSide(
+            color: scheme.outline.withOpacity(0.3),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(24),
+          borderSide: BorderSide(
+            color: scheme.outline.withOpacity(0.3),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(24),
+          borderSide: BorderSide(
+            color: scheme.primary.withOpacity(0.6),
+            width: 1.5,
+          ),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(24),
+          borderSide: BorderSide(
+            color: scheme.error,
+          ),
+        ),
+        counterStyle: const TextStyle(fontSize: 0, height: 0),
       ),
       cardTheme: CardThemeData(
         elevation: 0,

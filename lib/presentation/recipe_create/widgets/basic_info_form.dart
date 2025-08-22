@@ -6,15 +6,19 @@ class BasicInfoForm extends StatefulWidget {
   final String description;
   final String ingredients;
   final int cookingTime;
-  final int servings;
   final RecipeDifficulty difficulty;
   final Map<String, String?> errors;
   final Function(String) onTitleChanged;
   final Function(String) onDescriptionChanged;
   final Function(String) onIngredientsChanged;
   final Function(int) onCookingTimeChanged;
-  final Function(int) onServingsChanged;
   final Function(RecipeDifficulty) onDifficultyChanged;
+  // Section visibility flags for flexible layouts
+  final bool showTitle;
+  final bool showDescription;
+  final bool showIngredients;
+  final bool showCookingTime;
+  final bool showDifficulty;
 
   const BasicInfoForm({
     super.key,
@@ -22,15 +26,18 @@ class BasicInfoForm extends StatefulWidget {
     required this.description,
     required this.ingredients,
     required this.cookingTime,
-    required this.servings,
     required this.difficulty,
     required this.errors,
     required this.onTitleChanged,
     required this.onDescriptionChanged,
     required this.onIngredientsChanged,
     required this.onCookingTimeChanged,
-    required this.onServingsChanged,
     required this.onDifficultyChanged,
+    this.showTitle = true,
+    this.showDescription = true,
+    this.showIngredients = true,
+    this.showCookingTime = true,
+    this.showDifficulty = true,
   });
 
   @override
@@ -82,82 +89,52 @@ class _BasicInfoFormState extends State<BasicInfoForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 제목
-        _buildTextField(
-          context,
-          label: '레시피 제목',
-          controller: _titleController,
-          onChanged: widget.onTitleChanged,
-          error: widget.errors['title'],
-          isRequired: true,
-          maxLength: 50,
-          hintText: '맛있는 레시피 제목을 입력하세요',
-        ),
-        const SizedBox(height: 24),
-
-        // 설명
-        _buildTextField(
-          context,
-          label: '레시피 설명',
-          controller: _descriptionController,
-          onChanged: widget.onDescriptionChanged,
-          error: widget.errors['description'],
-          isRequired: true,
-          maxLines: 3,
-          maxLength: 200,
-          hintText: '레시피에 대한 간단한 설명을 입력하세요',
-        ),
-        const SizedBox(height: 24),
-
-        // 재료
-        _buildTextField(
-          context,
-          label: '재료',
-          controller: _ingredientsController,
-          onChanged: widget.onIngredientsChanged,
-          error: widget.errors['ingredients'],
-          isRequired: true,
-          maxLines: 5,
-          maxLength: 500,
-          hintText: '예:\n- 돼지고기 200g\n- 양파 1개\n- 간장 2큰술\n- 마늘 3쪽',
-        ),
-        const SizedBox(height: 24),
-
-        // 요리 정보 행
-        Row(
-          children: [
-            // 조리 시간
-            Expanded(
-              child: _buildNumberField(
-                context,
-                label: '조리 시간',
-                value: widget.cookingTime,
-                onChanged: widget.onCookingTimeChanged,
-                suffix: '분',
-                min: 5,
-                max: 300,
-              ),
-            ),
-            const SizedBox(width: 16),
-
-            // 인분
-            Expanded(
-              child: _buildNumberField(
-                context,
-                label: '인분',
-                value: widget.servings,
-                onChanged: widget.onServingsChanged,
-                suffix: '인분',
-                min: 1,
-                max: 10,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-
-        // 난이도
-        _buildDifficultySelector(context),
+        if (widget.showTitle) ...[
+          _buildTextField(
+            context,
+            label: '레시피 제목',
+            controller: _titleController,
+            onChanged: widget.onTitleChanged,
+            error: widget.errors['title'],
+            isRequired: true,
+            maxLength: 50,
+            hintText: '제목',
+          ),
+          const SizedBox(height: 24),
+        ],
+        if (widget.showDescription) ...[
+          _buildTextField(
+            context,
+            label: '레시피 설명',
+            controller: _descriptionController,
+            onChanged: widget.onDescriptionChanged,
+            error: widget.errors['description'],
+            isRequired: true,
+            maxLines: 3,
+            maxLength: 200,
+            hintText: '레시피에 대한 간단한 설명을 입력하세요',
+          ),
+          const SizedBox(height: 24),
+        ],
+        if (widget.showIngredients) ...[
+          _buildTextField(
+            context,
+            label: '재료',
+            controller: _ingredientsController,
+            onChanged: widget.onIngredientsChanged,
+            error: widget.errors['ingredients'],
+            isRequired: true,
+            maxLines: 5,
+            maxLength: 500,
+            hintText: '예:\n- 돼지고기 200g\n- 양파 1개\n- 간장 2큰술\n- 마늘 3쪽',
+          ),
+          const SizedBox(height: 24),
+        ],
+        if (widget.showCookingTime) ...[
+          _buildTimeSlider(context),
+          const SizedBox(height: 24),
+        ],
+        if (widget.showDifficulty) _buildDifficultySelector(context),
       ],
     );
   }
@@ -207,12 +184,18 @@ class _BasicInfoFormState extends State<BasicInfoForm> {
           maxLength: maxLength,
           decoration: InputDecoration(
             hintText: hintText,
+            filled: true,
+            fillColor: Colors.white,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(24),
+              borderSide: BorderSide(
+                color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+              ),
             ),
+            counterText: '',
             errorText: error,
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(24),
               borderSide: BorderSide(
                 color: Theme.of(context).colorScheme.error,
               ),
@@ -223,20 +206,17 @@ class _BasicInfoFormState extends State<BasicInfoForm> {
     );
   }
 
-  Widget _buildNumberField(
-    BuildContext context, {
-    required String label,
-    required int value,
-    required Function(int) onChanged,
-    required String suffix,
-    int min = 1,
-    int max = 100,
-  }) {
+  // 숫자 스텝퍼 UI는 슬라이더로 대체됨
+
+  Widget _buildTimeSlider(BuildContext context) {
+    final double min = 10;
+    final double max = 60;
+    double value = widget.cookingTime.toDouble().clamp(min, max);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          label,
+          '요리시간',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
@@ -244,41 +224,18 @@ class _BasicInfoFormState extends State<BasicInfoForm> {
         const SizedBox(height: 8),
         Row(
           children: [
-            // 감소 버튼
-            IconButton(
-              onPressed: value > min ? () => onChanged(value - 1) : null,
-              icon: const Icon(Icons.remove),
-              style: IconButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-              ),
-            ),
-
-            // 값 표시
+            const Text('10'),
             Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '$value$suffix',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
+              child: Slider(
+                value: value,
+                min: min,
+                max: max,
+                divisions: (max - min).toInt(),
+                label: '${value.round()}분',
+                onChanged: (v) => widget.onCookingTimeChanged(v.round()),
               ),
             ),
-
-            // 증가 버튼
-            IconButton(
-              onPressed: value < max ? () => onChanged(value + 1) : null,
-              icon: const Icon(Icons.add),
-              style: IconButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-              ),
-            ),
+            const Text('60'),
           ],
         ),
       ],
@@ -307,7 +264,8 @@ class _BasicInfoFormState extends State<BasicInfoForm> {
                   selected: isSelected,
                   onSelected: (_) => widget.onDifficultyChanged(diff),
                   selectedColor: Theme.of(context).colorScheme.primaryContainer,
-                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  backgroundColor:
+                      Theme.of(context).colorScheme.surfaceContainerHighest,
                 ),
               ),
             );

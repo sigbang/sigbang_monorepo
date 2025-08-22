@@ -10,7 +10,7 @@ import '../cubits/recipe_create_state.dart';
 import '../widgets/photo_upload_widget.dart';
 import '../widgets/basic_info_form.dart';
 import '../widgets/recipe_steps_editor.dart';
-import '../widgets/tag_selector.dart';
+// import '../widgets/tag_selector.dart';
 
 class RecipeCreatePage extends StatelessWidget {
   const RecipeCreatePage({super.key});
@@ -24,8 +24,15 @@ class RecipeCreatePage extends StatelessWidget {
   }
 }
 
-class RecipeCreateView extends StatelessWidget {
+class RecipeCreateView extends StatefulWidget {
   const RecipeCreateView({super.key});
+
+  @override
+  State<RecipeCreateView> createState() => _RecipeCreateViewState();
+}
+
+class _RecipeCreateViewState extends State<RecipeCreateView> {
+  int _step = 0; // 0: 기본정보(제목/설명), 1: 재료/시간, 2: 조리과정
 
   @override
   Widget build(BuildContext context) {
@@ -96,7 +103,7 @@ class RecipeCreateView extends StatelessWidget {
                           TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                     ),
                   ),
-                  const SizedBox(width: 48), // balance for leading button
+                  // 헤더 우측 버튼 제거
                 ],
               ),
               const SizedBox(height: 8),
@@ -111,57 +118,119 @@ class RecipeCreateView extends StatelessWidget {
                 isRequired: true,
                 error: state.errors['thumbnail'],
               ),
-              const SizedBox(height: 32),
-
-              // 기본 정보
-              BasicInfoForm(
-                title: state.title,
-                description: state.description,
-                ingredients: state.ingredients,
-                cookingTime: state.cookingTime,
-                servings: state.servings,
-                difficulty: state.difficulty,
-                errors: state.errors,
-                onTitleChanged: (value) =>
-                    context.read<RecipeCreateCubit>().updateTitle(value),
-                onDescriptionChanged: (value) =>
-                    context.read<RecipeCreateCubit>().updateDescription(value),
-                onIngredientsChanged: (value) =>
-                    context.read<RecipeCreateCubit>().updateIngredients(value),
-                onCookingTimeChanged: (value) =>
-                    context.read<RecipeCreateCubit>().updateCookingTime(value),
-                onServingsChanged: (value) =>
-                    context.read<RecipeCreateCubit>().updateServings(value),
-                onDifficultyChanged: (value) =>
-                    context.read<RecipeCreateCubit>().updateDifficulty(value),
+              const SizedBox(height: 8),
+              Text(
+                '대표사진을 추가하면 AI로 레시피를 생성할 수 있습니다.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
               ),
-              const SizedBox(height: 32),
-
-              // 조리 과정
-              RecipeStepsEditor(
-                steps: state.steps,
-                errors: state.errors,
-                onAddStep: () => context.read<RecipeCreateCubit>().addStep(),
-                onRemoveStep: (index) =>
-                    context.read<RecipeCreateCubit>().removeStep(index),
-                onUpdateStepDescription: (index, description) => context
-                    .read<RecipeCreateCubit>()
-                    .updateStepDescription(index, description),
-                onSetStepImage: (index, imagePath) => context
-                    .read<RecipeCreateCubit>()
-                    .setStepImage(index, imagePath),
-                onReorderSteps: (oldIndex, newIndex) => context
-                    .read<RecipeCreateCubit>()
-                    .reorderSteps(oldIndex, newIndex),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: state.thumbnailPath != null
+                      ? () =>
+                          context.read<RecipeCreateCubit>().generateWithAiMock()
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber,
+                    disabledBackgroundColor: Colors.amber.shade50,
+                    foregroundColor: Colors.black,
+                    disabledForegroundColor: Colors.black45,
+                    shape: const StadiumBorder(),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 14, horizontal: 24),
+                  ),
+                  child: const Text('AI로 레시피 생성'),
+                ),
               ),
-              const SizedBox(height: 32),
-
-              // 태그 선택
-              TagSelector(
-                selectedTags: state.tags,
-                onTagToggle: (tag) =>
-                    context.read<RecipeCreateCubit>().toggleTag(tag),
+              const SizedBox(height: 16),
+              Container(
+                height: 8,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
+              const SizedBox(height: 16),
+
+              if (_step == 0) ...[
+                // 기본 정보 (제목/설명)
+                BasicInfoForm(
+                  title: state.title,
+                  description: state.description,
+                  ingredients: state.ingredients,
+                  cookingTime: state.cookingTime,
+                  difficulty: state.difficulty,
+                  errors: state.errors,
+                  onTitleChanged: (value) =>
+                      context.read<RecipeCreateCubit>().updateTitle(value),
+                  onDescriptionChanged: (value) => context
+                      .read<RecipeCreateCubit>()
+                      .updateDescription(value),
+                  onIngredientsChanged: (value) => context
+                      .read<RecipeCreateCubit>()
+                      .updateIngredients(value),
+                  onCookingTimeChanged: (value) => context
+                      .read<RecipeCreateCubit>()
+                      .updateCookingTime(value),
+                  onDifficultyChanged: (value) =>
+                      context.read<RecipeCreateCubit>().updateDifficulty(value),
+                  showIngredients: false,
+                  showCookingTime: false,
+                  showDifficulty: false,
+                ),
+                const SizedBox(height: 16),
+                // Step 1에서는 상단 버튼만 사용
+              ] else if (_step == 1) ...[
+                // 재료 + 요리시간 슬라이더
+                BasicInfoForm(
+                  title: state.title,
+                  description: state.description,
+                  ingredients: state.ingredients,
+                  cookingTime: state.cookingTime,
+                  difficulty: state.difficulty,
+                  errors: state.errors,
+                  onTitleChanged: (value) =>
+                      context.read<RecipeCreateCubit>().updateTitle(value),
+                  onDescriptionChanged: (value) => context
+                      .read<RecipeCreateCubit>()
+                      .updateDescription(value),
+                  onIngredientsChanged: (value) => context
+                      .read<RecipeCreateCubit>()
+                      .updateIngredients(value),
+                  onCookingTimeChanged: (value) => context
+                      .read<RecipeCreateCubit>()
+                      .updateCookingTime(value),
+                  onDifficultyChanged: (value) =>
+                      context.read<RecipeCreateCubit>().updateDifficulty(value),
+                  showTitle: false,
+                  showDescription: false,
+                  showIngredients: true,
+                  showCookingTime: true,
+                  showDifficulty: false,
+                ),
+              ] else ...[
+                // 조리 과정
+                RecipeStepsEditor(
+                  steps: state.steps,
+                  errors: state.errors,
+                  onAddStep: () => context.read<RecipeCreateCubit>().addStep(),
+                  onRemoveStep: (index) =>
+                      context.read<RecipeCreateCubit>().removeStep(index),
+                  onUpdateStepDescription: (index, description) => context
+                      .read<RecipeCreateCubit>()
+                      .updateStepDescription(index, description),
+                  onSetStepImage: (index, imagePath) => context
+                      .read<RecipeCreateCubit>()
+                      .setStepImage(index, imagePath),
+                  onReorderSteps: (oldIndex, newIndex) => context
+                      .read<RecipeCreateCubit>()
+                      .reorderSteps(oldIndex, newIndex),
+                ),
+              ],
               const SizedBox(height: 100), // 하단 바 공간
             ],
           ),
@@ -225,12 +294,24 @@ class RecipeCreateView extends StatelessWidget {
         ),
         child: Row(
           children: [
+            if (_step > 0)
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => setState(() => _step -= 1),
+                  child: const Text('이전'),
+                ),
+              ),
+            if (_step > 0) const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton(
-                onPressed: state.isValid
-                    ? () => context.read<RecipeCreateCubit>().publishRecipe()
-                    : null,
-                child: const Text('바로 공개하기'),
+                onPressed: () {
+                  if (_step < 2) {
+                    setState(() => _step += 1);
+                  } else {
+                    context.read<RecipeCreateCubit>().publishRecipe();
+                  }
+                },
+                child: Text(_step < 2 ? '다음' : '레시피 업로드'),
               ),
             ),
           ],
