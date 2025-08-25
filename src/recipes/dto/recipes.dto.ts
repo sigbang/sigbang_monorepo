@@ -46,9 +46,10 @@ export class RecipeStepDto {
   @ApiProperty({
     example: '팬에 돼지고기를 볶아주세요.',
     description: '조리 설명',
+    required: false,
   })
-  @IsString()
-  @MinLength(5, { message: '단계 설명은 최소 5자 이상이어야 합니다.' })
+  @IsOptional()
+  @IsString()  
   @MaxLength(500, { message: '단계 설명은 최대 500자까지 가능합니다.' })
   description: string;
 
@@ -89,36 +90,37 @@ export class CreateRecipeDto {
   @ApiProperty({
     example: '레몬 고소 부타',
     description: '레시피 제목',
+    required: true,
   })
-  @IsString()
-  @MinLength(2, { message: '제목은 최소 2자 이상이어야 합니다.' })
+  @IsString()  
   @MaxLength(100, { message: '제목은 최대 100자까지 가능합니다.' })
   title: string;
 
   @ApiProperty({
     example: '일본식 고소한 돼지고기',
     description: '레시피 설명',
+    required: false,
   })
   @IsString()
-  @MinLength(10, { message: '설명은 최소 10자 이상이어야 합니다.' })
+  @IsOptional()
   @MaxLength(1000, { message: '설명은 최대 1000자까지 가능합니다.' })
   description: string;
 
   @ApiProperty({
     example: '돼지고기 200g\n간장 2T\n마늘',
     description: '재료 목록 (멀티라인)',
+    required: false,
   })
-  @IsString()
-  @MinLength(5, { message: '재료는 최소 5자 이상이어야 합니다.' })
+  @IsOptional()
+  @IsString()  
   @MaxLength(2000, { message: '재료는 최대 2000자까지 가능합니다.' })
   ingredients: string;
 
   @ApiProperty({
       example: 'temp/u_123/20250101/thumbnail.jpg',
       description: '레시피 대표 이미지 스토리지 경로 (presign path)',
-      required: false,
-    })
-    @IsOptional()
+      required: true,
+    })    
     @IsString()
     thumbnailPath?: string;
 
@@ -132,6 +134,25 @@ export class CreateRecipeDto {
   @Min(1, { message: '조리 시간은 최소 1분 이상이어야 합니다.' })
   @Max(600, { message: '조리 시간은 최대 600분까지 가능합니다.' })
   cookingTime?: number;
+
+  @ApiProperty({
+    example: '원문 레시피 블로그',
+    description: '관련 링크 제목',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100, { message: '링크 제목은 최대 100자까지 가능합니다.' })
+  linkTitle?: string;
+
+  @ApiProperty({
+    example: 'https://example.com/blog/recipe',
+    description: '관련 링크 주소 (URL)',
+    required: false,
+  })
+  @IsOptional()
+  @IsUrl({}, { message: '유효한 URL을 입력해주세요.' })
+  linkUrl?: string;
 
   @ApiProperty({
     example: 2,
@@ -148,6 +169,7 @@ export class CreateRecipeDto {
     example: Difficulty.EASY,
     description: '난이도',
     enum: Difficulty,
+    required: false,
   })
   @IsEnum(Difficulty, { message: '유효한 난이도를 선택해주세요.' })
   difficulty: Difficulty;
@@ -170,7 +192,7 @@ export class CreateRecipeDto {
   })
   @IsArray()
   @ArrayMinSize(1, { message: '최소 1개 이상의 조리 단계가 필요합니다.' })
-  @ArrayMaxSize(20, { message: '조리 단계는 최대 20개까지 입력 가능합니다.' })
+  @ArrayMaxSize(10, { message: '조리 단계는 최대 10개까지 입력 가능합니다.' })
   @ValidateNested({ each: true })
   @Type(() => RecipeStepDto)
   steps: RecipeStepDto[];
@@ -292,6 +314,12 @@ export class RecipeResponseDto {
 
   @ApiProperty({ example: 30, description: '조리 시간' })
   cookingTime?: number;
+
+  @ApiProperty({ example: '원문 레시피 블로그', description: '관련 링크 제목', required: false })
+  linkTitle?: string;
+
+  @ApiProperty({ example: 'https://example.com/blog/recipe', description: '관련 링크 주소', required: false })
+  linkUrl?: string;
 
   @ApiProperty({ example: 2, description: '인분' })
   servings?: number;

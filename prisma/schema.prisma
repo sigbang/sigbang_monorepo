@@ -62,6 +62,8 @@ model Recipe {
   description     String
   ingredients     String   // 멀티라인 재료 (TEXT)
   thumbnailImage  String?  // 대표 이미지 URL
+  linkTitle       String?  // 관련 링크 제목
+  linkUrl         String?  // 관련 링크 주소
   cookingTime     Int?     // 조리 시간 (분)
   servings        Int?     // 몇 인분
   difficulty      Difficulty @default(EASY)
