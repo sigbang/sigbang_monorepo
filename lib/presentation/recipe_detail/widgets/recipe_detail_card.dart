@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../domain/entities/recipe.dart';
 import 'recipe_image_gallery.dart';
-import 'recipe_info_bar.dart';
+import 'recipe_meta_row.dart';
+import 'recipe_author_header.dart';
 import 'recipe_ingredients.dart';
 import 'recipe_steps.dart';
 import 'recipe_actions.dart';
@@ -34,6 +35,13 @@ class RecipeDetailCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 작성자 헤더
+                  if (recipe.author != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      child: RecipeAuthorHeader(author: recipe.author!),
+                    ),
+
                   // 이미지 갤러리
                   RecipeImageGallery(recipe: recipe),
 
@@ -53,10 +61,18 @@ class RecipeDetailCard extends StatelessWidget {
                                 fontWeight: FontWeight.bold,
                               ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
+
+                        // 메타 정보 (시간/좋아요/저장)
+                        RecipeMetaRow(
+                          recipe: recipe,
+                          onLikeTap: onLikeTap,
+                          onSaveTap: onSaveTap,
+                        ),
 
                         // 설명
                         if (recipe.description.isNotEmpty) ...[
+                          const SizedBox(height: 12),
                           Text(
                             recipe.description,
                             style:
@@ -70,72 +86,43 @@ class RecipeDetailCard extends StatelessWidget {
                           const SizedBox(height: 16),
                         ],
 
-                        // 작성자 정보
-                        if (recipe.author != null) ...[
-                          Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 20,
-                                backgroundImage: recipe.author?.profileImage !=
-                                        null
-                                    ? NetworkImage(recipe.author!.profileImage!)
-                                    : null,
-                                child: recipe.author?.profileImage == null
-                                    ? Icon(
-                                        Icons.person,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant,
-                                      )
-                                    : null,
+                        // 외부 링크 섹션 (자료 구입/참고 링크)
+                        if ((recipe.linkTitle ?? recipe.linkUrl) != null) ...[
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest
+                                  .withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: ListTile(
+                              leading: Icon(
+                                Icons.link,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      recipe.author?.nickname ?? 'Unknown',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleSmall
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                    ),
-                                    Text(
-                                      '레시피 작성자',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurfaceVariant,
-                                          ),
-                                    ),
-                                  ],
-                                ),
+                              title: Text(
+                                recipe.linkTitle ?? '자료 구입하러 가기',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w600),
                               ),
-                              TextButton(
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('작성자 프로필 (구현 예정)'),
-                                      duration: Duration(seconds: 1),
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      recipe.linkUrl ?? '링크가 준비되지 않았습니다',
                                     ),
-                                  );
-                                },
-                                child: const Text('프로필 보기'),
-                              ),
-                            ],
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                            ),
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 24),
                         ],
-
-                        // 레시피 정보 바
-                        RecipeInfoBar(recipe: recipe),
-                        const SizedBox(height: 24),
 
                         // 태그들
                         if (recipe.tags.isNotEmpty) ...[
@@ -184,15 +171,6 @@ class RecipeDetailCard extends StatelessWidget {
                 ],
               ),
             ),
-          ),
-
-          // 하단 액션 바
-          RecipeActions(
-            recipe: recipe,
-            isLoggedIn: isLoggedIn,
-            onLikeTap: onLikeTap,
-            onSaveTap: onSaveTap,
-            onShareTap: onShareTap,
           ),
         ],
       ),

@@ -15,37 +15,22 @@ class RecipeImageGallery extends StatefulWidget {
 }
 
 class _RecipeImageGalleryState extends State<RecipeImageGallery> {
-  late PageController _pageController;
-  int _currentIndex = 0;
-
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
   }
 
   @override
   void dispose() {
-    _pageController.dispose();
     super.dispose();
   }
 
   List<String> get _images {
-    final images = <String>[];
-
-    // 썸네일 추가
+    // 썸네일만 노출
     if (widget.recipe.thumbnailUrl != null) {
-      images.add(widget.recipe.thumbnailUrl!);
+      return [widget.recipe.thumbnailUrl!];
     }
-
-    // 단계별 이미지 추가
-    for (final step in widget.recipe.steps) {
-      if (step.imageUrl != null) {
-        images.add(step.imageUrl!);
-      }
-    }
-
-    return images;
+    return const [];
   }
 
   @override
@@ -56,80 +41,13 @@ class _RecipeImageGalleryState extends State<RecipeImageGallery> {
       return _buildPlaceholder();
     }
 
+    // 단일 썸네일만 노출
     return SizedBox(
       height: 300,
-      child: Stack(
-        children: [
-          // 이미지 갤러리
-          PageView.builder(
-            controller: _pageController,
-            onPageChanged: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
-            },
-            itemCount: images.length,
-            itemBuilder: (context, index) {
-              return GestureDetector(
-                onTap: () => _showFullScreenImage(images[index]),
-                child: Image.network(
-                  _resolveUrl(images[index]),
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return _buildPlaceholder();
-                  },
-                ),
-              );
-            },
-          ),
-
-          // 인디케이터 (이미지가 2개 이상일 때만)
-          if (images.length > 1)
-            Positioned(
-              bottom: 16,
-              left: 0,
-              right: 0,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  images.length,
-                  (index) => Container(
-                    width: 8,
-                    height: 8,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _currentIndex == index
-                          ? Colors.white
-                          : Colors.white.withOpacity(0.4),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-          // 페이지 번호 (오른쪽 상단)
-          if (images.length > 1)
-            Positioned(
-              top: 16,
-              right: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${_currentIndex + 1}/${images.length}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ),
-        ],
+      width: double.infinity,
+      child: GestureDetector(
+        onTap: () => _showFullScreenImage(images.first),
+        child: _buildImage(images.first, fit: BoxFit.cover, expand: true),
       ),
     );
   }
@@ -173,19 +91,8 @@ class _RecipeImageGalleryState extends State<RecipeImageGallery> {
           children: [
             Center(
               child: InteractiveViewer(
-                child: Image.network(
-                  _resolveUrl(imageUrl),
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Center(
-                      child: Icon(
-                        Icons.error_outline,
-                        color: Colors.white,
-                        size: 64,
-                      ),
-                    );
-                  },
-                ),
+                child: _buildImage(imageUrl,
+                    fit: BoxFit.contain, fullscreen: true),
               ),
             ),
             Positioned(
@@ -207,13 +114,56 @@ class _RecipeImageGalleryState extends State<RecipeImageGallery> {
   }
 
   String _resolveUrl(String url) {
-    if (url.startsWith('assets/'))
-      return url; // 에셋은 그대로 사용 (호출 측에서 Image.asset이 아님)
+    if (url.startsWith('assets/')) return url; // 에셋 경로는 그대로 사용
     if (url.startsWith('http')) return url;
     final b = EnvConfig.baseUrl.endsWith('/')
         ? EnvConfig.baseUrl.substring(0, EnvConfig.baseUrl.length - 1)
         : EnvConfig.baseUrl;
     final p = url.startsWith('/') ? url.substring(1) : url;
     return '$b/$p';
+  }
+
+  Widget _buildImage(String src,
+      {BoxFit fit = BoxFit.cover,
+      bool fullscreen = false,
+      bool expand = false}) {
+    if (src.startsWith('assets/')) {
+      return Image.asset(
+        src,
+        fit: fit,
+        width: expand ? double.infinity : null,
+        height: expand ? double.infinity : null,
+        errorBuilder: (context, error, stackTrace) {
+          return fullscreen
+              ? const _FullScreenErrorIcon()
+              : _buildPlaceholder();
+        },
+      );
+    }
+
+    return Image.network(
+      _resolveUrl(src),
+      fit: fit,
+      width: expand ? double.infinity : null,
+      height: expand ? double.infinity : null,
+      errorBuilder: (context, error, stackTrace) {
+        return fullscreen ? const _FullScreenErrorIcon() : _buildPlaceholder();
+      },
+    );
+  }
+}
+
+class _FullScreenErrorIcon extends StatelessWidget {
+  const _FullScreenErrorIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Icon(
+        Icons.error_outline,
+        color: Colors.white,
+        size: 64,
+      ),
+    );
   }
 }

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../injection/injection.dart';
 import '../cubits/recipe_detail_cubit.dart';
 import '../cubits/recipe_detail_state.dart';
 import '../widgets/recipe_detail_card.dart';
-import '../../common/widgets/app_logo.dart';
 
 class RecipeDetailPage extends StatelessWidget {
   final String recipeId;
@@ -36,18 +36,16 @@ class RecipeDetailView extends StatefulWidget {
 }
 
 class _RecipeDetailViewState extends State<RecipeDetailView> {
-  late PageController _pageController;
   bool _isFirstPage = true;
+  bool _viewCountIncremented = false;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
   }
 
   @override
   void dispose() {
-    _pageController.dispose();
     super.dispose();
   }
 
@@ -62,7 +60,8 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
           });
 
           // 뷰카운트 증가 (한 번만)
-          if (state.currentIndex == 0) {
+          if (state.currentIndex == 0 && !_viewCountIncremented) {
+            _viewCountIncremented = true;
             context.read<RecipeDetailCubit>().incrementViewCount();
           }
         }
@@ -73,6 +72,7 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
           appBar: AppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
+            systemOverlayStyle: SystemUiOverlayStyle.dark,
             leading: _isFirstPage
                 ? IconButton(
                     icon: const Icon(Icons.arrow_back),
@@ -80,47 +80,8 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                   )
                 : null,
             automaticallyImplyLeading: _isFirstPage,
-            title: state is RecipeDetailLoaded
-                ? Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const AppLogo(height: 24),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Text(
-                              state.currentRecipe.title,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            if (state.recipes.length > 1)
-                              Text(
-                                '${state.currentIndex + 1} / ${state.recipes.length}',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                    ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  )
-                : const AppLogo(),
-            centerTitle: true,
+            title: null,
+            centerTitle: false,
             actions: [
               // 더보기 메뉴
               PopupMenuButton<String>(
@@ -199,59 +160,13 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
     }
 
     if (state is RecipeDetailLoaded) {
-      return Stack(
-        children: [
-          // 메인 페이지 뷰
-          PageView.builder(
-            controller: _pageController,
-            onPageChanged: (index) {
-              context.read<RecipeDetailCubit>().onPageChanged(index);
-            },
-            itemCount: state.recipes.length + (state.hasReachedEnd ? 0 : 1),
-            itemBuilder: (context, index) {
-              if (index >= state.recipes.length) {
-                // 로딩 페이지 (더 불러올 데이터가 있을 때)
-                return const Center(
-                  child: CircularProgressIndicator(),
-                );
-              }
-
-              final recipe = state.recipes[index];
-              return RecipeDetailCard(
-                recipe: recipe,
-                isLoggedIn: state.isLoggedIn,
-                onLikeTap: () => context.read<RecipeDetailCubit>().toggleLike(),
-                onSaveTap: () => context.read<RecipeDetailCubit>().toggleSave(),
-                onShareTap: () => _shareRecipe(context, state),
-              );
-            },
-          ),
-
-          // 페이지 인디케이터 (여러 페이지가 있을 때)
-          if (state.recipes.length > 1)
-            Positioned(
-              bottom: 100,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Text(
-                    '← 스와이프하여 다른 레시피 보기 →',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
+      final recipe = state.currentRecipe;
+      return RecipeDetailCard(
+        recipe: recipe,
+        isLoggedIn: state.isLoggedIn,
+        onLikeTap: () => context.read<RecipeDetailCubit>().toggleLike(),
+        onSaveTap: () => context.read<RecipeDetailCubit>().toggleSave(),
+        onShareTap: () => _shareRecipe(context, state),
       );
     }
 
