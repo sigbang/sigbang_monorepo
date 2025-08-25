@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
+import 'dart:io';
 import '../../../domain/entities/recipe.dart';
-import 'photo_upload_widget.dart';
+import '../../common/widgets/app_confirm_dialog.dart';
 import '../../../core/image/image_processing_service.dart';
 import '../../../core/image/gallery_picker_service.dart';
 
@@ -67,24 +68,22 @@ class _RecipeStepsEditorState extends State<RecipeStepsEditor> {
       removedFocus.dispose();
     }
 
-    // Sync text for existing items only when not focused to avoid IME issues
-    final int minLen = _controllers.length < widget.steps.length
-        ? _controllers.length
-        : widget.steps.length;
-    for (int i = 0; i < minLen; i++) {
-      final controller = _controllers[i];
-      final focusNode = _focusNodes[i];
-      final desiredText = widget.steps[i].description;
+    // Sync text for existing items only when not focused and only if changed meaningfully
+    if (!initial) {
+      final int minLen = _controllers.length < widget.steps.length
+          ? _controllers.length
+          : widget.steps.length;
+      for (int i = 0; i < minLen; i++) {
+        final controller = _controllers[i];
+        final focusNode = _focusNodes[i];
+        final desiredText = widget.steps[i].description;
 
-      // On first build, the controller was created with correct text
-      if (initial) continue;
-
-      if (!focusNode.hasFocus && controller.text != desiredText) {
-        controller.text = desiredText;
-        // Keep cursor at end after external update
-        controller.selection = TextSelection.fromPosition(
-          TextPosition(offset: controller.text.length),
-        );
+        if (!focusNode.hasFocus && controller.text != desiredText) {
+          controller.text = desiredText;
+          controller.selection = TextSelection.fromPosition(
+            TextPosition(offset: controller.text.length),
+          );
+        }
       }
     }
   }
@@ -105,41 +104,12 @@ class _RecipeStepsEditorState extends State<RecipeStepsEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 헤더
-        Row(
-          children: [
-            Icon(
-              Icons.list_alt,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '조리 과정',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              '*',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.error,
-                fontWeight: FontWeight.bold,
+        // 섹션 타이틀
+        Text(
+          '요리 순서',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
               ),
-            ),
-            const Spacer(),
-
-            // 단계 추가 버튼
-            ElevatedButton.icon(
-              onPressed: widget.onAddStep,
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('단계 추가'),
-              style: ElevatedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-            ),
-          ],
         ),
         const SizedBox(height: 16),
 
@@ -149,12 +119,12 @@ class _RecipeStepsEditorState extends State<RecipeStepsEditor> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.errorContainer,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               children: [
                 Icon(
-                  Icons.error,
+                  Icons.error_outline,
                   color: Theme.of(context).colorScheme.onErrorContainer,
                   size: 20,
                 ),
@@ -173,168 +143,198 @@ class _RecipeStepsEditorState extends State<RecipeStepsEditor> {
           const SizedBox(height: 16),
         ],
 
-        // 단계 목록
-        if (widget.steps.isEmpty)
-          _buildEmptyState(context)
-        else
-          ReorderableListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            onReorder: widget.onReorderSteps,
-            itemCount: widget.steps.length,
-            itemBuilder: (context, index) {
-              final step = widget.steps[index];
-              return _buildStepCard(context, step, index);
-            },
+        ReorderableListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: widget.steps.length,
+          onReorder: widget.onReorderSteps,
+          buildDefaultDragHandles: false,
+          itemBuilder: (context, index) {
+            final step = widget.steps[index];
+            return Padding(
+              key: ValueKey(widget.steps[index].order),
+              padding: const EdgeInsets.only(bottom: 20),
+              child: _buildStepRow(context, step, index),
+            );
+          },
+        ),
+
+        const SizedBox(height: 16),
+
+        // 하단 추가 버튼 (검은색, 둥근)
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: widget.onAddStep,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black,
+              foregroundColor: Colors.white,
+              shape: const StadiumBorder(),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+            icon: const Icon(Icons.add),
+            label: const Text('요리순서 추가'),
           ),
+        ),
       ],
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        color: Theme.of(context)
-            .colorScheme
-            .surfaceContainerHighest
-            .withOpacity(0.3),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-        ),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            Icons.playlist_add,
-            size: 48,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            '조리 과정을 추가해주세요',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '위의 "단계 추가" 버튼을 눌러 첫 번째 조리 과정을 추가하세요',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
+  // (empty-state removed): 첫 진입 시 Cubit이 1개 단계를 생성합니다.
 
-  Widget _buildStepCard(BuildContext context, RecipeStep step, int index) {
+  Widget _buildStepRow(BuildContext context, RecipeStep step, int index) {
     final stepError = widget.errors['step_$index'];
 
-    return Card(
-      key: ValueKey(step.order),
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 헤더
-            Row(
-              children: [
-                // 단계 번호
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary,
-                    shape: BoxShape.circle,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 좌측 번호/삭제 아이콘
+        SizedBox(
+          width: 36,
+          child: Column(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    '${step.order}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                  child: Center(
-                    child: Text(
-                      '${step.order}',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimary,
-                        fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              // 드래그 핸들 (숫자 아래)
+              ReorderableDragStartListener(
+                index: index,
+                child: Icon(
+                  Icons.drag_indicator,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 8),
+              IconButton(
+                onPressed: () => _confirmRemoveStep(context, index),
+                icon: Icon(
+                  Icons.delete,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                tooltip: '단계 삭제',
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        // 카드
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 설명 입력
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: stepError == null
+                          ? const Color(0xFFDADADA)
+                          : Theme.of(context).colorScheme.error,
+                      width: 1,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(11),
+                    child: TextField(
+                      key: ValueKey('tf_${step.order}'),
+                      controller: _controllers[index],
+                      focusNode: _focusNodes[index],
+                      onChanged: (value) =>
+                          widget.onUpdateStepDescription(index, value),
+                      maxLines: 3,
+                      maxLength: 200,
+                      decoration: const InputDecoration(
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        errorBorder: InputBorder.none,
+                        focusedErrorBorder: InputBorder.none,
+                        hintText:
+                            '예) 손질된 야채와 고기를 후라이팬에 넣습니다.\n기름을 두르고 중불로 10분동안 볶아요.',
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                        counterText: '',
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                if (stepError != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    stepError,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
 
-                Expanded(
-                  child: Text(
-                    '${step.order}단계',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
+                // 이미지 영역: 선택 시 미리보기, 아니면 카메라 버튼
+                if (step.imageUrl != null && step.imageUrl!.isNotEmpty)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image(
+                      image: step.imageUrl!.startsWith('http')
+                          ? NetworkImage(step.imageUrl!) as ImageProvider
+                          : FileImage(
+                              File(step.imageUrl!),
+                            ) as ImageProvider,
+                      height: 160,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                else
+                  GestureDetector(
+                    onTap: () => _showImagePicker(context, index),
+                    child: Container(
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest
+                            .withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Center(
+                        child: Icon(
+                          Icons.camera_alt,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
+                      ),
+                    ),
                   ),
-                ),
-
-                // 드래그 핸들
-                ReorderableDragStartListener(
-                  index: index,
-                  child: Icon(
-                    Icons.drag_handle,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-
-                const SizedBox(width: 8),
-
-                // 삭제 버튼
-                IconButton(
-                  onPressed: () => widget.onRemoveStep(index),
-                  icon: Icon(
-                    Icons.delete,
-                    color: Theme.of(context).colorScheme.error,
-                  ),
-                  tooltip: '단계 삭제',
-                ),
               ],
             ),
-            const SizedBox(height: 16),
-
-            // 단계 설명
-            TextField(
-              controller: _controllers[index],
-              focusNode: _focusNodes[index],
-              onChanged: (value) =>
-                  widget.onUpdateStepDescription(index, value),
-              maxLines: 3,
-              maxLength: 200,
-              decoration: InputDecoration(
-                labelText: '조리 과정 설명',
-                hintText: '이 단계에서 해야 할 일을 자세히 설명해주세요',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                errorText: stepError,
-                errorBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(
-                    color: Theme.of(context).colorScheme.error,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // 단계 이미지
-            PhotoUploadWidget(
-              imagePath: step.imageUrl,
-              onTap: () => _showImagePicker(context, index),
-              onRemove: step.imageUrl != null
-                  ? () => widget.onSetStepImage(index, '')
-                  : null,
-              label: '단계 이미지 (선택사항)',
-            ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -396,5 +396,19 @@ class _RecipeStepsEditorState extends State<RecipeStepsEditor> {
         ),
       ),
     );
+  }
+
+  void _confirmRemoveStep(BuildContext context, int index) async {
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: '이 단계를 삭제할까요?',
+      message: '삭제 후에는 되돌릴 수 없습니다.',
+      cancelText: '취소',
+      confirmText: '삭제',
+      confirmColor: Theme.of(context).colorScheme.error,
+    );
+    if (confirmed == true) {
+      widget.onRemoveStep(index);
+    }
   }
 }

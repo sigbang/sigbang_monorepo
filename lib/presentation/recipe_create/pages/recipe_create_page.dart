@@ -304,8 +304,14 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
           children: [
             if (_step > 0)
               Expanded(
-                child: OutlinedButton(
+                child: ElevatedButton(
                   onPressed: () => setState(() => _step -= 1),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey.shade300,
+                    foregroundColor: Colors.black,
+                    shape: const StadiumBorder(),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
                   child: const Text('이전'),
                 ),
               ),
@@ -319,6 +325,13 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
                     context.read<RecipeCreateCubit>().publishRecipe();
                   }
                 },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      _step < 2 ? null : Colors.amber, // null -> theme default
+                  foregroundColor: _step < 2 ? null : Colors.black,
+                  shape: const StadiumBorder(),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
                 child: Text(_step < 2 ? '다음' : '레시피 업로드'),
               ),
             ),
@@ -367,8 +380,8 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context); // 다이얼로그 닫기
-              context.pop(); // 페이지 나가기
+              Navigator.pop(context);
+              context.pop();
             },
             style: TextButton.styleFrom(
               foregroundColor: Theme.of(context).colorScheme.error,

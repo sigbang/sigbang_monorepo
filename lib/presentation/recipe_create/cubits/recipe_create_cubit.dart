@@ -22,7 +22,11 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
   /// 진입 시 빈 편집 모드 전환 (임시저장 제거)
   Future<void> startEditing() async {
     if (state is RecipeCreateEditing) return;
-    emit(const RecipeCreateEditing());
+    emit(RecipeCreateEditing(
+      steps: const [
+        RecipeStep(order: 1, description: '', imageUrl: null),
+      ],
+    ));
   }
 
   /// 제목 변경
@@ -229,11 +233,16 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
     if (currentState is RecipeCreateEditing &&
         index < currentState.steps.length) {
       final steps = List<RecipeStep>.from(currentState.steps);
-      steps.removeAt(index);
 
-      // 순서 재정렬
-      for (int i = 0; i < steps.length; i++) {
-        steps[i] = steps[i].copyWith(order: i + 1);
+      // 마지막 1개를 삭제하려고 하면 빈 1단계로 초기화
+      if (steps.length == 1) {
+        steps[0] = const RecipeStep(order: 1, description: '', imageUrl: null);
+      } else {
+        steps.removeAt(index);
+        // 순서 재정렬
+        for (int i = 0; i < steps.length; i++) {
+          steps[i] = steps[i].copyWith(order: i + 1);
+        }
       }
 
       emit(currentState.copyWith(
