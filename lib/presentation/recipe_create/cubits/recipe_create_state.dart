@@ -24,6 +24,8 @@ class RecipeCreateEditing extends RecipeCreateState {
   final RecipeDifficulty difficulty;
   final List<RecipeTag> tags;
   final String? thumbnailPath;
+  final String linkName;
+  final String linkUrl;
   final bool isDirty;
   final Map<String, String?> errors;
 
@@ -38,6 +40,8 @@ class RecipeCreateEditing extends RecipeCreateState {
     this.difficulty = RecipeDifficulty.medium,
     this.tags = const [],
     this.thumbnailPath,
+    this.linkName = '',
+    this.linkUrl = '',
     this.isDirty = false,
     this.errors = const {},
   });
@@ -53,6 +57,8 @@ class RecipeCreateEditing extends RecipeCreateState {
     RecipeDifficulty? difficulty,
     List<RecipeTag>? tags,
     String? thumbnailPath,
+    String? linkName,
+    String? linkUrl,
     bool? isDirty,
     Map<String, String?>? errors,
   }) {
@@ -67,6 +73,8 @@ class RecipeCreateEditing extends RecipeCreateState {
       difficulty: difficulty ?? this.difficulty,
       tags: tags ?? this.tags,
       thumbnailPath: thumbnailPath ?? this.thumbnailPath,
+      linkName: linkName ?? this.linkName,
+      linkUrl: linkUrl ?? this.linkUrl,
       isDirty: isDirty ?? this.isDirty,
       errors: errors ?? this.errors,
     );
@@ -89,6 +97,8 @@ class RecipeCreateEditing extends RecipeCreateState {
         difficulty,
         tags,
         thumbnailPath,
+        linkName,
+        linkUrl,
         isDirty,
         errors,
       ];
@@ -107,6 +117,8 @@ class RecipeCreateUploading extends RecipeCreateEditing {
     required super.servings,
     required super.difficulty,
     required super.tags,
+    required super.linkName,
+    required super.linkUrl,
     super.thumbnailPath,
     super.isDirty = true,
     super.errors = const {},

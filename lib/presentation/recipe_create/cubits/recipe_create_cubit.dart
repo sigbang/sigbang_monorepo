@@ -123,6 +123,42 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
     }
   }
 
+  /// 링크 이름 변경
+  void updateLinkName(String name) {
+    final currentState = state;
+    if (currentState is RecipeCreateEditing) {
+      emit(currentState.copyWith(
+        linkName: name,
+        isDirty: true,
+      ));
+    }
+  }
+
+  /// 링크 주소 변경
+  void updateLinkUrl(String url) {
+    final currentState = state;
+    if (currentState is RecipeCreateEditing) {
+      final errors = Map<String, String?>.from(currentState.errors);
+      if (url.isNotEmpty) {
+        final parsed = Uri.tryParse(url);
+        if (parsed == null ||
+            (!parsed.isScheme('http') && !parsed.isScheme('https'))) {
+          errors['linkUrl'] = '올바른 URL을 입력해주세요';
+        } else {
+          errors.remove('linkUrl');
+        }
+      } else {
+        errors.remove('linkUrl');
+      }
+
+      emit(currentState.copyWith(
+        linkUrl: url,
+        isDirty: true,
+        errors: errors,
+      ));
+    }
+  }
+
   /// 태그 추가/제거
   void toggleTag(RecipeTag tag) {
     final currentState = state;
@@ -360,6 +396,8 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
         servings: currentState.servings,
         difficulty: currentState.difficulty,
         tags: currentState.tags,
+        linkName: currentState.linkName,
+        linkUrl: currentState.linkUrl,
         thumbnailPath: currentState.thumbnailPath,
         currentStep: '이미지 업로드 준비 중...',
         progress: 0.1,
@@ -418,6 +456,8 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
         servings: currentState.servings,
         difficulty: currentState.difficulty,
         tags: currentState.tags,
+        linkName: currentState.linkName,
+        linkUrl: currentState.linkUrl,
         thumbnailPath: uploadedThumbnailPath,
         currentStep: '레시피 발행 중...',
         progress: 0.8,

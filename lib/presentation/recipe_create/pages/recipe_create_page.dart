@@ -107,53 +107,48 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
                 ],
               ),
               const SizedBox(height: 8),
-              // 대표 이미지
-              PhotoUploadWidget(
-                imagePath: state.thumbnailPath,
-                onTap: () => _showImagePicker(context, isThumbnail: true),
-                onRemove: state.thumbnailPath != null
-                    ? () => context.read<RecipeCreateCubit>().setThumbnail('')
-                    : null,
-                label: '대표 이미지',
-                isRequired: true,
-                error: state.errors['thumbnail'],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '대표사진을 추가하면 AI로 레시피를 생성할 수 있습니다.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: state.thumbnailPath != null
-                      ? () =>
-                          context.read<RecipeCreateCubit>().generateWithAiMock()
+              if (_step == 0) ...[
+                // 대표 이미지
+                PhotoUploadWidget(
+                  imagePath: state.thumbnailPath,
+                  onTap: () => _showImagePicker(context, isThumbnail: true),
+                  onRemove: state.thumbnailPath != null
+                      ? () => context.read<RecipeCreateCubit>().setThumbnail('')
                       : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.amber,
-                    disabledBackgroundColor: Colors.amber.shade50,
-                    foregroundColor: Colors.black,
-                    disabledForegroundColor: Colors.black45,
-                    shape: const StadiumBorder(),
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 14, horizontal: 24),
+                  label: '대표 이미지',
+                  isRequired: true,
+                  error: state.errors['thumbnail'],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '대표사진을 추가하면 AI로 레시피를 생성할 수 있습니다.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: state.thumbnailPath != null
+                        ? () => context
+                            .read<RecipeCreateCubit>()
+                            .generateWithAiMock()
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.amber,
+                      disabledBackgroundColor: Colors.amber.shade50,
+                      foregroundColor: Colors.black,
+                      disabledForegroundColor: Colors.black45,
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 14, horizontal: 24),
+                    ),
+                    child: const Text('AI로 레시피 생성'),
                   ),
-                  child: const Text('AI로 레시피 생성'),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                height: 8,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
+                const SizedBox(height: 16),
+              ],
               const SizedBox(height: 16),
 
               if (_step == 0) ...[
@@ -164,6 +159,8 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
                   ingredients: state.ingredients,
                   cookingTime: state.cookingTime,
                   difficulty: state.difficulty,
+                  linkName: state.linkName,
+                  linkUrl: state.linkUrl,
                   errors: state.errors,
                   onTitleChanged: (value) =>
                       context.read<RecipeCreateCubit>().updateTitle(value),
@@ -178,6 +175,10 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
                       .updateCookingTime(value),
                   onDifficultyChanged: (value) =>
                       context.read<RecipeCreateCubit>().updateDifficulty(value),
+                  onLinkNameChanged: (v) =>
+                      context.read<RecipeCreateCubit>().updateLinkName(v),
+                  onLinkUrlChanged: (v) =>
+                      context.read<RecipeCreateCubit>().updateLinkUrl(v),
                   showIngredients: false,
                   showCookingTime: false,
                   showDifficulty: false,
@@ -192,6 +193,8 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
                   ingredients: state.ingredients,
                   cookingTime: state.cookingTime,
                   difficulty: state.difficulty,
+                  linkName: state.linkName,
+                  linkUrl: state.linkUrl,
                   errors: state.errors,
                   onTitleChanged: (value) =>
                       context.read<RecipeCreateCubit>().updateTitle(value),
@@ -206,11 +209,16 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
                       .updateCookingTime(value),
                   onDifficultyChanged: (value) =>
                       context.read<RecipeCreateCubit>().updateDifficulty(value),
+                  onLinkNameChanged: (v) =>
+                      context.read<RecipeCreateCubit>().updateLinkName(v),
+                  onLinkUrlChanged: (v) =>
+                      context.read<RecipeCreateCubit>().updateLinkUrl(v),
                   showTitle: false,
                   showDescription: false,
                   showIngredients: true,
                   showCookingTime: true,
                   showDifficulty: false,
+                  showLinkFields: true,
                 ),
               ] else ...[
                 // 조리 과정
