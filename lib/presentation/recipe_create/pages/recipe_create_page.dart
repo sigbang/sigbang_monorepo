@@ -11,6 +11,7 @@ import '../widgets/photo_upload_widget.dart';
 import '../widgets/basic_info_form.dart';
 import '../widgets/recipe_steps_editor.dart';
 // import '../widgets/tag_selector.dart';
+import '../../common/widgets/app_confirm_dialog.dart';
 
 class RecipeCreatePage extends StatelessWidget {
   const RecipeCreatePage({super.key});
@@ -360,7 +361,7 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
     }
   }
 
-  void _showExitDialog(BuildContext context, RecipeCreateState state) {
+  void _showExitDialog(BuildContext context, RecipeCreateState state) async {
     final isDirty = state is RecipeCreateEditing && state.isDirty;
 
     if (!isDirty) {
@@ -368,28 +369,16 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
       return;
     }
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('작성 중인 내용이 있습니다'),
-        content: const Text('나가시면 작성한 내용이 모두 삭제됩니다. 정말 나가시겠습니까?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('계속 작성'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.pop();
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('나가기'),
-          ),
-        ],
-      ),
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: '작성 중인 내용이 있습니다',
+      message: '나가시면 작성한 내용이 모두 삭제됩니다. 정말 나가시겠습니까?',
+      cancelText: '계속 작성',
+      confirmText: '나가기',
+      confirmColor: Theme.of(context).colorScheme.error,
     );
+    if (confirmed == true) {
+      context.pop();
+    }
   }
 }

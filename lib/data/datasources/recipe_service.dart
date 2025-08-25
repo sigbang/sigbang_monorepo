@@ -248,12 +248,17 @@ class RecipeService {
   Map<String, dynamic> _recipeToCreateDto(Recipe recipe) {
     return {
       'title': recipe.title,
-      'description': recipe.description,
-      'ingredients': recipe.ingredients ?? '',
+      if (recipe.description.isNotEmpty) 'description': recipe.description,
+      if (recipe.ingredients != null && recipe.ingredients!.isNotEmpty)
+        'ingredients': recipe.ingredients,
       if (recipe.cookingTime != null) 'cookingTime': recipe.cookingTime,
       if (recipe.servings != null) 'servings': recipe.servings,
       if (recipe.difficulty != null) 'difficulty': recipe.difficulty!.value,
       if (recipe.thumbnailUrl != null) 'thumbnailPath': recipe.thumbnailUrl,
+      if (recipe.linkTitle != null && recipe.linkTitle!.isNotEmpty)
+        'linkTitle': recipe.linkTitle,
+      if (recipe.linkUrl != null && recipe.linkUrl!.isNotEmpty)
+        'linkUrl': recipe.linkUrl,
       if (recipe.steps.isNotEmpty)
         'steps': recipe.steps
             .map((step) => {

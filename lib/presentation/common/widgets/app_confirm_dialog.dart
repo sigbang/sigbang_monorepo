@@ -9,6 +9,7 @@ Future<bool?> showAppConfirmDialog(
   String cancelText = '취소',
   String confirmText = '확인',
   Color? confirmColor,
+  bool showCancel = true,
 }) {
   final theme = Theme.of(context);
   final Color resolvedConfirmColor = confirmColor ?? Colors.amber;
@@ -39,35 +40,50 @@ Future<bool?> showAppConfirmDialog(
               ),
             ),
             const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(ctx, false),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey,
-                      foregroundColor: Colors.white,
-                      shape: const StadiumBorder(),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+            if (showCancel)
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey,
+                        foregroundColor: Colors.white,
+                        shape: const StadiumBorder(),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text(cancelText),
                     ),
-                    child: Text(cancelText),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(ctx, true),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: resolvedConfirmColor,
-                      foregroundColor: Colors.white,
-                      shape: const StadiumBorder(),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: resolvedConfirmColor,
+                        foregroundColor: Colors.white,
+                        shape: const StadiumBorder(),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text(confirmText),
                     ),
-                    child: Text(confirmText),
                   ),
+                ],
+              )
+            else
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: resolvedConfirmColor,
+                    foregroundColor: Colors.white,
+                    shape: const StadiumBorder(),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: Text(confirmText),
                 ),
-              ],
-            ),
+              ),
           ],
         ),
       ),

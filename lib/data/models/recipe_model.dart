@@ -21,6 +21,8 @@ class RecipeModel extends Recipe {
     super.steps,
     super.isLiked,
     super.isSaved,
+    super.linkTitle,
+    super.linkUrl,
   });
 
   factory RecipeModel.fromJson(Map<String, dynamic> json) {
@@ -43,6 +45,8 @@ class RecipeModel extends Recipe {
       thumbnailUrl: (json['thumbnailImage'] ??
           json['thumbnailPath'] ??
           json['thumbnailUrl']) as String?,
+      linkTitle: json['linkTitle'] as String?,
+      linkUrl: json['linkUrl'] as String?,
       author: json['author'] != null
           ? AuthorModel.fromJson(json['author'] as Map<String, dynamic>)
           : null,
@@ -77,6 +81,8 @@ class RecipeModel extends Recipe {
       'likesCount': likesCount,
       'commentsCount': commentsCount,
       if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
+      if (linkTitle != null) 'linkTitle': linkTitle,
+      if (linkUrl != null) 'linkUrl': linkUrl,
       if (author != null) 'author': (author as AuthorModel).toJson(),
       'tags': tags.map((tag) => (tag as RecipeTagModel).toJson()).toList(),
       'steps': steps.map((step) => (step as RecipeStepModel).toJson()).toList(),
@@ -101,6 +107,8 @@ class RecipeModel extends Recipe {
       likesCount: recipe.likesCount,
       commentsCount: recipe.commentsCount,
       thumbnailUrl: recipe.thumbnailUrl,
+      linkTitle: recipe.linkTitle,
+      linkUrl: recipe.linkUrl,
       author: recipe.author,
       tags: recipe.tags,
       steps: recipe.steps,
@@ -125,6 +133,8 @@ class RecipeModel extends Recipe {
       likesCount: likesCount,
       commentsCount: commentsCount,
       thumbnailUrl: thumbnailUrl,
+      linkTitle: linkTitle,
+      linkUrl: linkUrl,
       author: author,
       tags: tags,
       steps: steps,

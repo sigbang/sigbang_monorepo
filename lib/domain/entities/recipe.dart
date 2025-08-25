@@ -21,6 +21,8 @@ class Recipe extends Equatable {
     this.steps = const [],
     this.isLiked = false,
     this.isSaved = false,
+    this.linkTitle,
+    this.linkUrl,
   });
 
   final String id;
@@ -42,6 +44,8 @@ class Recipe extends Equatable {
   final List<RecipeStep> steps;
   final bool isLiked;
   final bool isSaved;
+  final String? linkTitle;
+  final String? linkUrl;
 
   @override
   List<Object?> get props => [
@@ -64,6 +68,8 @@ class Recipe extends Equatable {
         steps,
         isLiked,
         isSaved,
+        linkTitle,
+        linkUrl,
       ];
 
   Recipe copyWith({
@@ -86,6 +92,8 @@ class Recipe extends Equatable {
     List<RecipeStep>? steps,
     bool? isLiked,
     bool? isSaved,
+    String? linkTitle,
+    String? linkUrl,
   }) {
     return Recipe(
       id: id ?? this.id,
@@ -107,6 +115,8 @@ class Recipe extends Equatable {
       steps: steps ?? this.steps,
       isLiked: isLiked ?? this.isLiked,
       isSaved: isSaved ?? this.isSaved,
+      linkTitle: linkTitle ?? this.linkTitle,
+      linkUrl: linkUrl ?? this.linkUrl,
     );
   }
 }

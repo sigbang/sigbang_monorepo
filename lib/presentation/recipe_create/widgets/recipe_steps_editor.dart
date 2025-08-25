@@ -165,7 +165,19 @@ class _RecipeStepsEditorState extends State<RecipeStepsEditor> {
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            onPressed: widget.onAddStep,
+            onPressed: () {
+              if (widget.steps.length >= 10) {
+                showAppConfirmDialog(
+                  context,
+                  title: '단계 제한',
+                  message: '요리 순서는 최대 10개까지 추가할 수 있어요.',
+                  confirmText: '확인',
+                  showCancel: false,
+                );
+                return;
+              }
+              widget.onAddStep();
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.black,
               foregroundColor: Colors.white,

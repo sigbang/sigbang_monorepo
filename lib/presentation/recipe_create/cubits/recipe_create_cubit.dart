@@ -38,8 +38,6 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
       // 제목 유효성 검사
       if (title.trim().isEmpty) {
         errors['title'] = '제목을 입력해주세요';
-      } else if (title.trim().length < 3) {
-        errors['title'] = '제목은 3자 이상 입력해주세요';
       } else {
         errors.remove('title');
       }
@@ -60,8 +58,6 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
 
       if (description.trim().isEmpty) {
         errors['description'] = '설명을 입력해주세요';
-      } else if (description.trim().length < 10) {
-        errors['description'] = '설명은 10자 이상 입력해주세요';
       } else {
         errors.remove('description');
       }
@@ -209,6 +205,10 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
   void addStep() {
     final currentState = state;
     if (currentState is RecipeCreateEditing) {
+      if (currentState.steps.length >= 10) {
+        // Hard guard: ignore if already at limit
+        return;
+      }
       final steps = List<RecipeStep>.from(currentState.steps);
       steps.add(RecipeStep(
         order: steps.length + 1,
@@ -358,49 +358,37 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
   }
 
   /// 발행 (즉시 생성/공개)
+  /// 필수: 썸네일, 제목. 단계는 최소 1개 존재해야 하지만 내용은 비어도 허용.
   Future<void> publishRecipe() async {
     final currentState = state;
     if (currentState is! RecipeCreateEditing) return;
 
     try {
-      // 비어있는 필드는 기본값으로 채움
-      final filledTitle = currentState.title.trim().isEmpty
-          ? '제목 없는 레시피'
-          : currentState.title.trim();
-      final filledDescription = currentState.description.trim().isEmpty
-          ? '설명이 없어 기본 문구로 대체되었습니다.'
-          : currentState.description.trim();
-      final filledIngredients = currentState.ingredients.trim().isEmpty
-          ? '- 재료 정보를 입력하지 않았습니다.'
-          : currentState.ingredients.trim();
-      final filledSteps = currentState.steps.isEmpty
-          ? [
-              const RecipeStep(
-                  order: 1, description: '조리 과정을 작성하지 않았습니다.', imageUrl: null),
-            ]
-          : currentState.steps;
-
-      // 썸네일은 여전히 필수
+      // 검증: 썸네일 + 제목 필수. 단계는 최소 1개 (내용은 비어도 허용)
       final validationErrors = <String, String?>{};
       if (currentState.thumbnailPath == null) {
         validationErrors['thumbnail'] = '대표 이미지를 선택해주세요';
       }
+      if (currentState.title.trim().isEmpty) {
+        validationErrors['title'] = '제목을 입력해주세요';
+      }
+      final ensuredSteps = currentState.steps.isEmpty
+          ? [const RecipeStep(order: 1, description: '', imageUrl: null)]
+          : currentState.steps;
       if (validationErrors.isNotEmpty) {
         emit(currentState.copyWith(
           errors: validationErrors,
-          title: filledTitle,
-          description: filledDescription,
-          ingredients: filledIngredients,
-          steps: filledSteps,
+          // 값은 그대로 유지 (자동 채우기 제거)
+          steps: ensuredSteps,
         ));
         return;
       }
 
       emit(RecipeCreateUploading(
-        title: filledTitle,
-        description: filledDescription,
-        ingredients: filledIngredients,
-        steps: filledSteps,
+        title: currentState.title.trim(),
+        description: currentState.description.trim(),
+        ingredients: currentState.ingredients.trim(),
+        steps: ensuredSteps,
         cookingTime: currentState.cookingTime,
         servings: currentState.servings,
         difficulty: currentState.difficulty,
@@ -435,7 +423,7 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
 
       // Upload step images if needed
       final uploadedSteps = <RecipeStep>[];
-      for (final s in filledSteps) {
+      for (final s in ensuredSteps) {
         String? img = s.imageUrl;
         if (img != null && img.isNotEmpty && !_isRemoteUrl(img)) {
           final bytes = await File(img).readAsBytes();
@@ -457,9 +445,9 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
       }
 
       emit(RecipeCreateUploading(
-        title: filledTitle,
-        description: filledDescription,
-        ingredients: filledIngredients,
+        title: currentState.title.trim(),
+        description: currentState.description.trim(),
+        ingredients: currentState.ingredients.trim(),
         steps: uploadedSteps,
         cookingTime: currentState.cookingTime,
         servings: currentState.servings,
@@ -474,9 +462,9 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
 
       final recipe = Recipe(
         id: '',
-        title: filledTitle,
-        description: filledDescription,
-        ingredients: filledIngredients,
+        title: currentState.title.trim(),
+        description: currentState.description.trim(),
+        ingredients: currentState.ingredients.trim(),
         steps: uploadedSteps,
         cookingTime: currentState.cookingTime,
         servings: currentState.servings,
@@ -484,6 +472,8 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
         status: RecipeStatus.published,
         tags: currentState.tags,
         thumbnailUrl: uploadedThumbnailPath,
+        linkTitle: currentState.linkName.isEmpty ? null : currentState.linkName,
+        linkUrl: currentState.linkUrl.isEmpty ? null : currentState.linkUrl,
         viewCount: 0,
         likesCount: 0,
         commentsCount: 0,
