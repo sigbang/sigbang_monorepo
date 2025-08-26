@@ -134,6 +134,130 @@ export class RecipesService {
     }
   }
 
+  // 레시피 수정 (공개/임시 공통)
+  async updateRecipe(id: string, userId: string, updateRecipeDto: UpdateRecipeDto) {
+    const recipe = await this.prismaService.recipe.findUnique({ where: { id } });
+
+    if (!recipe) {
+      throw new NotFoundException('레시피를 찾을 수 없습니다.');
+    }
+
+    if (recipe.authorId !== userId) {
+      throw new ForbiddenException('레시피를 수정할 권한이 없습니다.');
+    }
+
+    const { tags, steps, thumbnailPath, ...recipeData } = updateRecipeDto as any;
+
+    // Supabase 버킷명
+    const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
+    const now = Date.now();
+    const isTempPath = (p?: string) => !!p && p.startsWith(`temp/${userId}/`);
+    const toPublicUrl = (path: string) => this.supabaseService.getPublicUrl(bucketName, path);
+
+    // 썸네일 처리 결과
+    let newThumbnailUrl: string | undefined = undefined;
+
+    try {
+      // 썸네일 업데이트가 요청된 경우만 처리
+      if (thumbnailPath !== undefined) {
+        if (isTempPath(thumbnailPath)) {
+          // temp → 처리 → 영구 경로 업로드
+          const original = await this.supabaseService.downloadFile(bucketName, thumbnailPath);
+          const sharp = await getSharp();
+          const processed = await sharp(original)
+            .rotate()
+            .resize({ width: 1280, withoutEnlargement: true })
+            .webp({ quality: 82 })
+            .toBuffer();
+          const rawName = thumbnailPath.split('/').pop() || `${now}.jpg`;
+          const base = rawName.replace(/\.[^.]+$/, '');
+          const finalThumbKey = `recipes/${userId}/thumbnails/${now}_${base}.webp`;
+          const cacheSeconds = 60 * 60 * 24 * 365;
+          await this.supabaseService.uploadFile(bucketName, finalThumbKey, processed, 'image/webp', cacheSeconds);
+          try { await this.supabaseService.deleteFile(bucketName, [thumbnailPath]); } catch {}
+          newThumbnailUrl = toPublicUrl(finalThumbKey);
+
+          // 기존 썸네일 정리
+          if (recipe.thumbnailImage) {
+            const existingPath = this.extractStoragePathFromPublicUrl(recipe.thumbnailImage, bucketName);
+            if (existingPath) {
+              try { await this.supabaseService.deleteFile(bucketName, [existingPath]); } catch {}
+            }
+          }
+        } else if (thumbnailPath) {
+          // 이미 최종 경로 또는 외부 URL
+          newThumbnailUrl = thumbnailPath.startsWith('http') ? thumbnailPath : toPublicUrl(thumbnailPath);
+        } else {
+          // null/빈 문자열 등으로 전달 시에는 변경하지 않음 (명시적 제거 요구사항이 없다면 유지)
+        }
+      }
+
+      // 본문 필드 업데이트
+      const updated = await this.prismaService.recipe.update({
+        where: { id },
+        data: {
+          ...recipeData,
+          ...(newThumbnailUrl !== undefined && { thumbnailImage: newThumbnailUrl }),
+        },
+      });
+
+      // 태그 업데이트 (명시 제공 시에만 갱신)
+      if (tags !== undefined) {
+        await this.prismaService.recipeTag.deleteMany({ where: { recipeId: id } });
+        if (Array.isArray(tags) && tags.length > 0) {
+          await this.handleTags(id, tags);
+        }
+      }
+
+      // 단계 업데이트 (명시 제공 시에만 갱신)
+      if (steps !== undefined) {
+        await this.prismaService.recipeStep.deleteMany({ where: { recipeId: id } });
+        if (Array.isArray(steps) && steps.length > 0) {
+          const normalizedSteps = [] as Array<{ order: number; description: string; imageUrl?: string }>;
+          for (const step of steps as Array<{ order: number; description: string; imagePath?: string }>) {
+            let imageUrl: string | undefined = undefined;
+            if (isTempPath(step.imagePath)) {
+              const tempKey = step.imagePath!;
+              const original = await this.supabaseService.downloadFile(bucketName, tempKey);
+              const sharp = await getSharp();
+              const processed = await sharp(original)
+                .rotate()
+                .resize({ width: 1600, withoutEnlargement: true })
+                .webp({ quality: 82 })
+                .toBuffer();
+              const rawName = tempKey.split('/').pop() || `${now}.jpg`;
+              const base = rawName.replace(/\.[^.]+$/, '');
+              const finalStepKey = `recipes/${userId}/steps/${now}_${base}.webp`;
+              const cacheSeconds = 60 * 60 * 24 * 365;
+              await this.supabaseService.uploadFile(bucketName, finalStepKey, processed, 'image/webp', cacheSeconds);
+              try { await this.supabaseService.deleteFile(bucketName, [tempKey]); } catch {}
+              imageUrl = toPublicUrl(finalStepKey);
+            } else if ((step as any).imagePath) {
+              const path: string = (step as any).imagePath;
+              imageUrl = path.startsWith('http') ? path : toPublicUrl(path);
+            }
+            normalizedSteps.push({ order: step.order, description: step.description, imageUrl });
+          }
+          await this.handleSteps(id, normalizedSteps);
+        }
+      }
+
+      return {
+        success: true,
+        message: '레시피가 수정되었습니다.',
+        data: {
+          id: updated.id,
+          title: updated.title,
+          status: updated.status,
+          updatedAt: updated.updatedAt,
+        },
+      };
+    } catch (error) {
+      this.logger.error(`레시피 수정 실패: ${String((error as any)?.message || error)}`, (error as any)?.stack);
+      throw new BadRequestException('레시피 수정에 실패했습니다.');
+    }
+  }
+
   // 1. 레시피 임시 저장 생성
   async createDraft(userId: string, createRecipeDto: CreateRecipeDto) {
     const { tags, steps, ...recipeData } = createRecipeDto;

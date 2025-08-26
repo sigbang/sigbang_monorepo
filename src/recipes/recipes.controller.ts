@@ -40,6 +40,27 @@ import { CurrentUser } from '../common/decorators/user.decorator';
 export class RecipesController {
   constructor(private readonly recipesService: RecipesService) {}
 
+  // 레시피 수정 (공개/임시 모두)
+  @Put(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ 
+    summary: '레시피 수정',
+    description: '레시피 내용을 수정합니다. (작성자만 가능) 태그/단계/썸네일 업데이트 지원'
+  })
+  @ApiParam({ name: 'id', description: '레시피 ID' })
+  @ApiBody({ type: UpdateRecipeDto })
+  @ApiResponse({ status: 200, description: '레시피가 성공적으로 수정되었습니다.' })
+  @ApiResponse({ status: 403, description: '권한 없음' })
+  @ApiResponse({ status: 404, description: '레시피를 찾을 수 없음' })
+  async update(
+    @Param('id') id: string,
+    @CurrentUser() user: any,
+    @Body() updateRecipeDto: UpdateRecipeDto,
+  ) {
+    return this.recipesService.updateRecipe(id, user.id, updateRecipeDto);
+  }
+
   // 임시 저장 제외: 바로 공개 등록
   @Post()
   @UseGuards(JwtAuthGuard)
