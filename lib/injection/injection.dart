@@ -20,6 +20,7 @@ import '../domain/usecases/initialize_auth.dart';
 import '../domain/usecases/get_recipe_feed.dart';
 import '../domain/usecases/get_recipe_detail.dart';
 import '../domain/usecases/create_recipe.dart';
+import '../domain/usecases/update_recipe.dart';
 import '../domain/usecases/upload_image_with_presign.dart';
 import '../domain/usecases/get_recommended_recipes.dart';
 // removed draft/image legacy usecases
@@ -88,6 +89,8 @@ Future<void> setupDependencyInjection() async {
       () => GetRecipeDetail(getIt<RecipeRepository>()));
   getIt.registerLazySingleton<CreateRecipe>(
       () => CreateRecipe(getIt<RecipeRepository>()));
+  getIt.registerLazySingleton<UpdateRecipe>(
+      () => UpdateRecipe(getIt<RecipeRepository>()));
   getIt.registerLazySingleton<UploadImageWithPresign>(
       () => UploadImageWithPresign(getIt<RecipeRepository>()));
   getIt.registerLazySingleton<GetRecommendedRecipes>(

@@ -88,6 +88,30 @@ class RecipeService {
     }
   }
 
+  /// 레시피 수정
+  Future<void> updateRecipe({
+    required String id,
+    required Recipe recipe,
+  }) async {
+    if (kDebugMode) {
+      print('✏️ Updating recipe: $id (${recipe.title})');
+    }
+
+    final updateDto = _recipeToUpdateDto(recipe);
+    final response = await _apiClient.dio.put(
+      '/recipes/$id',
+      data: updateDto,
+    );
+
+    if (response.statusCode == 200) {
+      if (kDebugMode) {
+        print('✅ Recipe updated: $id');
+      }
+    } else {
+      throw Exception('레시피 수정 실패: ${response.statusCode}');
+    }
+  }
+
   /// 레시피 삭제
   Future<void> deleteRecipe(String id, String userId) async {
     if (kDebugMode) {
@@ -277,7 +301,11 @@ class RecipeService {
     };
   }
 
-  // removed update dto
+  /// Recipe to UpdateDto 변환 (서버의 UpdateRecipeDto = PartialType(CreateRecipeDto))
+  Map<String, dynamic> _recipeToUpdateDto(Recipe recipe) {
+    // 현재는 전체 필드를 전송. 서버는 부분 업데이트를 지원하므로 비어있는 항목은 제외
+    return _recipeToCreateDto(recipe);
+  }
 
   /// Mock 추천 레시피 데이터
   List<RecipeModel> _getMockRecommendedRecipes() {

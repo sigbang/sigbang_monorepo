@@ -16,6 +16,9 @@ abstract class RecipeRepository {
   // 레시피 즉시 생성(공개)
   Future<Either<Failure, String>> createRecipe(Recipe recipe);
 
+  // 레시피 수정
+  Future<Either<Failure, void>> updateRecipe(Recipe recipe);
+
   // 레시피 삭제
   Future<Either<Failure, void>> deleteRecipe(String id, String userId);
 
