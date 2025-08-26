@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:io';
 import '../../../domain/entities/recipe.dart';
 import '../../../domain/usecases/create_recipe.dart';
+import '../../../domain/usecases/update_recipe.dart';
 
 // import '../../../domain/usecases/upload_recipe_images.dart';
 import '../../../domain/usecases/upload_image_with_presign.dart';
@@ -10,12 +11,14 @@ import 'recipe_create_state.dart';
 
 class RecipeCreateCubit extends Cubit<RecipeCreateState> {
   final CreateRecipe _createRecipe;
+  final UpdateRecipe _updateRecipe;
   final UploadImageWithPresign _uploadImageWithPresign;
   // Optionally used for uploading images later
   // final UploadRecipeThumbnail _uploadRecipeThumbnail;
 
   RecipeCreateCubit(
     this._createRecipe,
+    this._updateRecipe,
     this._uploadImageWithPresign,
   ) : super(RecipeCreateInitial());
 
@@ -26,6 +29,25 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
       steps: const [
         RecipeStep(order: 1, description: '', imageUrl: null),
       ],
+    ));
+  }
+
+  /// 기존 레시피로 편집 시작 (prefill)
+  void startEditingFromRecipe(Recipe recipe) {
+    emit(RecipeCreateEditing(
+      editingRecipeId: recipe.id,
+      title: recipe.title,
+      description: recipe.description,
+      ingredients: recipe.ingredients ?? '',
+      steps: recipe.steps,
+      cookingTime: recipe.cookingTime ?? 30,
+      servings: recipe.servings ?? 2,
+      difficulty: recipe.difficulty ?? RecipeDifficulty.medium,
+      tags: recipe.tags,
+      thumbnailPath: recipe.thumbnailUrl,
+      linkName: recipe.linkTitle ?? '',
+      linkUrl: recipe.linkUrl ?? '',
+      isDirty: false,
     ));
   }
 
@@ -480,7 +502,7 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
       ));
 
       final recipe = Recipe(
-        id: '',
+        id: currentState.editingRecipeId ?? '',
         title: currentState.title.trim(),
         description: currentState.description.trim(),
         ingredients: currentState.ingredients.trim(),
@@ -503,7 +525,11 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
         author: null,
       );
 
-      final result = await _createRecipe(recipe);
+      final isEditing = currentState.editingRecipeId != null;
+      final result = isEditing
+          ? await _updateRecipe(recipe)
+              .then((either) => either.map((_) => recipe.id))
+          : await _createRecipe(recipe);
       result.fold((failure) {
         if (kDebugMode) {
           print('❌ Create failed: ${failure.toString()}');
@@ -514,9 +540,17 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
         ));
       }, (createdId) {
         if (kDebugMode) {
-          print('✅ Recipe created: $createdId');
+          if (isEditing) {
+            print('✅ Recipe updated: $createdId');
+          } else {
+            print('✅ Recipe created: $createdId');
+          }
         }
-        emit(RecipeCreateSuccess(recipeId: createdId));
+        if (isEditing) {
+          emit(RecipeUpdateSuccess(recipeId: createdId));
+        } else {
+          emit(RecipeCreateSuccess(recipeId: createdId));
+        }
       });
     } catch (e) {
       if (kDebugMode) {

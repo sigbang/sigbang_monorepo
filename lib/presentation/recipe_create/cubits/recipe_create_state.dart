@@ -15,6 +15,7 @@ class RecipeCreateInitial extends RecipeCreateState {}
 
 class RecipeCreateEditing extends RecipeCreateState {
   final String? draftId;
+  final String? editingRecipeId;
   final String title;
   final String description;
   final String ingredients;
@@ -31,6 +32,7 @@ class RecipeCreateEditing extends RecipeCreateState {
 
   const RecipeCreateEditing({
     this.draftId,
+    this.editingRecipeId,
     this.title = '',
     this.description = '',
     this.ingredients = '',
@@ -48,6 +50,7 @@ class RecipeCreateEditing extends RecipeCreateState {
 
   RecipeCreateEditing copyWith({
     String? draftId,
+    String? editingRecipeId,
     String? title,
     String? description,
     String? ingredients,
@@ -64,6 +67,7 @@ class RecipeCreateEditing extends RecipeCreateState {
   }) {
     return RecipeCreateEditing(
       draftId: draftId ?? this.draftId,
+      editingRecipeId: editingRecipeId ?? this.editingRecipeId,
       title: title ?? this.title,
       description: description ?? this.description,
       ingredients: ingredients ?? this.ingredients,
@@ -88,6 +92,7 @@ class RecipeCreateEditing extends RecipeCreateState {
   @override
   List<Object?> get props => [
         draftId,
+        editingRecipeId,
         title,
         description,
         ingredients,
@@ -137,6 +142,15 @@ class RecipeCreateSuccess extends RecipeCreateState {
   final String recipeId;
 
   const RecipeCreateSuccess({required this.recipeId});
+
+  @override
+  List<Object?> get props => [recipeId];
+}
+
+class RecipeUpdateSuccess extends RecipeCreateState {
+  final String recipeId;
+
+  const RecipeUpdateSuccess({required this.recipeId});
 
   @override
   List<Object?> get props => [recipeId];

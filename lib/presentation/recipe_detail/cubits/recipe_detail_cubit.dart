@@ -38,9 +38,13 @@ class RecipeDetailCubit extends Cubit<RecipeDetailState> {
     try {
       // 1. 현재 사용자 확인
       final userResult = await _getCurrentUser();
+      String? currentUserId;
       final isLoggedIn = userResult.fold(
         (failure) => false,
-        (user) => true,
+        (user) {
+          currentUserId = user?.id;
+          return user != null;
+        },
       );
 
       // 2. 피드 검색 조건 저장
@@ -71,10 +75,12 @@ class RecipeDetailCubit extends Cubit<RecipeDetailState> {
         (recipe) async {
           // 4. 피드에서 온 경우, 주변 레시피들도 로드
           if (feedQuery != null || tags.isNotEmpty) {
-            await _loadSurroundingRecipesFromFeed(recipe, isLoggedIn);
+            await _loadSurroundingRecipesFromFeed(
+                recipe, isLoggedIn, currentUserId);
           } else {
             // 5. 일반적인 경우, 관련 레시피들 로드
-            await _loadSurroundingRecipesByRecommendation(recipe, isLoggedIn);
+            await _loadSurroundingRecipesByRecommendation(
+                recipe, isLoggedIn, currentUserId);
           }
         },
       );
@@ -91,7 +97,7 @@ class RecipeDetailCubit extends Cubit<RecipeDetailState> {
 
   /// 피드에서 온 경우 주변 레시피들 로드
   Future<void> _loadSurroundingRecipesFromFeed(
-      Recipe targetRecipe, bool isLoggedIn) async {
+      Recipe targetRecipe, bool isLoggedIn, String? currentUserId) async {
     try {
       final query = RecipeQuery(
         limit: _pageSize,
@@ -109,6 +115,7 @@ class RecipeDetailCubit extends Cubit<RecipeDetailState> {
             recipes: [targetRecipe],
             currentIndex: 0,
             isLoggedIn: isLoggedIn,
+            currentUserId: currentUserId,
             hasReachedStart: true,
             hasReachedEnd: true,
           ));
@@ -134,6 +141,7 @@ class RecipeDetailCubit extends Cubit<RecipeDetailState> {
             recipes: recipes,
             currentIndex: currentIndex,
             isLoggedIn: isLoggedIn,
+            currentUserId: currentUserId,
             hasReachedStart: currentIndex == 0,
             hasReachedEnd: currentIndex == recipes.length - 1 &&
                 paginatedRecipes.recipes.length < _pageSize,
@@ -146,6 +154,7 @@ class RecipeDetailCubit extends Cubit<RecipeDetailState> {
         recipes: [targetRecipe],
         currentIndex: 0,
         isLoggedIn: isLoggedIn,
+        currentUserId: currentUserId,
         hasReachedStart: true,
         hasReachedEnd: true,
       ));
@@ -154,7 +163,7 @@ class RecipeDetailCubit extends Cubit<RecipeDetailState> {
 
   /// 추천 기반으로 주변 레시피들 로드
   Future<void> _loadSurroundingRecipesByRecommendation(
-      Recipe targetRecipe, bool isLoggedIn) async {
+      Recipe targetRecipe, bool isLoggedIn, String? currentUserId) async {
     try {
       // 현재 레시피의 태그를 기반으로 유사한 레시피들 로드
       final tags = targetRecipe.tags.map((tag) => tag.name).toList();
@@ -174,6 +183,7 @@ class RecipeDetailCubit extends Cubit<RecipeDetailState> {
             recipes: [targetRecipe],
             currentIndex: 0,
             isLoggedIn: isLoggedIn,
+            currentUserId: currentUserId,
             hasReachedStart: true,
             hasReachedEnd: true,
           ));
@@ -193,6 +203,7 @@ class RecipeDetailCubit extends Cubit<RecipeDetailState> {
             recipes: recipes,
             currentIndex: 0,
             isLoggedIn: isLoggedIn,
+            currentUserId: currentUserId,
             hasReachedStart: true,
             hasReachedEnd: paginatedRecipes.recipes.length < _pageSize,
           ));
@@ -204,6 +215,7 @@ class RecipeDetailCubit extends Cubit<RecipeDetailState> {
         recipes: [targetRecipe],
         currentIndex: 0,
         isLoggedIn: isLoggedIn,
+        currentUserId: currentUserId,
         hasReachedStart: true,
         hasReachedEnd: true,
       ));

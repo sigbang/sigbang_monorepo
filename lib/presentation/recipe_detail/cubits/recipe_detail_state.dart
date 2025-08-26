@@ -16,6 +16,7 @@ class RecipeDetailLoaded extends RecipeDetailState {
   final List<Recipe> recipes;
   final int currentIndex;
   final bool isLoggedIn;
+  final String? currentUserId;
   final bool hasReachedStart;
   final bool hasReachedEnd;
   final bool isLoadingPrevious;
@@ -25,6 +26,7 @@ class RecipeDetailLoaded extends RecipeDetailState {
     required this.recipes,
     required this.currentIndex,
     this.isLoggedIn = false,
+    this.currentUserId,
     this.hasReachedStart = false,
     this.hasReachedEnd = false,
     this.isLoadingPrevious = false,
@@ -37,6 +39,7 @@ class RecipeDetailLoaded extends RecipeDetailState {
     List<Recipe>? recipes,
     int? currentIndex,
     bool? isLoggedIn,
+    String? currentUserId,
     bool? hasReachedStart,
     bool? hasReachedEnd,
     bool? isLoadingPrevious,
@@ -46,6 +49,7 @@ class RecipeDetailLoaded extends RecipeDetailState {
       recipes: recipes ?? this.recipes,
       currentIndex: currentIndex ?? this.currentIndex,
       isLoggedIn: isLoggedIn ?? this.isLoggedIn,
+      currentUserId: currentUserId ?? this.currentUserId,
       hasReachedStart: hasReachedStart ?? this.hasReachedStart,
       hasReachedEnd: hasReachedEnd ?? this.hasReachedEnd,
       isLoadingPrevious: isLoadingPrevious ?? this.isLoadingPrevious,
@@ -58,6 +62,7 @@ class RecipeDetailLoaded extends RecipeDetailState {
         recipes,
         currentIndex,
         isLoggedIn,
+        currentUserId,
         hasReachedStart,
         hasReachedEnd,
         isLoadingPrevious,

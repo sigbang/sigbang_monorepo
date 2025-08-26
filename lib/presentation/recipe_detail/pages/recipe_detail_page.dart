@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import '../../../injection/injection.dart';
 import '../cubits/recipe_detail_cubit.dart';
 import '../cubits/recipe_detail_state.dart';
@@ -87,36 +88,54 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
               PopupMenuButton<String>(
                 onSelected: (value) {
                   switch (value) {
-                    case 'share':
-                      _shareRecipe(context, state);
+                    case 'update':
+                      _navigateToUpdate(context, state);
                       break;
                     case 'report':
                       _reportRecipe(context, state);
                       break;
                   }
                 },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'share',
-                    child: Row(
-                      children: [
-                        Icon(Icons.share),
-                        SizedBox(width: 8),
-                        Text('공유하기'),
-                      ],
+                itemBuilder: (context) {
+                  final items = <PopupMenuEntry<String>>[];
+
+                  // 소유자일 경우 업데이트 메뉴 표시
+                  if (state is RecipeDetailLoaded) {
+                    final loaded = state;
+                    final isOwner = loaded.currentUserId != null &&
+                        loaded.currentRecipe.author?.id == loaded.currentUserId;
+                    if (isOwner) {
+                      items.add(
+                        const PopupMenuItem(
+                          value: 'update',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit),
+                              SizedBox(width: 8),
+                              Text('업데이트'),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+                  }
+
+                  // 공유하기 항목 제거, 신고만 유지
+                  items.add(
+                    const PopupMenuItem(
+                      value: 'report',
+                      child: Row(
+                        children: [
+                          Icon(Icons.report),
+                          SizedBox(width: 8),
+                          Text('신고하기'),
+                        ],
+                      ),
                     ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'report',
-                    child: Row(
-                      children: [
-                        Icon(Icons.report),
-                        SizedBox(width: 8),
-                        Text('신고하기'),
-                      ],
-                    ),
-                  ),
-                ],
+                  );
+
+                  return items;
+                },
               ),
             ],
           ),
@@ -231,5 +250,12 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
         duration: Duration(seconds: 2),
       ),
     );
+  }
+
+  void _navigateToUpdate(BuildContext context, RecipeDetailState state) {
+    if (state is! RecipeDetailLoaded) return;
+    final recipe = state.currentRecipe;
+    // Navigate to edit screen
+    context.push('/edit-recipe/${recipe.id}');
   }
 }

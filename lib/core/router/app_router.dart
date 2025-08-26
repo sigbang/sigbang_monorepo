@@ -6,6 +6,7 @@ import '../../presentation/main/pages/main_page.dart';
 import '../../presentation/settings/pages/settings_page.dart';
 import '../../presentation/recipe_detail/pages/recipe_detail_page.dart';
 import '../../presentation/recipe_create/pages/recipe_create_page.dart';
+import '../../presentation/recipe_edit/pages/recipe_edit_page.dart';
 import '../../presentation/profile/pages/profile_page.dart';
 import '../../presentation/home/cubits/home_cubit.dart';
 import '../../presentation/home/cubits/home_state.dart';
@@ -17,6 +18,7 @@ class AppRouter {
   static const String settings = '/settings';
   static const String recipeDetail = '/recipe';
   static const String recipeCreate = '/create-recipe';
+  static const String recipeEdit = '/edit-recipe';
   static const String profile = '/profile';
 
   static final GoRouter _router = GoRouter(
@@ -89,6 +91,14 @@ class AppRouter {
         path: recipeCreate,
         name: 'recipe_create',
         builder: (context, state) => const RecipeCreatePage(),
+      ),
+      GoRoute(
+        path: '$recipeEdit/:recipeId',
+        name: 'recipe_edit',
+        builder: (context, state) {
+          final recipeId = state.pathParameters['recipeId']!;
+          return RecipeEditPage(recipeId: recipeId);
+        },
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

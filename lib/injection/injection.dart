@@ -117,6 +117,7 @@ Future<void> setupDependencyInjection() async {
       ));
   getIt.registerFactory<RecipeCreateCubit>(() => RecipeCreateCubit(
         getIt<CreateRecipe>(),
+        getIt<UpdateRecipe>(),
         getIt<UploadImageWithPresign>(),
       ));
 }

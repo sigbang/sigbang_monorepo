@@ -49,6 +49,15 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
           );
 
           context.go('/');
+        } else if (state is RecipeUpdateSuccess) {
+          // 수정 성공
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('레시피가 성공적으로 수정되었습니다!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          context.go('/');
         } else if (state is RecipeCreateError) {
           // 에러 시 알림
           ScaffoldMessenger.of(context).showSnackBar(
@@ -96,12 +105,12 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
                     onPressed: () => _showExitDialog(context, state),
                   ),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      '레시피 등록',
+                      state.editingRecipeId != null ? '레시피 수정' : '레시피 등록',
                       textAlign: TextAlign.center,
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.w600),
                     ),
                   ),
                   // 헤더 우측 버튼 제거
@@ -335,7 +344,9 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
                   shape: const StadiumBorder(),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                child: Text(_step < 2 ? '다음' : '레시피 업로드'),
+                child: Text(_step < 2
+                    ? '다음'
+                    : (state.editingRecipeId != null ? '레시피 수정' : '레시피 업로드')),
               ),
             ),
           ],
