@@ -6,6 +6,7 @@ import '../../../injection/injection.dart';
 import '../cubits/recipe_detail_cubit.dart';
 import '../cubits/recipe_detail_state.dart';
 import '../widgets/recipe_detail_card.dart';
+import '../../common/widgets/app_confirm_dialog.dart';
 
 class RecipeDetailPage extends StatelessWidget {
   final String recipeId;
@@ -91,6 +92,9 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                     case 'update':
                       _navigateToUpdate(context, state);
                       break;
+                    case 'delete':
+                      _confirmAndDelete(context, state);
+                      break;
                     case 'report':
                       _reportRecipe(context, state);
                       break;
@@ -113,6 +117,18 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                               Icon(Icons.edit),
                               SizedBox(width: 8),
                               Text('업데이트'),
+                            ],
+                          ),
+                        ),
+                      );
+                      items.add(
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete_outline),
+                              SizedBox(width: 8),
+                              Text('삭제하기'),
                             ],
                           ),
                         ),
@@ -257,5 +273,37 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
     final recipe = state.currentRecipe;
     // Navigate to edit screen
     context.push('/edit-recipe/${recipe.id}');
+  }
+
+  Future<void> _confirmAndDelete(
+      BuildContext context, RecipeDetailState state) async {
+    if (state is! RecipeDetailLoaded) return;
+    final recipe = state.currentRecipe;
+
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: '삭제하시겠어요?',
+      message: '"${recipe.title}" 레시피를 삭제하면 되돌릴 수 없습니다.',
+      cancelText: '취소',
+      confirmText: '삭제',
+      confirmColor: Colors.red,
+    );
+
+    if (confirmed != true) return;
+
+    final success =
+        await context.read<RecipeDetailCubit>().deleteCurrentRecipe();
+    if (!mounted) return;
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('삭제되었습니다')),
+      );
+      // 성공 시 이전 화면으로 돌아가기 (삭제됨을 알리기 위해 true 전달)
+      Navigator.of(context).pop(true);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('삭제에 실패했습니다')),
+      );
+    }
   }
 }

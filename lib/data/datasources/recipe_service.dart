@@ -120,7 +120,7 @@ class RecipeService {
 
     final response = await _apiClient.dio.delete('/recipes/$id');
 
-    if (response.statusCode == 200) {
+    if (response.statusCode == 200 || response.statusCode == 204) {
       if (kDebugMode) {
         print('✅ Recipe deleted: $id');
       }

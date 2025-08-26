@@ -5,17 +5,20 @@ import '../../../domain/entities/recipe_query.dart';
 import '../../../domain/usecases/get_recipe_detail.dart';
 import '../../../domain/usecases/get_recipe_feed.dart';
 import '../../../domain/usecases/get_current_user.dart';
+import '../../../domain/usecases/delete_recipe.dart';
 import 'recipe_detail_state.dart';
 
 class RecipeDetailCubit extends Cubit<RecipeDetailState> {
   final GetRecipeDetail _getRecipeDetail;
   final GetRecipeFeed _getRecipeFeed;
   final GetCurrentUser _getCurrentUser;
+  final DeleteRecipe _deleteRecipe;
 
   RecipeDetailCubit(
     this._getRecipeDetail,
     this._getRecipeFeed,
     this._getCurrentUser,
+    this._deleteRecipe,
   ) : super(RecipeDetailInitial());
 
   static const int _pageSize = 10;
@@ -388,6 +391,64 @@ class RecipeDetailCubit extends Cubit<RecipeDetailState> {
       if (kDebugMode) {
         print('❌ View count increment failed: $e');
       }
+    }
+  }
+
+  /// 현재 보고 있는 레시피 삭제
+  /// 성공 시 true를 반환하며, 남은 레시피가 없으면 페이지를 닫아야 함을 의미하여 true를 반환합니다.
+  Future<bool> deleteCurrentRecipe() async {
+    final currentState = state;
+    if (currentState is! RecipeDetailLoaded) return false;
+
+    final currentRecipe = currentState.currentRecipe;
+    final currentUserId = currentState.currentUserId;
+    if (currentUserId == null || currentRecipe.author?.id != currentUserId) {
+      if (kDebugMode) {
+        print('❌ Delete denied: not owner or no user');
+      }
+      return false;
+    }
+
+    final shouldPopAfterDelete = currentState.recipes.length <= 1;
+
+    try {
+      final result = await _deleteRecipe(
+        id: currentRecipe.id,
+        userId: currentUserId,
+      );
+
+      return await result.fold((failure) {
+        if (kDebugMode) {
+          print('❌ Delete failed: ${failure.toString()}');
+        }
+        return Future.value(false);
+      }, (_) async {
+        if (kDebugMode) {
+          print('🗑️ Deleted recipe: ${currentRecipe.id}');
+        }
+
+        if (shouldPopAfterDelete) {
+          // 남은 레시피가 없으면 상태를 초기화
+          emit(RecipeDetailInitial());
+        } else {
+          // 현재 레시피 제거 후 인덱스 보정
+          final updatedRecipes = List<Recipe>.from(currentState.recipes)
+            ..removeAt(currentState.currentIndex);
+          final newIndex =
+              currentState.currentIndex.clamp(0, updatedRecipes.length - 1);
+          emit(currentState.copyWith(
+            recipes: updatedRecipes,
+            currentIndex: newIndex,
+          ));
+        }
+
+        return true;
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Delete error: $e');
+      }
+      return false;
     }
   }
 }
