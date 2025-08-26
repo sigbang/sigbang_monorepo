@@ -13,6 +13,7 @@ class RecipeStepsEditor extends StatefulWidget {
   final Function(int) onRemoveStep;
   final Function(int, String) onUpdateStepDescription;
   final Function(int, String) onSetStepImage;
+  final Function(int) onClearStepImage;
   final Function(int, int) onReorderSteps;
 
   const RecipeStepsEditor({
@@ -24,6 +25,7 @@ class RecipeStepsEditor extends StatefulWidget {
     required this.onUpdateStepDescription,
     required this.onSetStepImage,
     required this.onReorderSteps,
+    required this.onClearStepImage,
   });
 
   @override
@@ -309,22 +311,50 @@ class _RecipeStepsEditorState extends State<RecipeStepsEditor> {
 
                 // 이미지 영역: 선택 시 미리보기, 아니면 카메라 버튼
                 if (step.imageUrl != null && step.imageUrl!.isNotEmpty)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image(
-                      image: step.imageUrl!.startsWith('http')
-                          ? NetworkImage(step.imageUrl!) as ImageProvider
-                          : FileImage(
-                              File(step.imageUrl!),
-                            ) as ImageProvider,
-                      height: 160,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
+                  Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: GestureDetector(
+                          onTap: () => _pickImageFromGallery(index),
+                          child: Image(
+                            image: step.imageUrl!.startsWith('http')
+                                ? NetworkImage(step.imageUrl!) as ImageProvider
+                                : FileImage(
+                                    File(step.imageUrl!),
+                                  ) as ImageProvider,
+                            height: 160,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Row(
+                          children: [
+                            _ActionChip(
+                              icon: Icons.edit,
+                              tooltip: '이미지 변경',
+                              onPressed: () => _pickImageFromGallery(index),
+                            ),
+                            const SizedBox(width: 8),
+                            _ActionChip(
+                              icon: Icons.delete_outline,
+                              tooltip: '이미지 삭제',
+                              color: Theme.of(context).colorScheme.error,
+                              onPressed: () =>
+                                  _confirmRemoveStepImage(context, index),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   )
                 else
                   GestureDetector(
-                    onTap: () => _showImagePicker(context, index),
+                    onTap: () => _pickImageFromGallery(index),
                     child: Container(
                       height: 48,
                       decoration: BoxDecoration(
@@ -350,64 +380,20 @@ class _RecipeStepsEditorState extends State<RecipeStepsEditor> {
     );
   }
 
-  void _showImagePicker(BuildContext context, int stepIndex) {
-    final parentContext = context;
-    showModalBottomSheet(
-      context: parentContext,
-      builder: (sheetContext) => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '이미지 선택',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 16),
-            // ListTile(
-            //   leading: const Icon(Icons.camera_alt),
-            //   title: const Text('카메라로 촬영'),
-            //   onTap: () async {
-            //     Navigator.pop(context);
-            //     final picker = ImagePicker();
-            //     final XFile? picked = await picker.pickImage(
-            //       source: ImageSource.camera,
-            //       imageQuality: 85,
-            //       maxWidth: 2048,
-            //     );
-            //     if (picked != null) {
-            //       widget.onSetStepImage(stepIndex, picked.path);
-            //     }
-            //   },
-            // ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('갤러리에서 선택'),
-              onTap: () async {
-                Navigator.pop(sheetContext);
-                final Uint8List? bytes =
-                    await GalleryPickerService.pickSingleImageBytes(
-                  parentContext,
-                  preferCameraRoll: true,
-                );
-                if (bytes == null) return;
-
-                final processed =
-                    await ImageProcessingService.processCroppedBytes(
-                  croppedBytes: bytes,
-                  format: OutputFormat.webp,
-                );
-                if (processed.tempFile != null) {
-                  widget.onSetStepImage(stepIndex, processed.tempFile!.path);
-                }
-              },
-            ),
-          ],
-        ),
-      ),
+  Future<void> _pickImageFromGallery(int stepIndex) async {
+    final Uint8List? bytes = await GalleryPickerService.pickSingleImageBytes(
+      context,
+      preferCameraRoll: true,
     );
+    if (bytes == null) return;
+
+    final processed = await ImageProcessingService.processCroppedBytes(
+      croppedBytes: bytes,
+      format: OutputFormat.webp,
+    );
+    if (processed.tempFile != null) {
+      widget.onSetStepImage(stepIndex, processed.tempFile!.path);
+    }
   }
 
   void _confirmRemoveStep(BuildContext context, int index) async {
@@ -422,5 +408,67 @@ class _RecipeStepsEditorState extends State<RecipeStepsEditor> {
     if (confirmed == true) {
       widget.onRemoveStep(index);
     }
+  }
+
+  Future<void> _confirmRemoveStepImage(BuildContext context, int index) async {
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: '이미지를 삭제할까요?',
+      message: '이 단계의 이미지를 삭제합니다.',
+      cancelText: '취소',
+      confirmText: '삭제',
+      confirmColor: Theme.of(context).colorScheme.error,
+    );
+    if (confirmed == true) {
+      widget.onClearStepImage(index);
+    }
+  }
+}
+
+class _ActionChip extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+  final Color? color;
+
+  const _ActionChip({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+            border: Border.all(
+              color: const Color(0xFFEAEAEA),
+            ),
+          ),
+          child: Icon(
+            icon,
+            size: 18,
+            color: color ?? Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
   }
 }

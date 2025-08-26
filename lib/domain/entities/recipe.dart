@@ -206,11 +206,12 @@ class RecipeStep extends Equatable {
     int? order,
     String? description,
     String? imageUrl,
+    bool clearImageUrl = false,
   }) {
     return RecipeStep(
       order: order ?? this.order,
       description: description ?? this.description,
-      imageUrl: imageUrl ?? this.imageUrl,
+      imageUrl: clearImageUrl ? null : (imageUrl ?? this.imageUrl),
     );
   }
 

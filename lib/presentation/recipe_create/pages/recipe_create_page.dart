@@ -235,6 +235,8 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
                   onSetStepImage: (index, imagePath) => context
                       .read<RecipeCreateCubit>()
                       .setStepImage(index, imagePath),
+                  onClearStepImage: (index) =>
+                      context.read<RecipeCreateCubit>().clearStepImage(index),
                   onReorderSteps: (oldIndex, newIndex) => context
                       .read<RecipeCreateCubit>()
                       .reorderSteps(oldIndex, newIndex),

@@ -292,6 +292,25 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
     }
   }
 
+  /// 단계 이미지 삭제
+  void clearStepImage(int index) {
+    final currentState = state;
+    if (currentState is RecipeCreateEditing &&
+        index < currentState.steps.length) {
+      final steps = List<RecipeStep>.from(currentState.steps);
+      steps[index] = steps[index].copyWith(clearImageUrl: true);
+
+      emit(currentState.copyWith(
+        steps: steps,
+        isDirty: true,
+      ));
+
+      if (kDebugMode) {
+        print('🧹 Cleared image for step ${index + 1}');
+      }
+    }
+  }
+
   // removed background upload
 
   /// 단계 순서 변경
