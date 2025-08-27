@@ -122,6 +122,13 @@ Future<void> setupDependencyInjection() async {
         getIt<GetCurrentUser>(),
         getIt<GetRecommendedRecipes>(),
       ));
+  // Promote HomeCubit to singleton for top-level provider
+  if (!getIt.isRegistered<HomeCubit>()) {
+    getIt.registerLazySingleton<HomeCubit>(() => HomeCubit(
+          getIt<GetCurrentUser>(),
+          getIt<GetRecommendedRecipes>(),
+        ));
+  }
   getIt.registerFactory<FeedCubit>(() => FeedCubit(
         getIt<GetRecipeFeed>(),
         getIt<GetCurrentUser>(),

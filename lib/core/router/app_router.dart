@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../presentation/login/pages/login_page.dart';
 import '../../presentation/main/pages/main_page.dart';
@@ -8,9 +7,9 @@ import '../../presentation/recipe_detail/pages/recipe_detail_page.dart';
 import '../../presentation/recipe_create/pages/recipe_create_page.dart';
 import '../../presentation/recipe_edit/pages/recipe_edit_page.dart';
 import '../../presentation/profile/pages/profile_page.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../presentation/home/cubits/home_cubit.dart';
 import '../../presentation/home/cubits/home_state.dart';
-import '../../injection/injection.dart';
 
 class AppRouter {
   static const String login = '/login';
@@ -32,33 +31,23 @@ class AppRouter {
       GoRoute(
         path: main,
         name: 'main',
-        builder: (context, state) => BlocProvider(
-          create: (context) => getIt<HomeCubit>()..loadHome(),
-          child: BlocBuilder<HomeCubit, HomeState>(
-            builder: (context, homeState) {
-              if (homeState is HomeLoaded) {
-                return MainPage(
-                  user: homeState.user,
-                  isLoggedIn: homeState.isLoggedIn,
-                );
-              } else if (homeState is HomeRefreshing) {
-                return MainPage(
-                  user: homeState.user,
-                  isLoggedIn: homeState.isLoggedIn,
-                );
-              } else if (homeState is HomeError) {
-                return MainPage(
-                  user: null,
-                  isLoggedIn: false,
-                );
-              }
-              // 로딩 중에도 기본 화면 표시
-              return const MainPage(
-                user: null,
-                isLoggedIn: false,
+        builder: (context, state) => BlocBuilder<HomeCubit, HomeState>(
+          builder: (context, homeState) {
+            if (homeState is HomeLoaded) {
+              return MainPage(
+                user: homeState.user,
+                isLoggedIn: homeState.isLoggedIn,
               );
-            },
-          ),
+            } else if (homeState is HomeRefreshing) {
+              return MainPage(
+                user: homeState.user,
+                isLoggedIn: homeState.isLoggedIn,
+              );
+            } else if (homeState is HomeError) {
+              return const MainPage(user: null, isLoggedIn: false);
+            }
+            return const MainPage(user: null, isLoggedIn: false);
+          },
         ),
       ),
       GoRoute(
