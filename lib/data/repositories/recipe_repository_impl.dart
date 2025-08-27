@@ -124,4 +124,32 @@ class RecipeRepositoryImpl implements RecipeRepository {
       return Left(ServerFailure(message: e.toString()));
     }
   }
+
+  @override
+  Future<Either<Failure, PaginatedRecipes>> getMyRecipes({
+    required int limit,
+    String? cursor,
+  }) async {
+    try {
+      final result =
+          await _recipeService.getMyRecipes(limit: limit, cursor: cursor);
+      return Right(result.toDomain());
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, PaginatedRecipes>> getMySavedRecipes({
+    required int limit,
+    String? cursor,
+  }) async {
+    try {
+      final result =
+          await _recipeService.getMySavedRecipes(limit: limit, cursor: cursor);
+      return Right(result.toDomain());
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
+  }
 }

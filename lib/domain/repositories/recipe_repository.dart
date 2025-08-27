@@ -36,4 +36,16 @@ abstract class RecipeRepository {
 
   // 레시피 저장/취소
   Future<Either<Failure, void>> toggleSave(String recipeId, String userId);
+
+  // 내 레시피 목록 (커서 기반)
+  Future<Either<Failure, PaginatedRecipes>> getMyRecipes({
+    required int limit,
+    String? cursor,
+  });
+
+  // 내가 저장한 레시피 목록 (커서 기반)
+  Future<Either<Failure, PaginatedRecipes>> getMySavedRecipes({
+    required int limit,
+    String? cursor,
+  });
 }

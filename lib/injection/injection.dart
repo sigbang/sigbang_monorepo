@@ -23,7 +23,11 @@ import '../domain/usecases/create_recipe.dart';
 import '../domain/usecases/update_recipe.dart';
 import '../domain/usecases/delete_recipe.dart';
 import '../domain/usecases/upload_image_with_presign.dart';
+import '../domain/usecases/toggle_like.dart';
+import '../domain/usecases/toggle_save.dart';
 import '../domain/usecases/get_recommended_recipes.dart';
+import '../domain/usecases/get_my_recipes.dart';
+import '../domain/usecases/get_my_saved_recipes.dart';
 // removed draft/image legacy usecases
 
 // Presentation Layer
@@ -32,6 +36,7 @@ import '../presentation/home/cubits/home_cubit.dart';
 import '../presentation/feed/cubits/feed_cubit.dart';
 import '../presentation/recipe_detail/cubits/recipe_detail_cubit.dart';
 import '../presentation/recipe_create/cubits/recipe_create_cubit.dart';
+import '../presentation/profile/cubits/profile_recipes_cubit.dart';
 
 final GetIt getIt = GetIt.instance;
 
@@ -98,6 +103,14 @@ Future<void> setupDependencyInjection() async {
       () => UploadImageWithPresign(getIt<RecipeRepository>()));
   getIt.registerLazySingleton<GetRecommendedRecipes>(
       () => GetRecommendedRecipes(getIt<RecipeRepository>()));
+  getIt.registerLazySingleton<GetMyRecipes>(
+      () => GetMyRecipes(getIt<RecipeRepository>()));
+  getIt.registerLazySingleton<GetMySavedRecipes>(
+      () => GetMySavedRecipes(getIt<RecipeRepository>()));
+  getIt.registerLazySingleton<ToggleLike>(
+      () => ToggleLike(getIt<RecipeRepository>()));
+  getIt.registerLazySingleton<ToggleSave>(
+      () => ToggleSave(getIt<RecipeRepository>()));
   // removed draft/image legacy registrations
 
   // Cubits (as factories to create new instances each time)
@@ -118,10 +131,16 @@ Future<void> setupDependencyInjection() async {
         getIt<GetRecipeFeed>(),
         getIt<GetCurrentUser>(),
         getIt<DeleteRecipe>(),
+        getIt<ToggleLike>(),
+        getIt<ToggleSave>(),
       ));
   getIt.registerFactory<RecipeCreateCubit>(() => RecipeCreateCubit(
         getIt<CreateRecipe>(),
         getIt<UpdateRecipe>(),
         getIt<UploadImageWithPresign>(),
+      ));
+  getIt.registerFactory<ProfileRecipesCubit>(() => ProfileRecipesCubit(
+        getIt<GetMyRecipes>(),
+        getIt<GetMySavedRecipes>(),
       ));
 }

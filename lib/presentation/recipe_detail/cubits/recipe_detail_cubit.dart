@@ -6,6 +6,8 @@ import '../../../domain/usecases/get_recipe_detail.dart';
 import '../../../domain/usecases/get_recipe_feed.dart';
 import '../../../domain/usecases/get_current_user.dart';
 import '../../../domain/usecases/delete_recipe.dart';
+import '../../../domain/usecases/toggle_like.dart';
+import '../../../domain/usecases/toggle_save.dart';
 import 'recipe_detail_state.dart';
 
 class RecipeDetailCubit extends Cubit<RecipeDetailState> {
@@ -13,12 +15,16 @@ class RecipeDetailCubit extends Cubit<RecipeDetailState> {
   final GetRecipeFeed _getRecipeFeed;
   final GetCurrentUser _getCurrentUser;
   final DeleteRecipe _deleteRecipe;
+  final ToggleLike _toggleLike;
+  final ToggleSave _toggleSave;
 
   RecipeDetailCubit(
     this._getRecipeDetail,
     this._getRecipeFeed,
     this._getCurrentUser,
     this._deleteRecipe,
+    this._toggleLike,
+    this._toggleSave,
   ) : super(RecipeDetailInitial());
 
   static const int _pageSize = 10;
@@ -300,6 +306,8 @@ class RecipeDetailCubit extends Cubit<RecipeDetailState> {
     if (currentState is! RecipeDetailLoaded || !currentState.isLoggedIn) return;
 
     final currentRecipe = currentState.currentRecipe;
+    final currentUserId = currentState.currentUserId;
+    if (currentUserId == null) return;
 
     // 낙관적 업데이트
     final updatedRecipe = currentRecipe.copyWith(
@@ -318,14 +326,21 @@ class RecipeDetailCubit extends Cubit<RecipeDetailState> {
       print('❤️ Toggled like for recipe: ${currentRecipe.title}');
     }
 
-    // TODO: 실제 API 호출 구현
     try {
-      // await _toggleRecipeLike(currentRecipe.id);
+      final result = await _toggleLike(
+        recipeId: currentRecipe.id,
+        userId: currentUserId,
+      );
+      result.fold((failure) {
+        emit(currentState.copyWith(recipes: currentState.recipes));
+        if (kDebugMode) {
+          print('❌ Like toggle failed: ${failure.toString()}');
+        }
+      }, (_) {});
     } catch (e) {
-      // 실패 시 원래 상태로 복원
       emit(currentState.copyWith(recipes: currentState.recipes));
       if (kDebugMode) {
-        print('❌ Like toggle failed: $e');
+        print('❌ Like toggle error: $e');
       }
     }
   }
@@ -336,6 +351,8 @@ class RecipeDetailCubit extends Cubit<RecipeDetailState> {
     if (currentState is! RecipeDetailLoaded || !currentState.isLoggedIn) return;
 
     final currentRecipe = currentState.currentRecipe;
+    final currentUserId = currentState.currentUserId;
+    if (currentUserId == null) return;
 
     // 낙관적 업데이트
     final updatedRecipe = currentRecipe.copyWith(
@@ -351,14 +368,21 @@ class RecipeDetailCubit extends Cubit<RecipeDetailState> {
       print('🔖 Toggled save for recipe: ${currentRecipe.title}');
     }
 
-    // TODO: 실제 API 호출 구현
     try {
-      // await _toggleRecipeSave(currentRecipe.id);
+      final result = await _toggleSave(
+        recipeId: currentRecipe.id,
+        userId: currentUserId,
+      );
+      result.fold((failure) {
+        emit(currentState.copyWith(recipes: currentState.recipes));
+        if (kDebugMode) {
+          print('❌ Save toggle failed: ${failure.toString()}');
+        }
+      }, (_) {});
     } catch (e) {
-      // 실패 시 원래 상태로 복원
       emit(currentState.copyWith(recipes: currentState.recipes));
       if (kDebugMode) {
-        print('❌ Save toggle failed: $e');
+        print('❌ Save toggle error: $e');
       }
     }
   }

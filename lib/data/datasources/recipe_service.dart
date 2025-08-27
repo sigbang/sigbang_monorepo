@@ -65,6 +65,54 @@ class RecipeService {
     }
   }
 
+  /// 내가 작성한 공개 레시피 목록 (커서 기반)
+  Future<PaginatedRecipesModel> getMyRecipes({
+    required int limit,
+    String? cursor,
+  }) async {
+    if (kDebugMode) {
+      print('👤 Fetching my recipes: limit=$limit, cursor=$cursor');
+    }
+
+    final response = await _apiClient.dio.get(
+      '/users/me/recipes',
+      queryParameters: {
+        'limit': limit,
+        if (cursor != null) 'cursor': cursor,
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return PaginatedRecipesModel.fromJson(
+          response.data as Map<String, dynamic>);
+    }
+    throw Exception('내 레시피 조회 실패: ${response.statusCode}');
+  }
+
+  /// 내가 저장한 레시피 목록 (커서 기반)
+  Future<PaginatedRecipesModel> getMySavedRecipes({
+    required int limit,
+    String? cursor,
+  }) async {
+    if (kDebugMode) {
+      print('🔖 Fetching my saved recipes: limit=$limit, cursor=$cursor');
+    }
+
+    final response = await _apiClient.dio.get(
+      '/users/me/saved-recipes',
+      queryParameters: {
+        'limit': limit,
+        if (cursor != null) 'cursor': cursor,
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return PaginatedRecipesModel.fromJson(
+          response.data as Map<String, dynamic>);
+    }
+    throw Exception('저장한 레시피 조회 실패: ${response.statusCode}');
+  }
+
   /// 레시피 즉시 생성(공개)
   Future<String> createRecipe(Recipe recipe) async {
     if (kDebugMode) {
@@ -240,32 +288,40 @@ class RecipeService {
     }
   }
 
-  /// 레시피 좋아요/취소 (더미 구현 - 추후 API 구현 필요)
+  /// 레시피 좋아요/취소
   Future<void> toggleLike(String recipeId, String userId) async {
     if (kDebugMode) {
       print('❤️ Toggle like for recipe: $recipeId by user: $userId');
     }
 
-    // TODO: 실제 좋아요 API 구현 필요
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    if (kDebugMode) {
-      print('✅ Like toggled successfully');
+    final response = await _apiClient.dio.post('/recipes/$recipeId/like');
+    if (response.statusCode == 200 ||
+        response.statusCode == 201 ||
+        response.statusCode == 204) {
+      if (kDebugMode) {
+        print('✅ Like toggled successfully');
+      }
+      return;
     }
+    throw Exception('좋아요 처리 실패: ${response.statusCode}');
   }
 
-  /// 레시피 저장/취소 (더미 구현 - 추후 API 구현 필요)
+  /// 레시피 저장/취소
   Future<void> toggleSave(String recipeId, String userId) async {
     if (kDebugMode) {
       print('💾 Toggle save for recipe: $recipeId by user: $userId');
     }
 
-    // TODO: 실제 저장 API 구현 필요
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    if (kDebugMode) {
-      print('✅ Save toggled successfully');
+    final response = await _apiClient.dio.post('/recipes/$recipeId/save');
+    if (response.statusCode == 200 ||
+        response.statusCode == 201 ||
+        response.statusCode == 204) {
+      if (kDebugMode) {
+        print('✅ Save toggled successfully');
+      }
+      return;
     }
+    throw Exception('저장 처리 실패: ${response.statusCode}');
   }
 
   /// Recipe to CreateDto 변환 (즉시 공개용 DTO와 서버의 CreateRecipeDto에 맞춤)

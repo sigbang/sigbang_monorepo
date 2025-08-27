@@ -32,7 +32,8 @@ class RecipeModel extends Recipe {
       description: json['description'] as String,
       status: RecipeStatus.fromString(json['status'] as String),
       createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      updatedAt:
+          DateTime.parse((json['updatedAt'] ?? json['createdAt']) as String),
       ingredients: json['ingredients'] as String?,
       cookingTime: json['cookingTime'] as int?,
       servings: json['servings'] as int?,
