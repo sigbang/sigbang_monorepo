@@ -1,5 +1,6 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
-import { IsString, IsOptional, MaxLength, MinLength } from 'class-validator';
+import { IsString, IsOptional, MaxLength, MinLength, IsInt, Min, Max } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class UpdateUserDto {
   @ApiProperty({
@@ -51,3 +52,28 @@ export class UserResponseDto {
   @ApiProperty({ example: '2023-01-01T00:00:00.000Z', description: '가입일' })
   createdAt: Date;
 } 
+
+// 사용자 레시피/북마크 목록 커서 기반 페이지네이션 DTO
+export class UsersRecipesQueryDto {
+  @ApiProperty({
+    example: 'eyJpZCI6ICJ1dWlkIiwgImNyZWF0ZWRBdCI6ICIyMDI1LTA4LTEzVDEyOjM0OjU2LjAwMFoifQ==',
+    description: '커서(키셋) 페이징용 cursor. 이전 응답의 nextCursor를 그대로 전달',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  cursor?: string;
+
+  @ApiProperty({
+    example: 20,
+    description: '페이지 크기 (커서 기반 take)',
+    required: false,
+    default: 20,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  @Type(() => Number)
+  limit?: number = 20;
+}

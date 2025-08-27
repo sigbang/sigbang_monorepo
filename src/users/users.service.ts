@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../database/prisma.service';
 import { SupabaseService } from '../database/supabase.service';
 import { UpdateUserDto } from './dto/users.dto';
+import { UsersRecipesQueryDto } from './dto/users.dto';
 
 @Injectable()
 export class UsersService {
@@ -202,15 +203,31 @@ export class UsersService {
     };
   }
 
-  async getUserRecipes(userId: string, requestUserId?: string) {
+  async getUserRecipes(userId: string, requestUserId?: string, query?: UsersRecipesQueryDto) {
     // 본인인지 확인하여 공개/비공개 레시피 구분
     const isOwner = userId === requestUserId;
 
-    const recipes = await this.prismaService.recipe.findMany({
+    const { cursor, limit = 20 } = (query ?? {}) as UsersRecipesQueryDto;
+
+    let decodedCursor: { id: string; createdAt?: string } | null = null;
+    if (cursor) {
+      try {
+        decodedCursor = JSON.parse(Buffer.from(cursor, 'base64').toString('utf-8'));
+      } catch {
+        decodedCursor = null;
+      }
+    }
+
+    const orderBy: any = [{ createdAt: 'desc' }, { id: 'desc' }];
+
+    const rows = await this.prismaService.recipe.findMany({
       where: {
         authorId: userId,
         ...(isOwner ? {} : { status: 'PUBLISHED', isHidden: false }),
       },
+      take: limit + 1,
+      ...(decodedCursor && { cursor: { id: decodedCursor.id }, skip: 1 }),
+      orderBy,
       include: {
         _count: {
           select: {
@@ -219,10 +236,18 @@ export class UsersService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
     });
 
-    return recipes.map(recipe => ({
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, limit) : rows;
+    const last = items[items.length - 1];
+    const nextCursor = last
+      ? Buffer.from(
+          JSON.stringify({ id: last.id, createdAt: last.createdAt }),
+        ).toString('base64')
+      : null;
+
+    const recipes = items.map(recipe => ({
       id: recipe.id,
       title: recipe.title,
       description: recipe.description,
@@ -236,38 +261,71 @@ export class UsersService {
       likesCount: recipe._count.likes,
       commentsCount: recipe._count.comments,
     }));
+
+    return {
+      recipes,
+      pageInfo: {
+        limit,
+        nextCursor,
+        hasMore,
+      },
+    };
   }
 
-  async getUserSavedRecipes(userId: string) {
-    const savedRecipes = await this.prismaService.save.findMany({
+  async getUserSavedRecipes(userId: string, query?: UsersRecipesQueryDto) {
+    const { cursor, limit = 20 } = (query ?? {}) as UsersRecipesQueryDto;
+
+    let decodedCursor: { id: string; createdAt?: string } | null = null;
+    if (cursor) {
+      try {
+        decodedCursor = JSON.parse(Buffer.from(cursor, 'base64').toString('utf-8'));
+      } catch {
+        decodedCursor = null;
+      }
+    }
+
+    const orderBy: any = [{ createdAt: 'desc' }, { id: 'desc' }];
+
+    const rows = await this.prismaService.save.findMany({
       where: { userId },
+      take: limit + 1,
+      ...(decodedCursor && { cursor: { id: decodedCursor.id }, skip: 1 }),
+      orderBy,
       include: {
         recipe: {
           include: {
             author: {
-              select: {
-                id: true,
-                nickname: true,
-                profileImage: true,
-              },
+              select: { id: true, nickname: true, profileImage: true },
             },
-            _count: {
-              select: {
-                likes: true,
-                comments: true,
-              },
-            },
+            _count: { select: { likes: true, comments: true } },
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
     });
 
-    return savedRecipes.map(save => ({
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, limit) : rows;
+    const last = items[items.length - 1];
+    const nextCursor = last
+      ? Buffer.from(
+          JSON.stringify({ id: last.id, createdAt: last.createdAt }),
+        ).toString('base64')
+      : null;
+
+    const recipes = items.map(save => ({
       ...save.recipe,
       savedAt: save.createdAt,
       likesCount: save.recipe._count.likes,
       commentsCount: save.recipe._count.comments,
     }));
+
+    return {
+      recipes,
+      pageInfo: {
+        limit,
+        nextCursor,
+        hasMore,
+      },
+    };
   }
 }

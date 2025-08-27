@@ -22,7 +22,7 @@ import {
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
-import { UpdateUserDto, UserResponseDto } from './dto/users.dto';
+import { UpdateUserDto, UserResponseDto, UsersRecipesQueryDto } from './dto/users.dto';
 import { JwtAuthGuard } from '../common/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
 
@@ -116,22 +116,24 @@ export class UsersController {
 
   @Get('me/recipes')
   @ApiOperation({ summary: '내 레시피 목록 조회' })
+  @ApiQuery({ type: UsersRecipesQueryDto })
   @ApiResponse({
     status: 200,
     description: '사용자 레시피 목록 조회 성공',
   })
-  async getMyRecipes(@CurrentUser() user: any) {
-    return this.usersService.getUserRecipes(user.id, user.id);
+  async getMyRecipes(@CurrentUser() user: any, @Query() query: UsersRecipesQueryDto) {
+    return (this.usersService as any).getUserRecipes(user.id, user.id, query);
   }
 
   @Get('me/saved-recipes')
   @ApiOperation({ summary: '저장한 레시피 목록 조회' })
+  @ApiQuery({ type: UsersRecipesQueryDto })
   @ApiResponse({
     status: 200,
     description: '저장한 레시피 목록 조회 성공',
   })
-  async getMySavedRecipes(@CurrentUser() user: any) {
-    return this.usersService.getUserSavedRecipes(user.id);
+  async getMySavedRecipes(@CurrentUser() user: any, @Query() query: UsersRecipesQueryDto) {
+    return (this.usersService as any).getUserSavedRecipes(user.id, query);
   }
 
   @Get(':id')
@@ -149,6 +151,7 @@ export class UsersController {
   @Get(':id/recipes')
   @ApiOperation({ summary: '다른 사용자의 레시피 목록 조회' })
   @ApiParam({ name: 'id', description: '사용자 ID' })
+  @ApiQuery({ type: UsersRecipesQueryDto })
   @ApiResponse({
     status: 200,
     description: '사용자 레시피 목록 조회 성공',
@@ -156,7 +159,8 @@ export class UsersController {
   async getUserRecipes(
     @Param('id') userId: string,
     @CurrentUser() currentUser: any,
+    @Query() query: UsersRecipesQueryDto,
   ) {
-    return this.usersService.getUserRecipes(userId, currentUser?.id);
+    return (this.usersService as any).getUserRecipes(userId, currentUser?.id, query);
   }
 } 
