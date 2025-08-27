@@ -8,10 +8,11 @@ class AuthTokensModel extends AuthTokens {
   });
 
   factory AuthTokensModel.fromJson(Map<String, dynamic> json) {
+    final tokens = json['tokens'] as Map<String, dynamic>?;
     return AuthTokensModel(
-      accessToken: json['accessToken'] as String,
-      refreshToken: json['refreshToken'] as String,
-      expiresIn: json['expiresIn'] as int?,
+      accessToken: (json['accessToken'] ?? tokens?['accessToken']) as String,
+      refreshToken: (json['refreshToken'] ?? tokens?['refreshToken']) as String,
+      expiresIn: (json['expiresIn'] ?? tokens?['expiresIn']) as int?,
     );
   }
 

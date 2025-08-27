@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/constants/app_strings.dart';
 import '../../../injection/injection.dart';
 import '../../login/cubits/login_cubit.dart';
 import '../../login/cubits/login_state.dart';
@@ -10,7 +9,6 @@ import '../../../domain/usecases/get_current_user.dart';
 import '../cubits/profile_recipes_cubit.dart';
 import '../cubits/profile_recipes_state.dart';
 import '../../home/widgets/recipe_card.dart';
-import '../../common/widgets/app_logo.dart';
 
 class ProfilePage extends StatelessWidget {
   final User? user;
@@ -41,7 +39,14 @@ class _ProfileView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const AppLogo(),
+        title: const Text('프로필'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => context.push('/settings'),
+            tooltip: '설정',
+          ),
+        ],
       ),
       body: BlocListener<LoginCubit, LoginState>(
         listener: (context, state) {
@@ -124,76 +129,13 @@ class _ProfileView extends StatelessWidget {
                         ],
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: BlocBuilder<LoginCubit, LoginState>(
-                        builder: (context, state) {
-                          final isLoading = state is LoginLoading;
-                          return ElevatedButton.icon(
-                            onPressed: isLoading
-                                ? null
-                                : () => _confirmLogout(context),
-                            icon: isLoading
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2),
-                                  )
-                                : const Icon(Icons.logout),
-                            label: Text(
-                              isLoading ? '로그아웃 중...' : AppStrings.logout,
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  Theme.of(context).colorScheme.error,
-                              foregroundColor:
-                                  Theme.of(context).colorScheme.onError,
-                              minimumSize: const Size(double.infinity, 48),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
             );
           },
         ),
-      ),
-    );
-  }
-
-  void _confirmLogout(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: Theme.of(context).colorScheme.background,
-        title: const Text('로그아웃'),
-        content: const Text('정말 로그아웃하시겠습니까?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            style: TextButton.styleFrom(
-              backgroundColor:
-                  Theme.of(context).colorScheme.surfaceContainerHighest,
-              foregroundColor: Theme.of(context).colorScheme.onSurface,
-            ),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              context.read<LoginCubit>().logout();
-            },
-            style: TextButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
-            ),
-            child: const Text('로그아웃'),
-          ),
-        ],
       ),
     );
   }
