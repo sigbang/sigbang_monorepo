@@ -7,6 +7,7 @@ import '../models/user_model.dart';
 
 import '../models/login_response_model.dart';
 import 'api_client.dart';
+import '../../core/utils/jwt_utils.dart';
 import 'secure_storage_service.dart';
 
 class AuthService {
@@ -27,13 +28,25 @@ class AuthService {
   Future<void> initialize() async {
     try {
       final token = await getAccessToken();
-      if (token != null) {
-        // 토큰이 있으면 사용자 정보 갱신
-        await getCurrentUser();
+      if (token == null) {
+        return; // guest
+      }
 
-        if (kDebugMode) {
-          print('🔄 User session restored');
+      // 만료 임박/만료 시 갱신
+      if (JwtUtils.isExpired(token,
+          leewaySeconds: EnvConfig.accessLeewaySeconds)) {
+        final ok = await _apiClient.ensureValidAccessToken();
+        if (!ok) {
+          await SecureStorageService.clearAll();
+          return; // guest
         }
+      }
+
+      // 사용자 정보 갱신
+      await getCurrentUser();
+
+      if (kDebugMode) {
+        print('🔄 User session restored');
       }
     } catch (e) {
       if (kDebugMode) {
@@ -94,6 +107,16 @@ class AuthService {
           accessToken: loginResponse.tokens.accessToken,
           refreshToken: loginResponse.tokens.refreshToken,
         );
+        // 토큰 만료 시각 저장 (JWT exp 우선)
+        final exp =
+            JwtUtils.getExpiryEpochSeconds(loginResponse.tokens.accessToken);
+        if (exp != null) {
+          await SecureStorageService.saveAccessTokenExpiryEpoch(exp);
+        } else if (loginResponse.tokens.expiresIn != null) {
+          final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+          await SecureStorageService.saveAccessTokenExpiryEpoch(
+              now + loginResponse.tokens.expiresIn!);
+        }
 
         // 사용자 정보 저장
         await SecureStorageService.saveUserInfo(
@@ -254,6 +277,12 @@ class AuthService {
   /// 현재 로그인 상태를 확인합니다.
   Future<bool> isSignedIn() async {
     final token = await SecureStorageService.getAccessToken();
-    return token != null && token.isNotEmpty;
+    if (token == null || token.isEmpty) return false;
+    if (JwtUtils.isExpired(token,
+        leewaySeconds: EnvConfig.accessLeewaySeconds)) {
+      final ok = await _apiClient.ensureValidAccessToken();
+      return ok;
+    }
+    return true;
   }
 }

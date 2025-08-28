@@ -22,6 +22,25 @@ class EnvConfig {
     return kDebugMode;
   }
 
+  // Auth/session knobs
+  static int get accessLeewaySeconds {
+    final raw = dotenv.env['ACCESS_LEEWAY_SECONDS'];
+    final parsed = raw != null ? int.tryParse(raw) : null;
+    return parsed ?? 15; // default 15s
+  }
+
+  static int get backgroundCheckIntervalSeconds {
+    final raw = dotenv.env['BACKGROUND_CHECK_INTERVAL_SECONDS'];
+    final parsed = raw != null ? int.tryParse(raw) : null;
+    return parsed ?? 30; // default 30s
+  }
+
+  static int get proactiveRefreshWindowSeconds {
+    final raw = dotenv.env['PROACTIVE_REFRESH_WINDOW_SECONDS'];
+    final parsed = raw != null ? int.tryParse(raw) : null;
+    return parsed ?? 60; // default 60s
+  }
+
   static String get envFileName {
     if (kReleaseMode) {
       return '.env.prod';

@@ -48,6 +48,12 @@ class MockAuthService {
       accessToken: loginResponse.tokens.accessToken,
       refreshToken: loginResponse.tokens.refreshToken,
     );
+    // 만료 시각 저장 (모의값 사용)
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final exp = loginResponse.tokens.expiresIn != null
+        ? now + loginResponse.tokens.expiresIn!
+        : now + 900;
+    await SecureStorageService.saveAccessTokenExpiryEpoch(exp);
 
     // 사용자 정보 저장
     await SecureStorageService.saveUserInfo(

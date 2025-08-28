@@ -37,6 +37,9 @@ import '../presentation/feed/cubits/feed_cubit.dart';
 import '../presentation/recipe_detail/cubits/recipe_detail_cubit.dart';
 import '../presentation/recipe_create/cubits/recipe_create_cubit.dart';
 import '../presentation/profile/cubits/profile_recipes_cubit.dart';
+import '../core/session/session_manager.dart';
+import '../presentation/session/session_cubit.dart';
+import '../core/session/session_binding.dart';
 
 final GetIt getIt = GetIt.instance;
 
@@ -53,18 +56,39 @@ Future<void> setupDependencyInjection() async {
             '185415114151-3o8o60efo73qsvdsbmvidbcat7k0brhb.apps.googleusercontent.com',
       ));
 
-  // API Client
-  getIt.registerLazySingleton<ApiClient>(() => ApiClient());
+  // API Client (wire token-expired callback to reset session)
+  getIt.registerLazySingleton<ApiClient>(() => ApiClient(
+        onTokenExpired: () async {
+          // Clear any cached state via HomeCubit or other mechanisms if needed
+          try {
+            // Accessing HomeCubit lazily; ignore if not registered yet
+            if (getIt.isRegistered<HomeCubit>()) {
+              // Trigger a lightweight reload which will reflect guest state
+              await getIt<HomeCubit>().loadHome();
+            }
+            if (getIt.isRegistered<SessionCubit>()) {
+              getIt<SessionCubit>().setGuest();
+            }
+          } catch (_) {}
+        },
+      ));
 
   // Data sources
   getIt.registerLazySingleton<AuthService>(() => AuthService(
         apiClient: getIt<ApiClient>(),
         googleSignIn: getIt<GoogleSignIn>(),
-        onTokenExpired: () {
-          // 토큰 만료 시 처리
+        onTokenExpired: () async {
           if (kDebugMode) {
             print('🔄 Auth service token expired');
           }
+          try {
+            if (getIt.isRegistered<HomeCubit>()) {
+              await getIt<HomeCubit>().loadHome();
+            }
+            if (getIt.isRegistered<SessionCubit>()) {
+              getIt<SessionCubit>().setGuest();
+            }
+          } catch (_) {}
         },
       ));
 
@@ -150,4 +174,11 @@ Future<void> setupDependencyInjection() async {
         getIt<GetMyRecipes>(),
         getIt<GetMySavedRecipes>(),
       ));
+
+  // Session support
+  getIt.registerLazySingleton<SessionCubit>(() => SessionCubit());
+  getIt.registerLazySingleton<SessionManager>(
+      () => SessionManager(getIt<ApiClient>()));
+  getIt.registerLazySingleton<SessionBinding>(
+      () => SessionBinding(getIt<SessionCubit>(), getIt<SessionManager>()));
 }

@@ -17,6 +17,18 @@ class SecureStorageService {
     await _storage.write(key: 'refresh_token', value: refreshToken);
   }
 
+  // 액세스 토큰 만료 시각(Unix epoch seconds) 저장
+  static Future<void> saveAccessTokenExpiryEpoch(int epochSeconds) async {
+    await _storage.write(key: 'access_exp', value: epochSeconds.toString());
+  }
+
+  // 액세스 토큰 만료 시각(Unix epoch seconds) 조회
+  static Future<int?> getAccessTokenExpiryEpoch() async {
+    final value = await _storage.read(key: 'access_exp');
+    if (value == null) return null;
+    return int.tryParse(value);
+  }
+
   // 액세스 토큰 가져오기
   static Future<String?> getAccessToken() async {
     return await _storage.read(key: 'access_token');
@@ -31,6 +43,7 @@ class SecureStorageService {
   static Future<void> clearTokens() async {
     await _storage.delete(key: 'access_token');
     await _storage.delete(key: 'refresh_token');
+    await _storage.delete(key: 'access_exp');
   }
 
   // 사용자 정보 저장

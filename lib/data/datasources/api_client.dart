@@ -1,11 +1,13 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../../core/config/env_config.dart';
+import '../../core/utils/jwt_utils.dart';
 import 'secure_storage_service.dart';
 
 class ApiClient {
   late Dio _dio;
   late Function? _onTokenExpired;
+  Future<bool>? _ongoingRefresh;
 
   ApiClient({Function? onTokenExpired}) {
     _onTokenExpired = onTokenExpired;
@@ -31,13 +33,31 @@ class ApiClient {
       ));
     }
 
-    // 요청 인터셉터 (Access Token 자동 추가)
+    // 요청 인터셉터 (Access Token 자동 추가 + 사전 만료 검사)
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          final accessToken = await SecureStorageService.getAccessToken();
-          if (accessToken != null) {
-            options.headers['Authorization'] = 'Bearer $accessToken';
+          try {
+            String? accessToken = await SecureStorageService.getAccessToken();
+
+            // 토큰이 있고 만료 임박/만료 시 사전 갱신 시도
+            if (accessToken != null &&
+                JwtUtils.isExpired(accessToken,
+                    leewaySeconds: EnvConfig.accessLeewaySeconds)) {
+              final refreshed = await _refreshToken();
+              if (!refreshed) {
+                // 갱신 실패 시 로그아웃 처리
+                await _handleLogout();
+              } else {
+                accessToken = await SecureStorageService.getAccessToken();
+              }
+            }
+
+            if (accessToken != null) {
+              options.headers['Authorization'] = 'Bearer $accessToken';
+            }
+          } catch (_) {
+            // 무시하고 진행
           }
           handler.next(options);
         },
@@ -47,17 +67,18 @@ class ApiClient {
             if (kDebugMode) {
               print('🔄 Token expired, attempting refresh...');
             }
-            
+
             final success = await _refreshToken();
             if (success) {
               // 토큰 갱신 성공 시 원래 요청 재시도
               final accessToken = await SecureStorageService.getAccessToken();
-              error.requestOptions.headers['Authorization'] = 'Bearer $accessToken';
-              
+              error.requestOptions.headers['Authorization'] =
+                  'Bearer $accessToken';
+
               if (kDebugMode) {
                 print('✅ Token refreshed, retrying request...');
               }
-              
+
               try {
                 final response = await _dio.fetch(error.requestOptions);
                 handler.resolve(response);
@@ -81,8 +102,34 @@ class ApiClient {
     );
   }
 
-  // 토큰 갱신
+  // 외부에서 필요 시 호출 가능한 유효성 보장 함수
+  Future<bool> ensureValidAccessToken() async {
+    try {
+      final accessToken = await SecureStorageService.getAccessToken();
+      if (accessToken == null) return false;
+      if (JwtUtils.isExpired(accessToken,
+          leewaySeconds: EnvConfig.accessLeewaySeconds)) {
+        return await _refreshToken();
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // 토큰 갱신 (동일 시점 다중 호출 시 단일 요청으로 병합)
   Future<bool> _refreshToken() async {
+    if (_ongoingRefresh != null) {
+      return await _ongoingRefresh!;
+    }
+
+    _ongoingRefresh = _doRefreshToken().whenComplete(() {
+      _ongoingRefresh = null;
+    });
+    return await _ongoingRefresh!;
+  }
+
+  Future<bool> _doRefreshToken() async {
     try {
       final refreshToken = await SecureStorageService.getRefreshToken();
       if (refreshToken == null) {
@@ -92,6 +139,7 @@ class ApiClient {
         return false;
       }
 
+      // 인터셉터가 없는 별도 Dio 인스턴스로 갱신 요청
       final response = await Dio().post(
         '${EnvConfig.baseUrl}/auth/refresh',
         data: {'refreshToken': refreshToken},
@@ -102,7 +150,15 @@ class ApiClient {
           accessToken: response.data['accessToken'],
           refreshToken: response.data['refreshToken'],
         );
-        
+        // 저장 가능한 경우 만료 시각 저장
+        final newAccess = response.data['accessToken'] as String?;
+        final exp = newAccess != null
+            ? JwtUtils.getExpiryEpochSeconds(newAccess)
+            : null;
+        if (exp != null) {
+          await SecureStorageService.saveAccessTokenExpiryEpoch(exp);
+        }
+
         if (kDebugMode) {
           print('✅ Tokens refreshed successfully');
         }
@@ -125,4 +181,4 @@ class ApiClient {
   }
 
   Dio get dio => _dio;
-} 
+}
