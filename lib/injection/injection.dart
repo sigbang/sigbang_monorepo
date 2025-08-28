@@ -142,17 +142,11 @@ Future<void> setupDependencyInjection() async {
         loginWithGoogleToken: getIt<LoginWithGoogleToken>(),
         logout: getIt<Logout>(),
       ));
-  getIt.registerFactory<HomeCubit>(() => HomeCubit(
+  // HomeCubit is a singleton to drive app-wide session/UI state
+  getIt.registerLazySingleton<HomeCubit>(() => HomeCubit(
         getIt<GetCurrentUser>(),
         getIt<GetRecommendedRecipes>(),
       ));
-  // Promote HomeCubit to singleton for top-level provider
-  if (!getIt.isRegistered<HomeCubit>()) {
-    getIt.registerLazySingleton<HomeCubit>(() => HomeCubit(
-          getIt<GetCurrentUser>(),
-          getIt<GetRecommendedRecipes>(),
-        ));
-  }
   getIt.registerFactory<FeedCubit>(() => FeedCubit(
         getIt<GetRecipeFeed>(),
         getIt<GetCurrentUser>(),

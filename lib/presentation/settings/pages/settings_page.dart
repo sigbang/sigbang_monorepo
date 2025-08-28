@@ -42,125 +42,139 @@ class SettingsView extends StatelessWidget {
             );
           }
         },
-        child: ListView(
+        child: Stack(
           children: [
-            const SizedBox(height: 16),
+            ListView(
+              children: [
+                const SizedBox(height: 16),
 
-            // 계정 섹션
-            _buildSectionHeader(context, '계정'),
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text('프로필 관리'),
-              subtitle: const Text('프로필 정보를 수정할 수 있습니다'),
-              trailing: const Icon(Icons.arrow_forward_ios),
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('프로필 관리 기능 준비 중입니다')),
-                );
+                // 계정 섹션
+                _buildSectionHeader(context, '계정'),
+                ListTile(
+                  leading: const Icon(Icons.person),
+                  title: const Text('프로필 관리'),
+                  subtitle: const Text('프로필 정보를 수정할 수 있습니다'),
+                  trailing: const Icon(Icons.arrow_forward_ios),
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('프로필 관리 기능 준비 중입니다')),
+                    );
+                  },
+                ),
+
+                const Divider(),
+
+                // 앱 섹션
+                _buildSectionHeader(context, '앱 설정'),
+                ListTile(
+                  leading: const Icon(Icons.notifications),
+                  title: const Text('알림 설정'),
+                  subtitle: const Text('푸시 알림을 관리할 수 있습니다'),
+                  trailing: const Icon(Icons.arrow_forward_ios),
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('알림 설정 기능 준비 중입니다')),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.dark_mode),
+                  title: const Text('다크 모드'),
+                  subtitle: const Text('앱의 테마를 변경할 수 있습니다'),
+                  trailing: Switch(
+                    value: Theme.of(context).brightness == Brightness.dark,
+                    onChanged: (value) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('다크 모드 기능 준비 중입니다')),
+                      );
+                    },
+                  ),
+                ),
+
+                const Divider(),
+
+                // 정보 섹션
+                _buildSectionHeader(context, '정보'),
+                ListTile(
+                  leading: const Icon(Icons.info),
+                  title: const Text('앱 정보'),
+                  subtitle: const Text('버전 1.0.0'),
+                  trailing: const Icon(Icons.arrow_forward_ios),
+                  onTap: () {
+                    showAboutDialog(
+                      context: context,
+                      applicationName: AppStrings.appName,
+                      applicationVersion: '1.0.0',
+                      applicationIcon: const Icon(Icons.restaurant_menu),
+                      children: [
+                        const Text('요리 레시피를 공유하고 발견할 수 있는 앱입니다.'),
+                      ],
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.privacy_tip),
+                  title: const Text('개인정보처리방침'),
+                  trailing: const Icon(Icons.arrow_forward_ios),
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('개인정보처리방침 페이지 준비 중입니다')),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.description),
+                  title: const Text('서비스 이용약관'),
+                  trailing: const Icon(Icons.arrow_forward_ios),
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('서비스 이용약관 페이지 준비 중입니다')),
+                    );
+                  },
+                ),
+
+                const Divider(),
+
+                // 로그아웃 버튼
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: BlocBuilder<LoginCubit, LoginState>(
+                    builder: (context, state) {
+                      final isLoading = state is LoginLoading;
+
+                      return ElevatedButton.icon(
+                        onPressed:
+                            isLoading ? null : () => _showLogoutDialog(context),
+                        icon: isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.logout),
+                        label: Text(
+                          isLoading ? '로그아웃 중...' : AppStrings.logout,
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).colorScheme.error,
+                          foregroundColor:
+                              Theme.of(context).colorScheme.onError,
+                          minimumSize: const Size(double.infinity, 48),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+            BlocBuilder<LoginCubit, LoginState>(
+              builder: (context, state) {
+                if (state is LoginLoading) {
+                  return const _FullScreenLoader(message: '로그아웃 중...');
+                }
+                return const SizedBox.shrink();
               },
-            ),
-
-            const Divider(),
-
-            // 앱 섹션
-            _buildSectionHeader(context, '앱 설정'),
-            ListTile(
-              leading: const Icon(Icons.notifications),
-              title: const Text('알림 설정'),
-              subtitle: const Text('푸시 알림을 관리할 수 있습니다'),
-              trailing: const Icon(Icons.arrow_forward_ios),
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('알림 설정 기능 준비 중입니다')),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.dark_mode),
-              title: const Text('다크 모드'),
-              subtitle: const Text('앱의 테마를 변경할 수 있습니다'),
-              trailing: Switch(
-                value: Theme.of(context).brightness == Brightness.dark,
-                onChanged: (value) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('다크 모드 기능 준비 중입니다')),
-                  );
-                },
-              ),
-            ),
-
-            const Divider(),
-
-            // 정보 섹션
-            _buildSectionHeader(context, '정보'),
-            ListTile(
-              leading: const Icon(Icons.info),
-              title: const Text('앱 정보'),
-              subtitle: const Text('버전 1.0.0'),
-              trailing: const Icon(Icons.arrow_forward_ios),
-              onTap: () {
-                showAboutDialog(
-                  context: context,
-                  applicationName: AppStrings.appName,
-                  applicationVersion: '1.0.0',
-                  applicationIcon: const Icon(Icons.restaurant_menu),
-                  children: [
-                    const Text('요리 레시피를 공유하고 발견할 수 있는 앱입니다.'),
-                  ],
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.privacy_tip),
-              title: const Text('개인정보처리방침'),
-              trailing: const Icon(Icons.arrow_forward_ios),
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('개인정보처리방침 페이지 준비 중입니다')),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.description),
-              title: const Text('서비스 이용약관'),
-              trailing: const Icon(Icons.arrow_forward_ios),
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('서비스 이용약관 페이지 준비 중입니다')),
-                );
-              },
-            ),
-
-            const Divider(),
-
-            // 로그아웃 버튼
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: BlocBuilder<LoginCubit, LoginState>(
-                builder: (context, state) {
-                  final isLoading = state is LoginLoading;
-
-                  return ElevatedButton.icon(
-                    onPressed:
-                        isLoading ? null : () => _showLogoutDialog(context),
-                    icon: isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.logout),
-                    label: Text(
-                      isLoading ? '로그아웃 중...' : AppStrings.logout,
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.error,
-                      foregroundColor: Theme.of(context).colorScheme.onError,
-                      minimumSize: const Size(double.infinity, 48),
-                    ),
-                  );
-                },
-              ),
             ),
           ],
         ),
@@ -200,6 +214,39 @@ class SettingsView extends StatelessWidget {
             child: const Text('로그아웃'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FullScreenLoader extends StatelessWidget {
+  final String message;
+  const _FullScreenLoader({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: AbsorbPointer(
+        absorbing: true,
+        child: Container(
+          color: Colors.black.withOpacity(0.35),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 12),
+                Text(
+                  message,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onInverseSurface,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

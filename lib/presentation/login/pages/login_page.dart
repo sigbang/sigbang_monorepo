@@ -64,12 +64,9 @@ class _LoginViewState extends State<LoginView> {
         listener: (context, state) {
           if (state is LoginSuccess) {
             debugPrint('Login success');
-            context.go(AppRouter.main);
-            // Ensure home reflects the logged-in user immediately
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              try {
-                getIt<HomeCubit>().refreshHome();
-              } catch (_) {}
+            // 먼저 홈 상태 갱신 후 화면 전환 (깜빡임 줄임)
+            getIt<HomeCubit>().refreshHome().whenComplete(() {
+              context.go(AppRouter.main);
             });
           } else if (state is LoginFailure) {
             debugPrint('Login failed: ${state.message}');
@@ -81,37 +78,82 @@ class _LoginViewState extends State<LoginView> {
             );
           }
         },
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 560),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 24),
+        child: Stack(
+          children: [
+            SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 560),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 24),
 
-                  // 앱 로고/제목 (브랜드 룩 적용)
-                  const SizedBox(height: 32),
-                  Text(
-                    '로그인',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: 48),
+                      // 앱 로고/제목 (브랜드 룩 적용)
+                      const SizedBox(height: 32),
+                      Text(
+                        '로그인',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      const SizedBox(height: 48),
 
-                  // Google 로그인 버튼
-                  ElevatedButton.icon(
-                    onPressed: () => _onLoginPressed(context),
-                    icon: const Icon(Icons.login),
-                    label: const Text('Google로 계속하기'),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 48),
-                    ),
+                      // Google 로그인 버튼
+                      ElevatedButton.icon(
+                        onPressed: () => _onLoginPressed(context),
+                        icon: const Icon(Icons.login),
+                        label: const Text('Google로 계속하기'),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 48),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
+            ),
+            BlocBuilder<LoginCubit, LoginState>(
+              builder: (context, state) {
+                if (state is LoginLoading) {
+                  return const _FullScreenLoader(message: '로그인 중...');
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FullScreenLoader extends StatelessWidget {
+  final String message;
+  const _FullScreenLoader({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: AbsorbPointer(
+        absorbing: true,
+        child: Container(
+          color: Colors.black.withOpacity(0.35),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 12),
+                Text(
+                  message,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onInverseSurface,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
             ),
           ),
         ),

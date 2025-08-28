@@ -76,7 +76,13 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
       },
       builder: (context, state) {
         return Scaffold(
-          body: _buildBody(context, state),
+          body: Stack(
+            children: [
+              _buildBody(context, state),
+              if (state is RecipeCreateUploading)
+                const _FullScreenLoader(message: '레시피 업로드 중...'),
+            ],
+          ),
           bottomNavigationBar: _buildBottomBar(context, state),
         );
       },
@@ -393,5 +399,38 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
     if (confirmed == true) {
       context.pop();
     }
+  }
+}
+
+class _FullScreenLoader extends StatelessWidget {
+  final String message;
+  const _FullScreenLoader({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: AbsorbPointer(
+        absorbing: true,
+        child: Container(
+          color: Colors.black.withOpacity(0.35),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 12),
+                Text(
+                  message,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onInverseSurface,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
