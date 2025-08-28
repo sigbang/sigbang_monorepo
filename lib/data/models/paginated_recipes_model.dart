@@ -48,11 +48,14 @@ class PaginationModel extends Pagination {
   factory PaginationModel.fromJson(Map<String, dynamic> json) {
     return PaginationModel(
       page: json['page'] as int? ?? 1,
-      limit: json['limit'] as int? ?? 10,
+      limit:
+          json['limit'] as int? ?? (json['pageInfo']?['limit'] as int? ?? 10),
       total: json['total'] as int? ?? 0,
       totalPages: json['totalPages'] as int? ?? 1,
-      nextCursor: json['nextCursor'] as String?,
-      newCount: json['newCount'] as int?,
+      nextCursor: (json['nextCursor'] ??
+          json['cursor'] ??
+          json['pageInfo']?['nextCursor']) as String?,
+      newCount: (json['newCount'] ?? json['pageInfo']?['newCount']) as int?,
     );
   }
 

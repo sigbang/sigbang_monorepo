@@ -31,6 +31,18 @@ abstract class RecipeRepository {
   // 홈 화면 추천 레시피 조회 (추후 구현)
   Future<Either<Failure, List<Recipe>>> getRecommendedRecipes(String? userId);
 
+  // 인기 레시피 (커서 기반)
+  Future<Either<Failure, PaginatedRecipes>> getPopularRecipes({
+    required int limit,
+    String? cursor,
+  });
+
+  // 추천 레시피 피드 (커서 기반)
+  Future<Either<Failure, PaginatedRecipes>> getRecommendedFeed({
+    required int limit,
+    String? cursor,
+  });
+
   // 레시피 좋아요/취소
   Future<Either<Failure, void>> toggleLike(String recipeId, String userId);
 

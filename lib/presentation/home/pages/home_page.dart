@@ -63,7 +63,10 @@ class HomeView extends StatelessWidget {
               final user = state is HomeLoaded
                   ? state.user
                   : (state as HomeRefreshing).user;
-              final recipes = state is HomeLoaded
+              final popularRecipes = state is HomeLoaded
+                  ? state.popularRecipes
+                  : (state as HomeRefreshing).popularRecipes;
+              final recommendedRecipes = state is HomeLoaded
                   ? state.recommendedRecipes
                   : (state as HomeRefreshing).recommendedRecipes;
               final isLoggedIn = state is HomeLoaded
@@ -84,15 +87,53 @@ class HomeView extends StatelessWidget {
                         ),
                       ),
                     ),
+                    // 인기 레시피 섹션 제목
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Text(
+                          '인기 레시피',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                    // 인기 레시피 가로 스크롤
+                    SliverToBoxAdapter(
+                      child: SizedBox(
+                        height: 220,
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          scrollDirection: Axis.horizontal,
+                          itemCount: popularRecipes.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 12),
+                          itemBuilder: (context, index) {
+                            final recipe = popularRecipes[index];
+                            return SizedBox(
+                              width: 180,
+                              child: RecipeCard(
+                                recipe: recipe,
+                                onTap: () =>
+                                    context.push('/recipe/${recipe.id}'),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                    // 추천 레시피 섹션 제목
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
                         child: Row(
                           children: [
                             Text(
-                              isLoggedIn
-                                  ? '${user?.name}님을 위한 추천'
-                                  : '오늘의 추천 레시피',
+                              isLoggedIn ? '${user?.name}님을 위한 추천' : '추천 레시피',
                               style: Theme.of(context)
                                   .textTheme
                                   .titleLarge
@@ -112,8 +153,8 @@ class HomeView extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 16)),
-                    _buildRecipeGrid(context, recipes),
+                    const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                    _buildRecipeGrid(context, recommendedRecipes),
                     const SliverToBoxAdapter(child: SizedBox(height: 100)),
                   ],
                 ),

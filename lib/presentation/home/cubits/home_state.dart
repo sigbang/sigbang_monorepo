@@ -15,17 +15,20 @@ class HomeLoading extends HomeState {}
 
 class HomeLoaded extends HomeState {
   final User? user;
+  final List<Recipe> popularRecipes;
   final List<Recipe> recommendedRecipes;
   final bool isLoggedIn;
 
   const HomeLoaded({
     this.user,
+    required this.popularRecipes,
     required this.recommendedRecipes,
     required this.isLoggedIn,
   });
 
   @override
-  List<Object?> get props => [user, recommendedRecipes, isLoggedIn];
+  List<Object?> get props =>
+      [user, popularRecipes, recommendedRecipes, isLoggedIn];
 }
 
 class HomeError extends HomeState {
@@ -39,15 +42,18 @@ class HomeError extends HomeState {
 
 class HomeRefreshing extends HomeState {
   final User? user;
+  final List<Recipe> popularRecipes;
   final List<Recipe> recommendedRecipes;
   final bool isLoggedIn;
 
   const HomeRefreshing({
     this.user,
+    required this.popularRecipes,
     required this.recommendedRecipes,
     required this.isLoggedIn,
   });
 
   @override
-  List<Object?> get props => [user, recommendedRecipes, isLoggedIn];
+  List<Object?> get props =>
+      [user, popularRecipes, recommendedRecipes, isLoggedIn];
 }

@@ -68,6 +68,34 @@ class RecipeRepositoryImpl implements RecipeRepository {
   }
 
   @override
+  Future<Either<Failure, PaginatedRecipes>> getPopularRecipes({
+    required int limit,
+    String? cursor,
+  }) async {
+    try {
+      final result =
+          await _recipeService.getPopular(limit: limit, cursor: cursor);
+      return Right(result.toDomain());
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, PaginatedRecipes>> getRecommendedFeed({
+    required int limit,
+    String? cursor,
+  }) async {
+    try {
+      final result =
+          await _recipeService.getRecommended(limit: limit, cursor: cursor);
+      return Right(result.toDomain());
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, String>> createRecipe(Recipe recipe) async {
     try {
       final id = await _recipeService.createRecipe(recipe);

@@ -127,6 +127,10 @@ Future<void> setupDependencyInjection() async {
       () => UploadImageWithPresign(getIt<RecipeRepository>()));
   getIt.registerLazySingleton<GetRecommendedRecipes>(
       () => GetRecommendedRecipes(getIt<RecipeRepository>()));
+  getIt.registerLazySingleton<GetPopularRecipes>(
+      () => GetPopularRecipes(getIt<RecipeRepository>()));
+  getIt.registerLazySingleton<GetRecommendedFeedUsecase>(
+      () => GetRecommendedFeedUsecase(getIt<RecipeRepository>()));
   getIt.registerLazySingleton<GetMyRecipes>(
       () => GetMyRecipes(getIt<RecipeRepository>()));
   getIt.registerLazySingleton<GetMySavedRecipes>(
@@ -146,6 +150,7 @@ Future<void> setupDependencyInjection() async {
   getIt.registerLazySingleton<HomeCubit>(() => HomeCubit(
         getIt<GetCurrentUser>(),
         getIt<GetRecommendedRecipes>(),
+        getIt<GetPopularRecipes>(),
       ));
   getIt.registerFactory<FeedCubit>(() => FeedCubit(
         getIt<GetRecipeFeed>(),

@@ -88,26 +88,26 @@ class HomeHeader extends StatelessWidget {
         ],
         const SizedBox(height: 24),
         // 검색 바
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: TextField(
-            decoration: const InputDecoration(
-              hintText: '레시피, 재료명으로 검색',
-              prefixIcon: Icon(Icons.search),
-              border: InputBorder.none,
-              contentPadding:
-                  EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
-            onSubmitted: (value) {
-              if (value.isNotEmpty) {
-                context.push('/feed?search=${Uri.encodeComponent(value)}');
-              }
-            },
-          ),
-        ),
+        // Container(
+        //   decoration: BoxDecoration(
+        //     color: Colors.grey[100],
+        //     borderRadius: BorderRadius.circular(12),
+        //   ),
+        //   child: TextField(
+        //     decoration: const InputDecoration(
+        //       hintText: '레시피, 재료명으로 검색',
+        //       prefixIcon: Icon(Icons.search),
+        //       border: InputBorder.none,
+        //       contentPadding:
+        //           EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        //     ),
+        //     onSubmitted: (value) {
+        //       if (value.isNotEmpty) {
+        //         context.push('/feed?search=${Uri.encodeComponent(value)}');
+        //       }
+        //     },
+        //   ),
+        // ),
       ],
     );
   }

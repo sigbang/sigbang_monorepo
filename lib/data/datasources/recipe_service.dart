@@ -44,6 +44,50 @@ class RecipeService {
     }
   }
 
+  /// 인기 레시피 조회 (커서 기반)
+  Future<PaginatedRecipesModel> getPopular(
+      {required int limit, String? cursor}) async {
+    if (kDebugMode) {
+      print('🔥 Fetching popular recipes: limit=$limit, cursor=$cursor');
+    }
+
+    final response = await _apiClient.dio.get(
+      '/feed/popular',
+      queryParameters: {
+        'limit': limit,
+        if (cursor != null) 'cursor': cursor,
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return PaginatedRecipesModel.fromJson(
+          response.data as Map<String, dynamic>);
+    }
+    throw Exception('인기 레시피 조회 실패: ${response.statusCode}');
+  }
+
+  /// 추천 레시피 조회 (커서 기반, 로그인/비로그인 공통)
+  Future<PaginatedRecipesModel> getRecommended(
+      {required int limit, String? cursor}) async {
+    if (kDebugMode) {
+      print('✨ Fetching recommended recipes: limit=$limit, cursor=$cursor');
+    }
+
+    final response = await _apiClient.dio.get(
+      '/feed/recommended',
+      queryParameters: {
+        'limit': limit,
+        if (cursor != null) 'cursor': cursor,
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return PaginatedRecipesModel.fromJson(
+          response.data as Map<String, dynamic>);
+    }
+    throw Exception('추천 레시피 조회 실패: ${response.statusCode}');
+  }
+
   /// 레시피 상세 조회
   Future<RecipeModel> getRecipe(String id, String? userId) async {
     if (kDebugMode) {
@@ -268,21 +312,14 @@ class RecipeService {
     return paths;
   }
 
-  /// 홈 화면 추천 레시피 조회 (더미 데이터 - 추후 API 구현 필요)
+  /// 홈 화면 추천 레시피 조회 (신규 API)
   Future<List<RecipeModel>> getRecommendedRecipes(String? userId) async {
-    if (kDebugMode) {
-      print('🏠 Fetching recommended recipes for user: $userId');
-    }
-
-    // TODO: 실제 추천 API 구현 필요
-    // 현재는 피드에서 일부 데이터를 가져와서 추천으로 사용
     try {
-      final query = const RecipeQuery(limit: 6);
-      final feedResult = await getFeed(query, userId);
-      return feedResult.recipes.cast<RecipeModel>();
+      final result = await getRecommended(limit: 6);
+      return result.recipes.cast<RecipeModel>();
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ Using mock recommended recipes due to: $e');
+        print('⚠️ Recommended API failed, falling back to mock: $e');
       }
       return _getMockRecommendedRecipes();
     }
