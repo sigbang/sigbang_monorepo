@@ -163,4 +163,21 @@ export class UsersController {
   ) {
     return (this.usersService as any).getUserRecipes(userId, currentUser?.id, query);
   }
+
+  @Get(':id/follow-counts')
+  @ApiOperation({ summary: '사용자의 팔로워/팔로잉 카운트 조회' })
+  @ApiParam({ name: 'id', description: '사용자 ID' })
+  @ApiResponse({
+    status: 200,
+    description: '팔로워/팔로잉 카운트 조회 성공',
+    schema: {
+      example: {
+        followerCount: 123,
+        followingCount: 45,
+      },
+    },
+  })
+  async getFollowCounts(@Param('id') userId: string) {
+    return (this.usersService as any).getFollowCounts(userId);
+  }
 } 

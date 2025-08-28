@@ -328,4 +328,13 @@ export class UsersService {
       },
     };
   }
+
+  async getFollowCounts(userId: string) {
+    const [followerCount, followingCount] = await Promise.all([
+      this.prismaService.follow.count({ where: { followingId: userId } }),
+      this.prismaService.follow.count({ where: { followerId: userId } }),
+    ]);
+
+    return { followerCount, followingCount };
+  }
 }
