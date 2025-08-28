@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../injection/injection.dart';
@@ -9,6 +10,7 @@ import '../../../domain/usecases/get_current_user.dart';
 import '../cubits/profile_recipes_cubit.dart';
 import '../cubits/profile_recipes_state.dart';
 import '../../home/widgets/recipe_card.dart';
+import '../../../data/datasources/api_client.dart';
 
 class ProfilePage extends StatelessWidget {
   final User? user;
@@ -39,7 +41,17 @@ class _ProfileView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('프로필'),
+        title: null,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+        ),
+        iconTheme:
+            IconThemeData(color: Theme.of(context).colorScheme.onSurface),
         actions: [
           IconButton(
             icon: const Icon(Icons.menu),
@@ -72,7 +84,7 @@ class _ProfileView extends StatelessWidget {
                     getIt<ProfileRecipesCubit>()..loadInitial(),
                 child: Column(
                   children: [
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
                     CircleAvatar(
                       radius: 40,
                       backgroundImage: displayUser?.avatarUrl != null
@@ -90,7 +102,7 @@ class _ProfileView extends StatelessWidget {
                             )
                           : null,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 16),
                     Text(
                       displayUser?.name ?? '내 프로필',
                       style: const TextStyle(
@@ -98,29 +110,62 @@ class _ProfileView extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 16),
+                    FutureBuilder<_ProfileStats>(
+                      future: _fetchStats(displayUser?.id),
+                      builder: (context, statsSnap) {
+                        final stats = statsSnap.data;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 6),
+                          child: Center(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _CountTile(
+                                  label: '레시피',
+                                  count: stats?.recipesCount ?? 0,
+                                ),
+                                const SizedBox(width: 72),
+                                _CountTile(
+                                  label: '팔로잉',
+                                  count: stats?.followingCount ?? 0,
+                                ),
+                                const SizedBox(width: 72),
+                                _CountTile(
+                                  label: '팔로워',
+                                  count: stats?.followerCount ?? 0,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
                     const Divider(height: 1),
+                    const SizedBox(height: 16),
                     TabBar(
                       labelColor: Theme.of(context).colorScheme.primary,
                       unselectedLabelColor:
                           Theme.of(context).colorScheme.onSurfaceVariant,
-                      labelStyle: const TextStyle(fontWeight: FontWeight.w700),
-                      unselectedLabelStyle:
-                          const TextStyle(fontWeight: FontWeight.w500),
+                      labelStyle: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.w500),
+                      unselectedLabelStyle: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.w300),
                       indicatorSize: TabBarIndicatorSize.label,
                       indicator: UnderlineTabIndicator(
                         borderSide: BorderSide(
-                          width: 3,
-                          color: Theme.of(context).colorScheme.primary,
+                          width: 6,
+                          color: Theme.of(context).colorScheme.secondary,
                         ),
-                        insets: const EdgeInsets.symmetric(horizontal: 24),
+                        insets: const EdgeInsets.symmetric(horizontal: 100),
                       ),
                       tabs: const [
                         Tab(text: '레시피'),
                         Tab(text: '북마크'),
                       ],
                     ),
-                    const Divider(height: 1),
                     Expanded(
                       child: TabBarView(
                         children: [
@@ -138,6 +183,41 @@ class _ProfileView extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<_ProfileStats> _fetchStats(String? userId) async {
+    try {
+      final dio = getIt<ApiClient>().dio;
+      final futures = <Future<dynamic>>[
+        dio.get('/users/me'),
+        if (userId != null) dio.get('/users/$userId/follow-counts'),
+      ];
+      final responses = await Future.wait(futures);
+
+      final meData = responses[0].data as Map<String, dynamic>;
+      final meStats = (meData['stats'] ?? const {}) as Map<String, dynamic>;
+      int recipesCount = (meStats['recipesCount'] as num?)?.toInt() ?? 0;
+
+      int followerCount = 0;
+      int followingCount = 0;
+      if (responses.length > 1) {
+        final ff = responses[1].data as Map<String, dynamic>;
+        followerCount = (ff['followerCount'] as num?)?.toInt() ?? 0;
+        followingCount = (ff['followingCount'] as num?)?.toInt() ?? 0;
+      }
+
+      return _ProfileStats(
+        recipesCount: recipesCount,
+        followerCount: followerCount,
+        followingCount: followingCount,
+      );
+    } catch (_) {
+      return const _ProfileStats(
+        recipesCount: 0,
+        followerCount: 0,
+        followingCount: 0,
+      );
+    }
   }
 }
 
@@ -199,4 +279,51 @@ class _RecipesGrid extends StatelessWidget {
       },
     );
   }
+}
+
+class _CountTile extends StatelessWidget {
+  final String label;
+  final int count;
+  const _CountTile({required this.label, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          _formatNumber(count),
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+
+  static String _formatNumber(int n) {
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
+    return n.toString();
+  }
+}
+
+class _ProfileStats {
+  final int recipesCount;
+  final int followerCount;
+  final int followingCount;
+  const _ProfileStats({
+    required this.recipesCount,
+    required this.followerCount,
+    required this.followingCount,
+  });
 }

@@ -16,7 +16,7 @@ class AppTheme {
     ).copyWith(
       primary: _primaryColor,
       onPrimary: Colors.white,
-      secondary: _tertiaryColor,
+      secondary: Colors.amber,
       onSecondary: Colors.black,
       surface: Colors.white,
       onSurface: Colors.black,
@@ -109,6 +109,10 @@ class AppTheme {
           borderRadius: BorderRadius.circular(16),
         ),
         color: Colors.white,
+      ),
+      dividerTheme: DividerThemeData(
+        color: Colors.grey.shade100, // 선 색상
+        thickness: 8, // 두께
       ),
     );
 
