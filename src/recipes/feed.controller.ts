@@ -67,6 +67,22 @@ export class FeedController {
   async getFeed(@Query() query: RecipeQueryDto, @CurrentUser() user?: any) {
     return this.recipesService.getFeed(query, user?.id);
   }
+
+  @Get('popular')
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({ summary: '인기 레시피', description: '최근 조회수/참여 기반 인기 레시피' })
+  @ApiQuery({ type: RecipeQueryDto })
+  async getPopular(@Query() query: RecipeQueryDto, @CurrentUser() user?: any) {
+    return this.recipesService.getPopularRecipes(query, user?.id);
+  }
+
+  @Get('recommended')
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({ summary: '추천 레시피', description: '개인화된 휴리스틱 추천 레시피' })
+  @ApiQuery({ type: RecipeQueryDto })
+  async getRecommended(@Query() query: RecipeQueryDto, @CurrentUser() user?: any) {
+    return this.recipesService.getRecommendedRecipes(query, user?.id);
+  }
 }
 
 

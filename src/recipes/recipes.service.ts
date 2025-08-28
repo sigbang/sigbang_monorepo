@@ -45,6 +45,226 @@ export class RecipesService {
 
   private readonly logger = new Logger(RecipesService.name);
 
+  // 인기 레시피 (최근 조회수/참여 기반)
+  async getPopularRecipes(query: RecipeQueryDto, userId?: string) {
+    const { cursor, limit = 10 } = (query as any) || {};
+
+    // 최근성 윈도우: 7일 내 게시물 우선. 없으면 확장
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    // 커서: id 기반 키셋
+    let decodedCursor: { id: string } | null = null;
+    if (cursor) {
+      try {
+        decodedCursor = JSON.parse(Buffer.from(cursor, 'base64').toString('utf-8'));
+      } catch {
+        decodedCursor = null;
+      }
+    }
+
+    // Prisma: 공개 + 비숨김만
+    const whereBase: any = {
+      status: RecipeStatus.PUBLISHED,
+      isHidden: false,
+    };
+
+    // 1차: 7일 이내 상위 후보를 인기순으로 로드 (좋아요/댓글/저장과 조회수 가중치)
+    const rows = await this.prismaService.recipe.findMany({
+      where: { ...whereBase, createdAt: { gte: sevenDaysAgo } },
+      take: limit + 1,
+      ...(decodedCursor && { cursor: { id: decodedCursor.id }, skip: 1 }),
+      orderBy: [
+        { viewCount: 'desc' },
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ],
+      include: {
+        author: { select: { id: true, nickname: true, profileImage: true } },
+        tags: { include: { tag: true } },
+        steps: { orderBy: { order: 'asc' }, take: 1 },
+        _count: { select: { likes: true, comments: true, saves: true } },
+        ...(userId && {
+          likes: { where: { userId }, select: { id: true } },
+          saves: { where: { userId }, select: { id: true } },
+        }),
+      },
+    });
+
+    let items = rows;
+    // 부족하면 기간 제한 없이 보강
+    if (items.length <= limit) {
+      const more = await this.prismaService.recipe.findMany({
+        where: whereBase,
+        take: limit + 1,
+        orderBy: [
+          { viewCount: 'desc' },
+          { createdAt: 'desc' },
+          { id: 'desc' },
+        ],
+        include: {
+          author: { select: { id: true, nickname: true, profileImage: true } },
+          tags: { include: { tag: true } },
+          steps: { orderBy: { order: 'asc' }, take: 1 },
+          _count: { select: { likes: true, comments: true, saves: true } },
+          ...(userId && {
+            likes: { where: { userId }, select: { id: true } },
+            saves: { where: { userId }, select: { id: true } },
+          }),
+        },
+      });
+      // 중복 제거 후 상위 limit + 1 유지
+      const seen = new Set(items.map(r => r.id));
+      for (const m of more) {
+        if (!seen.has(m.id)) {
+          items.push(m);
+          seen.add(m.id);
+        }
+        if (items.length > limit) break;
+      }
+    }
+
+    const hasMore = items.length > limit;
+    const pageItems = hasMore ? items.slice(0, limit) : items;
+    const last = pageItems[pageItems.length - 1];
+    const nextCursor = last
+      ? Buffer.from(JSON.stringify({ id: last.id })).toString('base64')
+      : null;
+
+    const recipes = pageItems.map((recipe: any) => ({
+      ...recipe,
+      tags: recipe.tags.map((t: any) => ({ name: t.tag.name, emoji: t.tag.emoji })),
+      steps: recipe.steps.map((s: any) => ({ order: s.order, description: s.description, imageUrl: s.imageUrl })),
+      likesCount: recipe._count.likes,
+      commentsCount: recipe._count.comments,
+      isLiked: userId ? recipe.likes?.length > 0 : false,
+      isSaved: userId ? recipe.saves?.length > 0 : false,
+    }));
+
+    return {
+      recipes,
+      pageInfo: {
+        limit,
+        nextCursor,
+        hasMore,
+      },
+    };
+  }
+
+  // 개인화 추천 (간단 휴리스틱): 팔로우, 태그 유사, 참여 점수
+  async getRecommendedRecipes(query: RecipeQueryDto, userId?: string) {
+    const { cursor, limit = 10 } = (query as any) || {};
+
+    let decodedCursor: { id: string } | null = null;
+    if (cursor) {
+      try {
+        decodedCursor = JSON.parse(Buffer.from(cursor, 'base64').toString('utf-8'));
+      } catch {
+        decodedCursor = null;
+      }
+    }
+
+    const whereBase: any = {
+      status: RecipeStatus.PUBLISHED,
+      isHidden: false,
+    };
+
+    // 팔로우 저자, 내가 좋아요/저장한 태그 추출
+    let followingAuthorIds: string[] = [];
+    let preferredTagNames: string[] = [];
+    if (userId) {
+      try {
+        const [follows, likedTags, savedTags] = await Promise.all([
+          (this.prismaService as any).follow.findMany({ where: { followerId: userId }, select: { followingId: true } }),
+          this.prismaService.tag.findMany({
+            where: {
+              recipes: { some: { recipe: { likes: { some: { userId } } } } },
+            },
+            select: { name: true },
+          }),
+          this.prismaService.tag.findMany({
+            where: {
+              recipes: { some: { recipe: { saves: { some: { userId } } } } },
+            },
+            select: { name: true },
+          }),
+        ]);
+        followingAuthorIds = follows.map((f: any) => f.followingId);
+        preferredTagNames = Array.from(new Set([...likedTags.map(t => t.name), ...savedTags.map(t => t.name)])).slice(0, 20);
+      } catch {}
+    }
+
+    // 후보 풀 로드: 최신 상위 N
+    const candidates = await this.prismaService.recipe.findMany({
+      where: whereBase,
+      take: Math.max(100, limit * 10),
+      ...(decodedCursor && { cursor: { id: decodedCursor.id }, skip: 1 }),
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      include: {
+        author: { select: { id: true, nickname: true, profileImage: true } },
+        tags: { include: { tag: true } },
+        steps: { orderBy: { order: 'asc' }, take: 1 },
+        _count: { select: { likes: true, comments: true, saves: true } },
+        ...(userId && {
+          likes: { where: { userId }, select: { id: true } },
+          saves: { where: { userId }, select: { id: true } },
+        }),
+      },
+    });
+
+    const tagSet = new Set(preferredTagNames);
+    const wFollow = 1.0;
+    const wTag = 0.8;
+    const wEng = 0.5;
+    const wRecency = 0.2;
+    const now = Date.now();
+
+    const scored = candidates
+      .map(r => {
+        const isFollow = userId ? followingAuthorIds.includes(r.authorId) : false;
+        const tagOverlap = r.tags?.reduce((acc: number, rt: any) => acc + (tagSet.has(rt.tag.name) ? 1 : 0), 0) || 0;
+        const eng = Math.log(1 + (r._count?.likes || 0) + 2 * (r._count?.comments || 0) + 1.5 * (r._count?.saves || 0));
+        const ageHours = (now - new Date(r.createdAt).getTime()) / (1000 * 60 * 60);
+        const recency = Math.exp(-ageHours / 72);
+        const score = wFollow * (isFollow ? 1 : 0) + wTag * tagOverlap + wEng * eng + wRecency * recency;
+        return { r, score };
+      })
+      .sort((a, b) => b.score - a.score)
+      .map(x => x.r);
+
+    const unique: any[] = [];
+    const seen = new Set<string>();
+    for (const r of scored) {
+      if (!seen.has(r.id)) {
+        unique.push(r);
+        seen.add(r.id);
+      }
+      if (unique.length >= limit + 1) break;
+    }
+
+    const hasMore = unique.length > limit;
+    const pageItems = hasMore ? unique.slice(0, limit) : unique;
+    const last = pageItems[pageItems.length - 1];
+    const nextCursor = last ? Buffer.from(JSON.stringify({ id: last.id })).toString('base64') : null;
+
+    const recipes = pageItems.map((recipe: any) => ({
+      ...recipe,
+      tags: recipe.tags.map((t: any) => ({ name: t.tag.name, emoji: t.tag.emoji })),
+      steps: recipe.steps.map((s: any) => ({ order: s.order, description: s.description, imageUrl: s.imageUrl })),
+      likesCount: recipe._count.likes,
+      commentsCount: recipe._count.comments,
+      isLiked: userId ? recipe.likes?.length > 0 : false,
+      isSaved: userId ? recipe.saves?.length > 0 : false,
+    }));
+
+    return {
+      recipes,
+      pageInfo: {
+        limit,
+        nextCursor,
+        hasMore,
+      },
+    };
+  }
   // 레시피 생성 (즉시 공개)
   async create(userId: string, createRecipeDto: CreateRecipeDto) {
     const { tags, steps, thumbnailPath, ...recipeData } = createRecipeDto as any;
