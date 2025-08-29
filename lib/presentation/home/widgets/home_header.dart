@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../domain/entities/user.dart';
 import '../../common/widgets/app_logo.dart';
+import 'cooking_tip_carousel.dart';
 
 class HomeHeader extends StatelessWidget {
   final User? user;
@@ -63,54 +64,17 @@ class HomeHeader extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        // 인사말
-        if (isLoggedIn) ...[
-          Text(
-            '안녕하세요, ${user?.name ?? '사용자'}님!',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '다양한 레시피를 발견하세요',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey[600],
-                ),
-          ),
-        ] else ...[
-          Text(
-            '식방에 오신 것을 환영합니다!',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '다양한 레시피를 둘러보세요',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey[600],
-                ),
-          ),
-        ],
-        const SizedBox(height: 24),
-        // 검색 바
-        // Container(
-        //   decoration: BoxDecoration(
-        //     color: Colors.grey[100],
-        //     borderRadius: BorderRadius.circular(12),
-        //   ),
-        //   child: TextField(
-        //     decoration: const InputDecoration(
-        //       hintText: '레시피, 재료명으로 검색',
-        //       prefixIcon: Icon(Icons.search),
-        //       border: InputBorder.none,
-        //       contentPadding:
-        //           EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        //     ),
-        //     onSubmitted: (value) {
-        //       if (value.isNotEmpty) {
-        //         context.push('/feed?search=${Uri.encodeComponent(value)}');
-        //       }
-        //     },
-        //   ),
-        // ),
+        // 요리 팁 캐러셀
+        const SizedBox(height: 8),
+        CookingTipCarousel(
+          initialTips: const [
+            '🧄 마늘은 전자레인지 10초 돌리면 껍질이 쏙 벗겨져요!',
+            '🍅 토마토는 꼭지에 十자 칼집 후 뜨거운 물 10초 → 찬물에 담그면 껍질이 쉽게 벗겨져요.',
+            '🧊 남은 허브는 물과 함께 얼음 틀에 얼리면 오래 보관할 수 있어요.',
+            '🥒 오이는 소금 살짝 문질러 씻으면 껍질이 더 아삭해져요.',
+            '🍋 레몬은 30초 전자레인지 후 짜면 즙이 더 잘 나와요.',
+          ],
+        ),
       ],
     );
   }

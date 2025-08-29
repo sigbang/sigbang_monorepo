@@ -101,7 +101,7 @@ class HomeView extends StatelessWidget {
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20.0),
                         child: Text(
-                          '인기 레시피',
+                          '🔥 인기 레시피',
                           style: Theme.of(context)
                               .textTheme
                               .titleLarge
@@ -148,7 +148,9 @@ class HomeView extends StatelessWidget {
                         child: Row(
                           children: [
                             Text(
-                              isLoggedIn ? '${user?.name}님을 위한 추천' : '추천 레시피',
+                              isLoggedIn
+                                  ? '🤖 ${user?.name}님을 위한 추천'
+                                  : '추천 레시피',
                               style: Theme.of(context)
                                   .textTheme
                                   .titleLarge
