@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../domain/entities/recipe.dart';
 
@@ -88,13 +89,6 @@ class HomeView extends StatelessWidget {
                         ),
                       ),
                     ),
-                    // Divider above 인기 레시피 section
-                    const SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Divider(),
-                      ),
-                    ),
                     const SliverToBoxAdapter(child: SizedBox(height: 12)),
                     // 인기 레시피 섹션 제목
                     SliverToBoxAdapter(
@@ -131,6 +125,14 @@ class HomeView extends StatelessWidget {
                             );
                           },
                         ),
+                      ),
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                    // 베타 테스트 배너
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: _buildBetaBanner(context),
                       ),
                     ),
                     const SliverToBoxAdapter(child: SizedBox(height: 16)),
@@ -180,6 +182,47 @@ class HomeView extends StatelessWidget {
 
             return const SizedBox.shrink();
           },
+        ),
+      ),
+    );
+  }
+
+  static final Uri _betaBannerUri = Uri.parse('https://sigbang.com/');
+
+  Future<void> _onTapBetaBanner() async {
+    if (!await launchUrl(_betaBannerUri,
+        mode: LaunchMode.externalApplication)) {
+      // ignore: avoid_print
+      print('Could not launch $_betaBannerUri');
+    }
+  }
+
+  Widget _buildBetaBanner(BuildContext context) {
+    return Material(
+      color: Theme.of(context).colorScheme.secondary,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: _onTapBetaBanner,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              const Icon(Icons.campaign, color: Colors.black87),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '식방 베타테스트에 참여하고 커피쿠폰 받기',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.open_in_new, color: Colors.black87),
+            ],
+          ),
         ),
       ),
     );
