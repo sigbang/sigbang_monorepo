@@ -8,6 +8,7 @@ import '../cubits/home_cubit.dart';
 import '../cubits/home_state.dart';
 import '../widgets/recipe_card.dart';
 import '../widgets/home_header.dart';
+import '../widgets/popular_recipe_square_card.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -87,10 +88,18 @@ class HomeView extends StatelessWidget {
                         ),
                       ),
                     ),
+                    // Divider above 인기 레시피 section
+                    const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Divider(),
+                      ),
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 12)),
                     // 인기 레시피 섹션 제목
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        padding: const EdgeInsets.symmetric(horizontal: 20.0),
                         child: Text(
                           '인기 레시피',
                           style: Theme.of(context)
@@ -100,22 +109,21 @@ class HomeView extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                    const SliverToBoxAdapter(child: SizedBox(height: 16)),
                     // 인기 레시피 가로 스크롤
                     SliverToBoxAdapter(
                       child: SizedBox(
-                        height: 220,
+                        height: 160,
                         child: ListView.separated(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
                           scrollDirection: Axis.horizontal,
                           itemCount: popularRecipes.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(width: 12),
+                          separatorBuilder: (_, __) => const SizedBox(width: 8),
                           itemBuilder: (context, index) {
                             final recipe = popularRecipes[index];
                             return SizedBox(
-                              width: 180,
-                              child: RecipeCard(
+                              width: 160,
+                              child: PopularRecipeSquareCard(
                                 recipe: recipe,
                                 onTap: () =>
                                     context.push('/recipe/${recipe.id}'),
@@ -127,6 +135,13 @@ class HomeView extends StatelessWidget {
                     ),
                     const SliverToBoxAdapter(child: SizedBox(height: 16)),
                     // 추천 레시피 섹션 제목
+                    const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Divider(),
+                      ),
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 12)),
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),

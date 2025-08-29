@@ -35,7 +35,7 @@ class CustomBottomNavigationBar extends StatelessWidget {
         onTap(index);
       },
       selectedItemColor: Theme.of(context).primaryColor,
-      unselectedItemColor: Colors.grey,
+      unselectedItemColor: Colors.grey,      
       items: const [
         BottomNavigationBarItem(
           icon: Icon(Icons.home),

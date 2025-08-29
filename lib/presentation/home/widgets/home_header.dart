@@ -20,8 +20,10 @@ class HomeHeader extends StatelessWidget {
       children: [
         Row(
           children: [
+            const SizedBox(width: 4),
             // 앱 로고 영역
             const AppLogo(height: 32),
+            const SizedBox(width: 8),
             Text(
               '식방',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -57,6 +59,7 @@ class HomeHeader extends StatelessWidget {
                 child: const Text('로그인'),
               ),
             ],
+            const SizedBox(width: 8),
           ],
         ),
         const SizedBox(height: 16),
@@ -68,7 +71,7 @@ class HomeHeader extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '오늘은 어떤 요리를 해보실까요?',
+            '다양한 레시피를 발견하세요',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Colors.grey[600],
                 ),
