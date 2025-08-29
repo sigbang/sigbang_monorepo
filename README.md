@@ -151,6 +151,11 @@ NODE_ENV="development"
 
 # File Upload
 SUPABASE_STORAGE_BUCKET="recipe-images"
+
+# OpenAI
+OPENAI_API_KEY="your_openai_api_key"
+# Optional: override default model for recipe generation
+OPENAI_RECIPE_MODEL="gpt-4o-mini"
 ```
 
 4. Prisma 설정

@@ -385,3 +385,45 @@ export class DraftRecipeResponseDto {
   @ApiProperty({ example: '2023-01-01T00:00:00.000Z', description: '수정일' })
   updatedAt: Date;
 }
+
+// AI 이미지 기반 레시피 생성 요청 DTO
+export class AiGenerateRecipeDto {
+  @ApiProperty({
+    example: 'temp/u_123/20250101/thumbnail.jpg',
+    description: '분석할 이미지의 스토리지 경로 (presign path)',
+    required: true,
+  })
+  @IsString()
+  imagePath: string;
+
+  @ApiProperty({
+    example: '레몬 버터 치킨',
+    description: '제목이 있으면 그대로 사용 (없으면 AI가 생성)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  title?: string;
+}
+
+// AI 이미지 기반 레시피 생성 응답 DTO
+export class AiRecipeGenerateResponseDto {
+  @ApiProperty({ example: '레몬 버터 치킨', description: '제목' })
+  title: string;
+
+  @ApiProperty({ example: '상큼한 레몬 풍미의 버터 치킨', description: '설명' })
+  description: string;
+
+  @ApiProperty({ example: '닭다리살 400g\n레몬 1개\n버터 20g', description: '재료 (멀티라인)' })
+  ingredients: string;
+
+  @ApiProperty({ example: 25, description: '조리 시간 (분)' })
+  cookingTime: number;
+
+  @ApiProperty({
+    type: [RecipeStepDto],
+    description: '조리 단계 (2~3개, 설명만)',
+  })
+  steps: RecipeStepDto[];
+}

@@ -34,6 +34,7 @@ import {
 import { JwtAuthGuard } from '../common/guards/jwt.guard';
 import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
+import { AiGenerateRecipeDto, AiRecipeGenerateResponseDto } from './dto/recipes.dto';
 
 @ApiTags('레시피')
 @Controller('recipes')
@@ -70,6 +71,23 @@ export class RecipesController {
   @ApiResponse({ status: 201, description: '레시피 생성 성공' })
   async create(@CurrentUser() user: any, @Body() createRecipeDto: CreateRecipeDto) {    
     return this.recipesService.create(user.id, createRecipeDto);
+  }
+
+  // AI: 이미지 분석으로 레시피 초안 생성
+  @Post('ai/generate')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'AI 이미지 분석 기반 레시피 생성',
+    description: '클라이언트에서 presign 이미지 경로를 전달하면, 이미지를 분석해 레시피(제목/설명/재료/조리시간/조리순서)를 생성하여 반환합니다.',
+  })
+  @ApiBody({ type: AiGenerateRecipeDto })
+  @ApiResponse({ status: 200, description: '성공', type: AiRecipeGenerateResponseDto })
+  async aiGenerate(
+    @CurrentUser() user: any,
+    @Body() body: AiGenerateRecipeDto,
+  ): Promise<AiRecipeGenerateResponseDto> {
+    return this.recipesService.generateFromImage(user.id, body);
   }
 
   // 1. 레시피 임시 저장 생성 (기존 임시 저장 전부 제거 후 새로 생성)

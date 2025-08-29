@@ -45,6 +45,18 @@ export class RecipesService {
 
   private readonly logger = new Logger(RecipesService.name);
 
+  // OpenAI 클라이언트 Lazy 생성
+  private _openai: any | null = null;
+  private get openai() {
+    if (!this._openai) {
+      // 동적 import로 번들 호환
+      // @ts-ignore
+      const OpenAI = require('openai');
+      this._openai = new OpenAI({ apiKey: this.configService.get<string>('OPENAI_API_KEY') });
+    }
+    return this._openai;
+  }
+
   // 인기 레시피 (최근 조회수/참여 기반)
   async getPopularRecipes(query: RecipeQueryDto, userId?: string) {
     const { cursor, limit = 10 } = (query as any) || {};
@@ -148,6 +160,94 @@ export class RecipesService {
         hasMore,
       },
     };
+  }
+
+  // AI: 이미지 기반 레시피 생성 (제목이 없으면 생성 포함)
+  async generateFromImage(userId: string, params: { imagePath: string; title?: string }) {
+    const { imagePath, title } = params;
+    const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
+
+    if (!imagePath || typeof imagePath !== 'string') {
+      throw new BadRequestException('유효한 imagePath가 필요합니다.');
+    }
+
+    // 사인드 URL 생성 (프라이빗 버킷 대응)
+    const signedUrl = await this.supabaseService.createSignedUrl(bucketName, imagePath, 60 * 5);
+
+    // OpenAI prompt 구성
+    const systemPrompt =
+      'You are a helpful cooking assistant that analyzes a food image and proposes a concise Korean recipe. Follow the JSON schema strictly.';
+
+    const userPrompt = `다음 이미지를 분석해서 한국어 레시피를 만들어줘. 조건:
+1) 제목: ${title ? `주어진 제목을 그대로 사용: "${title}"` : '이미지와 맥락에 맞게 1개 생성'}
+2) 설명: 1문단 이내
+3) 재료: 줄바꿈으로 구분된 목록 (계량 포함)
+4) 조리시간: 10분, 30분, 60분 중 하나
+5) 조리순서: 2~3개, 각 단계는 설명만 (이미지 불필요)
+
+결과는 반드시 다음 JSON 포맷으로만 응답:
+{
+  "title": string,
+  "description": string,
+  "ingredients": string, // 줄바꿈 구분
+  "cookingTime": number,
+  "steps": [{ "order": number, "description": string }]
+}`;
+
+    // OpenAI Responses API (vision) 호출
+    try {
+      const model = this.configService.get<string>('OPENAI_RECIPE_MODEL') || 'gpt-4o-mini';
+      const response = await this.openai.chat.completions.create({
+        model,
+        temperature: 0.4,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: userPrompt },
+              { type: 'image_url', image_url: { url: signedUrl } },
+            ],
+          } as any,
+        ],
+        response_format: { type: 'json_object' } as any,
+      });
+
+      const content = response.choices?.[0]?.message?.content || '{}';
+      let parsed: any;
+      try {
+        parsed = JSON.parse(content);
+      } catch {
+        // JSON이 아니면 텍스트 내에서 시도
+        const match = content.match(/\{[\s\S]*\}$/);
+        parsed = match ? JSON.parse(match[0]) : {};
+      }
+
+      // 결과 정규화
+      const finalTitle: string = title || String(parsed.title || '').slice(0, 100) || 'AI 레시피';
+      const description: string = String(parsed.description || '').slice(0, 1000);
+      const ingredients: string = String(parsed.ingredients || '').slice(0, 2000);
+      const cookingTime: number = Math.max(1, Math.min(600, parseInt(String(parsed.cookingTime || '20'), 10) || 20));
+      const stepsRaw: Array<any> = Array.isArray(parsed.steps) ? parsed.steps : [];
+      const steps = stepsRaw
+        .slice(0, 3)
+        .map((s, idx) => ({ order: Number(s.order) || idx + 1, description: String(s.description || '').slice(0, 500) }))
+        .filter(s => s.description);
+      while (steps.length < 2) {
+        steps.push({ order: steps.length + 1, description: '재료를 손질하고 기본 양념을 준비합니다.' });
+      }
+
+      return {
+        title: finalTitle,
+        description,
+        ingredients,
+        cookingTime,
+        steps,
+      };
+    } catch (error) {
+      this.logger.error(`AI 레시피 생성 실패: ${String((error as any)?.message || error)}`);
+      throw new BadRequestException('AI 레시피 생성에 실패했습니다.');
+    }
   }
 
   // 개인화 추천 (간단 휴리스틱): 팔로우, 태그 유사, 참여 점수
