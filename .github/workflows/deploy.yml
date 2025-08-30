@@ -63,44 +63,59 @@ jobs:
 
       - name: 🚀 Pull & Up on EC2
         run: |
-            SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-            ssh -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << EOF
+             SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+             ssh -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+             "GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_ACTOR='${{ github.actor }}' SHORT_SHA='${SHORT_SHA}' bash -s" <<'EOF'
+              
               set -e
 
-              echo "[0] Ensure docker compose v2"
-              sudo apt-get update -y
-              sudo apt-get install -y docker-compose-plugin || true
-              docker compose version || true
+              echo "[0] Ensure compose"
+              if ! docker compose version >/dev/null 2>&1; then
+                if ! docker-compose version >/dev/null 2>&1; then
+                  # v2 플러그인 설치 시도
+                  sudo mkdir -p /usr/lib/docker/cli-plugins
+                  sudo curl -sSL https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-x86_64 \
+                    -o /usr/lib/docker/cli-plugins/docker-compose
+                  sudo chmod +x /usr/lib/docker/cli-plugins/docker-compose
+                fi
+              fi
 
-              echo "[1] Ensure project directories"
+              # compose 커맨드 선택
+              if docker compose version >/dev/null 2>&1; then
+                COMPOSE="docker compose"
+              elif docker-compose version >/dev/null 2>&1; then
+                COMPOSE="docker-compose"
+              else
+                echo "❌ docker compose / docker-compose 둘 다 없습니다." >&2
+                exit 1
+              fi
+              echo "[0.1] Using: $COMPOSE"
+
+              echo "[1] Ensure project layout"
               mkdir -p ~/sigbang-server
               cd ~/sigbang-server
 
-              echo "[2] Clone or update backend repo (sigbang_api)"
+              echo "[2] Clone/Update backend repo"
               if [ ! -d "sigbang_api/.git" ]; then
-                # SSH 방식 / HTTPS 중 하나 선택 (배포키 쓰면 SSH 권장)
                 git clone git@github.com:sigbang/sigbang_api.git sigbang_api || \
                 git clone https://github.com/sigbang/sigbang_api.git sigbang_api
               fi
-
               cd sigbang_api
               git fetch --all --prune || true
               git checkout main || true
               git pull origin main || true
 
-              echo "[3] Compute IMAGE_TAG from pipeline SHA"
-              export IMAGE_TAG=${SHORT_SHA}
+              echo "[3] Set IMAGE_TAG from pipeline"
+              export IMAGE_TAG=${SHORT_SHA:-latest}
 
               echo "[4] Login GHCR"
-              echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+              echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
 
-              echo "[5] Compose from repo root (~/sigbang-server)"
+              echo "[5] Compose up from repo root"
               cd ~/sigbang-server
+              $COMPOSE -f docker-compose.yml -f docker-compose.back.yml pull backend
+              $COMPOSE -f docker-compose.yml -f docker-compose.back.yml up -d backend
 
-              # compose 파일은 여기(루트)에 있으므로 여기서 실행
-              docker compose -f docker-compose.yml -f docker-compose.back.yml pull backend
-              docker compose -f docker-compose.yml -f docker-compose.back.yml up -d backend
-
-              echo "[6] Light prune (dangling only)"
+              echo "[6] Prune dangling images"
               docker image prune -f || true
             EOF
