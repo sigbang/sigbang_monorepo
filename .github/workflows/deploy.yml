@@ -66,7 +66,7 @@ jobs:
           ssh -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
             set -e
             echo "[1] cd to project"
-            cd ~/sigbang-server
+            cd ~/sigbang-server/sigbang_api
 
             echo "[2] Update compose files (optional git pull)"
             git pull origin main || true
