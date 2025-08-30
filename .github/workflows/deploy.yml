@@ -125,6 +125,7 @@ jobs:
           # 7) 상태 출력
           docker compose -f docker-compose.yml -f docker-compose.back.yml ps
           EOS
+          )
 
           # 원격에 환경변수와 함께 스크립트를 파이프로 전달하여 실행
           ssh -o StrictHostKeyChecking=no "${EC2_USER}@${EC2_HOST}" \
