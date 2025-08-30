@@ -35,8 +35,6 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/generated ./generated
 COPY --from=builder /app/prisma ./prisma
 
-COPY .env .env
-
 # Start the application
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 CMD ["node", "dist/main"]
