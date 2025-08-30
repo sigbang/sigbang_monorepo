@@ -10,18 +10,18 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}-backend        # ghcr.io/<owner>/<repo>-backend
+  IMAGE_NAME: ${{ github.repository }}-backend     # ghcr.io/<owner>/<repo>-backend
   DOCKER_BUILDKIT: 1
   COMPOSE_DOCKER_CLI_BUILD: 1
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
 
     permissions:
       contents: read
-      packages: write       # Push to GHCR
+      packages: write      # push to GHCR
       id-token: write
 
     steps:
@@ -35,19 +35,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🏷️ Extract Docker metadata (tags & labels)
+      - name: 🏷️ Docker metadata (tags & labels)
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest
+            # produce ghcr.io/...:sha-<short>
             type=sha,format=short,prefix=sha-
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
       - name: 🛠️ Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: 📦 Build & Push (production image)
+      - name: 📦 Build & Push (production target)
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -71,32 +74,23 @@ jobs:
           EC2_HOST: ${{ secrets.DEPLOY_HOST }}
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHORT_SHA_TAG: sha-${{ github.sha.substr(0,7) }}
         run: |
           set -e
-          SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
 
-          ssh -o StrictHostKeyChecking=no "${EC2_USER}@${EC2_HOST}" "GITHUB_TOKEN='${GITHUB_TOKEN}' GITHUB_ACTOR='${GITHUB_ACTOR}' SHORT_SHA='${SHORT_SHA}' bash -s" <<'EOF'
+          ssh -o StrictHostKeyChecking=no "${EC2_USER}@${EC2_HOST}" "GITHUB_TOKEN='${GITHUB_TOKEN}' GITHUB_ACTOR='${GITHUB_ACTOR}' IMAGE_TAG='${SHORT_SHA_TAG}' bash -s" <<'EOF'
             set -euo pipefail
 
-            echo "[0] Ensure compose (v2 preferred, fallback to docker-compose)"
+            echo "[0] Ensure Docker Compose v2 (remove legacy v1 if present)"
             if ! docker compose version >/dev/null 2>&1; then
-              if ! docker-compose version >/dev/null 2>&1; then
-                sudo mkdir -p /usr/lib/docker/cli-plugins
-                sudo curl -sSL https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-x86_64 \
-                  -o /usr/lib/docker/cli-plugins/docker-compose
-                sudo chmod +x /usr/lib/docker/cli-plugins/docker-compose
-              fi
+              sudo mkdir -p /usr/lib/docker/cli-plugins
+              sudo curl -sSL https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-x86_64 \
+                -o /usr/lib/docker/cli-plugins/docker-compose
+              sudo chmod +x /usr/lib/docker/cli-plugins/docker-compose
             fi
-
-            if docker compose version >/dev/null 2>&1; then
-              COMPOSE="docker compose"
-            elif docker-compose version >/dev/null 2>&1; then
-              COMPOSE="docker-compose"
-            else
-              echo "❌ docker compose / docker-compose not available" >&2
-              exit 1
-            fi
-            echo "[0.1] Using: $COMPOSE"
+            # Remove python docker-compose v1 if installed (avoids KeyError: ContainerConfig)
+            sudo apt-get remove -y docker-compose >/dev/null 2>&1 || true
+            docker compose version || true
 
             echo "[1] Ensure project layout"
             mkdir -p ~/sigbang-server
@@ -113,23 +107,23 @@ jobs:
             git checkout main || true
             git pull origin main || true
 
-            echo "[3] Set IMAGE_TAG"
-            export IMAGE_TAG="${SHORT_SHA}"
+            echo "[3] Set IMAGE_TAG to ${IMAGE_TAG}"
+            export IMAGE_TAG="${IMAGE_TAG}"
 
             echo "[4] Login GHCR"
             echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
 
-            echo "[5] Compose from repo root"
+            echo "[5] Compose from repo root (expects docker-compose.yml at ~/sigbang-server)"
             cd ~/sigbang-server
 
-            # Expect: docker-compose.yml & docker-compose.back.yml exist here
-            # Compose file must reference: image: ghcr.io/sigbang/sigbang_api-backend:${IMAGE_TAG:-latest}
-            $COMPOSE -f docker-compose.yml -f docker-compose.back.yml pull backend
-            $COMPOSE -f docker-compose.yml -f docker-compose.back.yml up -d backend
+            # Compose files must reference:
+            # image: ghcr.io/sigbang/sigbang_api-backend:${IMAGE_TAG:-latest}
+            docker compose -f docker-compose.yml -f docker-compose.back.yml pull backend
+            docker compose -f docker-compose.yml -f docker-compose.back.yml up -d --force-recreate backend
 
             echo "[6] Prune dangling images"
             docker image prune -f || true
 
-            echo "✅ Deploy done. Running containers:"
-            $COMPOSE ps
+            echo "✅ Deploy done. Containers:"
+            docker compose -f docker-compose.yml -f docker-compose.back.yml ps
           EOF
