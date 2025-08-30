@@ -125,4 +125,4 @@ jobs:
 
             echo "✅ Deploy done. Containers:"
             docker compose -f docker-compose.yml -f docker-compose.back.yml ps
-            EOF
+EOF
