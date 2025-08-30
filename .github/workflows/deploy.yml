@@ -80,7 +80,7 @@ jobs:
           SHORT_SHA_TAG="sha-$(echo "$GITHUB_SHA" | cut -c1-7)"
 
           # 원격에서 실행할 스크립트를 로컬 변수에 담는다 (YAML 들여쓰기와 독립)
-          read -r -d '' SCRIPT <<'EOS'
+          SCRIPT=$(cat <<'EOS'
           set -euo pipefail
 
           # 0) docker compose v2 확보 (v1 제거로 호환성 이슈 회피)
