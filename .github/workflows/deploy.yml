@@ -25,17 +25,17 @@ jobs:
       id-token: write
 
     steps:
-      - name: 🧾 Checkout
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 🔑 Login to GHCR
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🏷️ Docker metadata (tags & labels)
+      - name: Docker metadata (tags & labels)
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -46,10 +46,10 @@ jobs:
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
-      - name: 🛠️ Set up Buildx
+      - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: 📦 Build & Push (production image)
+      - name: Build & Push (production image)
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -62,12 +62,12 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
           provenance: false
 
-      - name: 🔐 Setup SSH agent
+      - name: Setup SSH agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.DEPLOY_KEY }}
 
-      - name: 🚀 Pull & Up on EC2
+      - name: Deploy on EC2
         env:
           EC2_USER: ${{ secrets.DEPLOY_USER }}
           EC2_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -76,53 +76,56 @@ jobs:
           GITHUB_SHA: ${{ github.sha }}
         run: |
           set -e
+
           SHORT_SHA_TAG="sha-$(echo "$GITHUB_SHA" | cut -c1-7)"
 
+          # 원격에서 실행할 스크립트를 로컬 변수에 담는다 (YAML 들여쓰기와 독립)
+          read -r -d '' SCRIPT <<'EOS'
+          set -euo pipefail
+
+          # 0) docker compose v2 확보 (v1 제거로 호환성 이슈 회피)
+          if ! docker compose version >/dev/null 2>&1; then
+            sudo mkdir -p /usr/lib/docker/cli-plugins
+            sudo curl -sSL https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-x86_64 \
+              -o /usr/lib/docker/cli-plugins/docker-compose
+            sudo chmod +x /usr/lib/docker/cli-plugins/docker-compose
+          fi
+          sudo apt-get remove -y docker-compose >/dev/null 2>&1 || true
+          docker compose version || true
+
+          # 1) 프로젝트 레이아웃
+          mkdir -p ~/sigbang-server
+          cd ~/sigbang-server
+
+          # 2) 백엔드 리포 준비
+          if [ ! -d "sigbang_api/.git" ]; then
+            git clone git@github.com:sigbang/sigbang_api.git sigbang_api || \
+            git clone https://github.com/sigbang/sigbang_api.git sigbang_api
+          fi
+          cd sigbang_api
+          git fetch --all --prune || true
+          git checkout main || true
+          git pull origin main || true
+
+          # 3) 이미지 태그는 GitHub Actions에서 넘겨줌 (IMAGE_TAG)
+          echo "Using IMAGE_TAG=${IMAGE_TAG}"
+
+          # 4) GHCR 로그인
+          echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+
+          # 5) compose 실행 (루트: ~/sigbang-server)
+          cd ~/sigbang-server
+          docker compose -f docker-compose.yml -f docker-compose.back.yml down || true
+          docker compose -f docker-compose.yml -f docker-compose.back.yml pull backend
+          docker compose -f docker-compose.yml -f docker-compose.back.yml up -d --force-recreate backend
+
+          # 6) dangling 이미지 정리
+          docker image prune -f || true
+
+          # 7) 상태 출력
+          docker compose -f docker-compose.yml -f docker-compose.back.yml ps
+          EOS
+
+          # 원격에 환경변수와 함께 스크립트를 파이프로 전달하여 실행
           ssh -o StrictHostKeyChecking=no "${EC2_USER}@${EC2_HOST}" \
-            "GITHUB_TOKEN='${GITHUB_TOKEN}' GITHUB_ACTOR='${GITHUB_ACTOR}' IMAGE_TAG='${SHORT_SHA_TAG}' bash -s" <<'EOF'
-            set -euo pipefail
-
-            echo "[0] Ensure Docker Compose v2 (remove legacy v1 if present)"
-            if ! docker compose version >/dev/null 2>&1; then
-              sudo mkdir -p /usr/lib/docker/cli-plugins
-              sudo curl -sSL https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-x86_64 \
-                -o /usr/lib/docker/cli-plugins/docker-compose
-              sudo chmod +x /usr/lib/docker/cli-plugins/docker-compose
-            fi
-            sudo apt-get remove -y docker-compose >/dev/null 2>&1 || true
-            docker compose version || true
-
-            echo "[1] Ensure project layout"
-            mkdir -p ~/sigbang-server
-            cd ~/sigbang-server
-
-            echo "[2] Clone/Update backend repo (sigbang_api)"
-            if [ ! -d "sigbang_api/.git" ]; then
-              git clone git@github.com:sigbang/sigbang_api.git sigbang_api || \
-              git clone https://github.com/sigbang/sigbang_api.git sigbang_api
-            fi
-            cd sigbang_api
-            git fetch --all --prune || true
-            git checkout main || true
-            git pull origin main || true
-
-            echo "[3] Set IMAGE_TAG to ${IMAGE_TAG}"
-            export IMAGE_TAG="${IMAGE_TAG}"
-
-            echo "[4] Login GHCR"
-            echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
-
-            echo "[5] Compose from repo root"
-            cd ~/sigbang-server
-            # docker-compose.yml / docker-compose.back.yml must exist here.
-            # image: ghcr.io/sigbang/sigbang_api-backend:${IMAGE_TAG:-latest}
-            docker compose -f docker-compose.yml -f docker-compose.back.yml down || true
-            docker compose -f docker-compose.yml -f docker-compose.back.yml pull backend
-            docker compose -f docker-compose.yml -f docker-compose.back.yml up -d --force-recreate backend
-
-            echo "[6] Prune dangling images"
-            docker image prune -f || true
-
-            echo "✅ Deploy done. Containers:"
-            docker compose -f docker-compose.yml -f docker-compose.back.yml ps
-EOF
+            "GITHUB_TOKEN='${GITHUB_TOKEN}' GITHUB_ACTOR='${GITHUB_ACTOR}' IMAGE_TAG='${SHORT_SHA_TAG}' bash -s" <<< "$SCRIPT"
