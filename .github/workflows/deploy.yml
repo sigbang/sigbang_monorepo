@@ -63,26 +63,44 @@ jobs:
 
       - name: 🚀 Pull & Up on EC2
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
-            set -e
-            echo "[1] cd to project"
-            cd ~/sigbang-server/sigbang_api
+            SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+            ssh -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << EOF
+              set -e
 
-            echo "[2] Update compose files (optional git pull)"
-            git pull origin main || true
+              echo "[0] Ensure docker compose v2"
+              sudo apt-get update -y
+              sudo apt-get install -y docker-compose-plugin || true
+              docker compose version || true
 
-            echo "[3] Export IMAGE_TAG for compose (use short SHA)"
-            export IMAGE_TAG=$(echo "${GITHUB_SHA}" | cut -c1-7)
+              echo "[1] Ensure project directories"
+              mkdir -p ~/sigbang-server
+              cd ~/sigbang-server
 
-            echo "[4] Login GHCR"
-            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+              echo "[2] Clone or update backend repo (sigbang_api)"
+              if [ ! -d "sigbang_api/.git" ]; then
+                # SSH 방식 / HTTPS 중 하나 선택 (배포키 쓰면 SSH 권장)
+                git clone git@github.com:sigbang/sigbang_api.git sigbang_api || \
+                git clone https://github.com/sigbang/sigbang_api.git sigbang_api
+              fi
 
-            echo "[5] Pull new image"
-            docker compose -f docker-compose.yml -f docker-compose.back.yml pull backend
+              cd sigbang_api
+              git fetch --all --prune || true
+              git checkout main || true
+              git pull origin main || true
 
-            echo "[6] Start/Restart"
-            docker compose -f docker-compose.yml -f docker-compose.back.yml up -d backend
+              echo "[3] Compute IMAGE_TAG from pipeline SHA"
+              export IMAGE_TAG=${SHORT_SHA}
 
-            echo "[7] Prune old images (keep last 5)"
-            docker image prune -f
-          EOF
+              echo "[4] Login GHCR"
+              echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+              echo "[5] Compose from repo root (~/sigbang-server)"
+              cd ~/sigbang-server
+
+              # compose 파일은 여기(루트)에 있으므로 여기서 실행
+              docker compose -f docker-compose.yml -f docker-compose.back.yml pull backend
+              docker compose -f docker-compose.yml -f docker-compose.back.yml up -d backend
+
+              echo "[6] Light prune (dangling only)"
+              docker image prune -f || true
+            EOF
