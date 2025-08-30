@@ -398,12 +398,18 @@ export class RecipesService {
         await this.supabaseService.uploadFile(bucketName, finalThumbKey, processed, 'image/webp', cacheSeconds);
         try { await this.supabaseService.deleteFile(bucketName, [tempKey]); } catch {}
         finalThumbnailUrl = toPublicUrl(finalThumbKey);
+      } else if (thumbnailPath) {
+        finalThumbnailUrl = thumbnailPath.startsWith('http')
+          ? thumbnailPath
+          : toPublicUrl(thumbnailPath);
       }
 
       // 2) DB에 레시피 생성 (PUBLISHED)
       const recipe = await this.prismaService.recipe.create({
         data: {
           ...recipeData,
+          description: (recipeData.description ?? '').toString(),
+          ingredients: (recipeData.ingredients ?? '').toString(),
           authorId: userId,
           status: RecipeStatus.PUBLISHED,
           ...(finalThumbnailUrl && { thumbnailImage: finalThumbnailUrl }),
@@ -442,7 +448,7 @@ export class RecipesService {
               ? step.imagePath
               : toPublicUrl(step.imagePath);
           }
-          normalizedSteps.push({ order: step.order, description: step.description, imageUrl });
+          normalizedSteps.push({ order: step.order, description: (step as any).description ?? '', imageUrl });
         }
         await this.handleSteps(recipe.id, normalizedSteps);
       }
@@ -580,7 +586,7 @@ export class RecipesService {
 
   // 1. 레시피 임시 저장 생성
   async createDraft(userId: string, createRecipeDto: CreateRecipeDto) {
-    const { tags, steps, ...recipeData } = createRecipeDto;
+    const { tags, steps, thumbnailPath, ...recipeData } = createRecipeDto as any;
 
     try {
       // 사용자의 기존 임시 저장 전체 삭제 후 새로 생성
@@ -591,11 +597,43 @@ export class RecipesService {
         },
       });
 
+      // 썸네일 처리 (temp 경로 이동 또는 경로 정규화)
+      const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
+      const isTempPath = (p?: string) => !!p && p.startsWith(`temp/${userId}/`);
+      const toPublicUrl = (path: string) => this.supabaseService.getPublicUrl(bucketName, path);
+      const now = Date.now();
+
+      let finalThumbnailUrl: string | undefined = undefined;
+      if (isTempPath(thumbnailPath)) {
+        const tempKey = thumbnailPath as string;
+        const original = await this.supabaseService.downloadFile(bucketName, tempKey);
+        const sharp = await getSharp();
+        const processed = await sharp(original)
+          .rotate()
+          .resize({ width: 1280, withoutEnlargement: true })
+          .webp({ quality: 82 })
+          .toBuffer();
+        const rawName = tempKey.split('/').pop() || `${now}.jpg`;
+        const base = rawName.replace(/\.[^.]+$/, '');
+        const finalThumbKey = `recipes/${userId}/thumbnails/${now}_${base}.webp`;
+        const cacheSeconds = 60 * 60 * 24 * 365;
+        await this.supabaseService.uploadFile(bucketName, finalThumbKey, processed, 'image/webp', cacheSeconds);
+        try { await this.supabaseService.deleteFile(bucketName, [tempKey]); } catch {}
+        finalThumbnailUrl = toPublicUrl(finalThumbKey);
+      } else if (thumbnailPath) {
+        finalThumbnailUrl = (thumbnailPath as string).startsWith('http')
+          ? (thumbnailPath as string)
+          : toPublicUrl(thumbnailPath as string);
+      }
+
       const recipe = await this.prismaService.recipe.create({
         data: {
           ...recipeData,
+          description: (recipeData.description ?? '').toString(),
+          ingredients: (recipeData.ingredients ?? '').toString(),
           authorId: userId,
           status: RecipeStatus.DRAFT,
+          ...(finalThumbnailUrl && { thumbnailImage: finalThumbnailUrl }),
         },
         include: {
           author: {
@@ -613,9 +651,16 @@ export class RecipesService {
         await this.handleTags(recipe.id, tags);
       }
 
-      // 단계 처리
+      // 단계 처리 (설명 기본값 허용, 이미지 경로는 유지/정규화)
       if (steps && steps.length > 0) {
-        await this.handleSteps(recipe.id, steps);
+        const normalizedSteps = (steps as Array<{ order: number; description?: string; imagePath?: string }>).map(s => {
+          let imageUrl: string | undefined = undefined;
+          if (s.imagePath) {
+            imageUrl = s.imagePath.startsWith('http') ? s.imagePath : toPublicUrl(s.imagePath);
+          }
+          return { order: s.order, description: s.description ?? '', imageUrl };
+        });
+        await this.handleSteps(recipe.id, normalizedSteps);
       }
 
       return {
@@ -651,12 +696,43 @@ export class RecipesService {
       throw new BadRequestException('임시 저장된 레시피만 수정할 수 있습니다.');
     }
 
-    const { tags, steps, ...recipeData } = updateRecipeDto;
+    const { tags, steps, thumbnailPath, ...recipeData } = updateRecipeDto as any;
 
     try {
+      // 썸네일 업데이트 처리 (temp 이동 또는 경로 정규화)
+      const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
+      const isTempPath = (p?: string) => !!p && p.startsWith(`temp/${userId}/`);
+      const toPublicUrl = (path: string) => this.supabaseService.getPublicUrl(bucketName, path);
+      const now = Date.now();
+
+      let newThumbnailUrl: string | undefined = undefined;
+      if (thumbnailPath !== undefined) {
+        if (isTempPath(thumbnailPath)) {
+          const original = await this.supabaseService.downloadFile(bucketName, thumbnailPath);
+          const sharp = await getSharp();
+          const processed = await sharp(original)
+            .rotate()
+            .resize({ width: 1280, withoutEnlargement: true })
+            .webp({ quality: 82 })
+            .toBuffer();
+          const rawName = (thumbnailPath as string).split('/').pop() || `${now}.jpg`;
+          const base = rawName.replace(/\.[^.]+$/, '');
+          const finalThumbKey = `recipes/${userId}/thumbnails/${now}_${base}.webp`;
+          const cacheSeconds = 60 * 60 * 24 * 365;
+          await this.supabaseService.uploadFile(bucketName, finalThumbKey, processed, 'image/webp', cacheSeconds);
+          try { await this.supabaseService.deleteFile(bucketName, [thumbnailPath]); } catch {}
+          newThumbnailUrl = toPublicUrl(finalThumbKey);
+        } else if (thumbnailPath) {
+          newThumbnailUrl = (thumbnailPath as string).startsWith('http') ? thumbnailPath : toPublicUrl(thumbnailPath as string);
+        }
+      }
+
       const updatedRecipe = await this.prismaService.recipe.update({
         where: { id },
-        data: recipeData,
+        data: {
+          ...recipeData,
+          ...(newThumbnailUrl !== undefined && { thumbnailImage: newThumbnailUrl }),
+        },
         include: {
           author: {
             select: {
@@ -684,7 +760,9 @@ export class RecipesService {
           where: { recipeId: id },
         });
         if (steps.length > 0) {
-          await this.handleSteps(id, steps);
+          const normalizedSteps = (steps as Array<{ order: number; description?: string; imagePath?: string }>).
+            map(s => ({ order: s.order, description: s.description ?? '', imageUrl: (s as any).imageUrl }));
+          await this.handleSteps(id, normalizedSteps);
         }
       }
 

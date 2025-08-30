@@ -51,7 +51,7 @@ export class RecipeStepDto {
   @IsOptional()
   @IsString()  
   @MaxLength(500, { message: '단계 설명은 최대 500자까지 가능합니다.' })
-  description: string;
+  description?: string;
 
   @ApiProperty({
     example: 'temp/u_123/20250101/step1.jpg',
@@ -104,7 +104,7 @@ export class CreateRecipeDto {
   @IsString()
   @IsOptional()
   @MaxLength(1000, { message: '설명은 최대 1000자까지 가능합니다.' })
-  description: string;
+  description?: string;
 
   @ApiProperty({
     example: '돼지고기 200g\n간장 2T\n마늘',
@@ -114,7 +114,7 @@ export class CreateRecipeDto {
   @IsOptional()
   @IsString()  
   @MaxLength(2000, { message: '재료는 최대 2000자까지 가능합니다.' })
-  ingredients: string;
+  ingredients?: string;
 
   @ApiProperty({
       example: 'temp/u_123/20250101/thumbnail.jpg',
@@ -122,7 +122,7 @@ export class CreateRecipeDto {
       required: true,
     })    
     @IsString()
-    thumbnailPath?: string;
+    thumbnailPath: string;
 
   @ApiProperty({
     example: 30,
@@ -171,8 +171,9 @@ export class CreateRecipeDto {
     enum: Difficulty,
     required: false,
   })
+  @IsOptional()
   @IsEnum(Difficulty, { message: '유효한 난이도를 선택해주세요.' })
-  difficulty: Difficulty;
+  difficulty?: Difficulty;
 
   @ApiProperty({
     type: [TagDto],
@@ -190,12 +191,12 @@ export class CreateRecipeDto {
     type: [RecipeStepDto],
     description: '조리 단계',
   })
+  @IsOptional()
   @IsArray()
-  @ArrayMinSize(1, { message: '최소 1개 이상의 조리 단계가 필요합니다.' })
   @ArrayMaxSize(10, { message: '조리 단계는 최대 10개까지 입력 가능합니다.' })
   @ValidateNested({ each: true })
   @Type(() => RecipeStepDto)
-  steps: RecipeStepDto[];
+  steps?: RecipeStepDto[];
 }
 
 // 레시피 수정 DTO
