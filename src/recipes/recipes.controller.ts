@@ -11,6 +11,7 @@ import {
   UseInterceptors,
   UploadedFiles,
   BadRequestException,
+  HttpCode,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -83,6 +84,7 @@ export class RecipesController {
   })
   @ApiBody({ type: AiGenerateRecipeDto })
   @ApiResponse({ status: 200, description: '성공', type: AiRecipeGenerateResponseDto })
+  @HttpCode(200)
   async aiGenerate(
     @CurrentUser() user: any,
     @Body() body: AiGenerateRecipeDto,
