@@ -80,7 +80,12 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
             children: [
               _buildBody(context, state),
               if (state is RecipeCreateUploading)
-                const _FullScreenLoader(message: '레시피 업로드 중...'),
+                _FullScreenLoader(
+                  message: state.currentStep.isNotEmpty
+                      ? state.currentStep
+                      : 'AI로 레시피 생성 중...',
+                  progress: state.progress,
+                ),
             ],
           ),
           bottomNavigationBar: _buildBottomBar(context, state),
@@ -92,9 +97,7 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
   Widget _buildBody(BuildContext context, RecipeCreateState state) {
     // no draft checking
 
-    if (state is RecipeCreateUploading) {
-      return SafeArea(child: _buildUploadingView(context, state));
-    }
+    // 업로드 중에도 기존 편집 화면을 유지하고, 상단 Stack 오버레이로 진행상태만 표시
 
     if (state is RecipeCreateEditing) {
       return SafeArea(
@@ -147,9 +150,8 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: state.thumbnailPath != null
-                        ? () => context
-                            .read<RecipeCreateCubit>()
-                            .generateWithAiMock()
+                        ? () =>
+                            context.read<RecipeCreateCubit>().generateWithAi()
                         : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.amber,
@@ -270,38 +272,7 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
     );
   }
 
-  Widget _buildUploadingView(
-      BuildContext context, RecipeCreateUploading state) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 100,
-            height: 100,
-            child: CircularProgressIndicator(
-              value: state.progress,
-              strokeWidth: 6,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            state.currentStep,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${(state.progress * 100).toInt()}%',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
+  // 업로드 전용 본문은 제거 (오버레이만 사용)
 
   Widget? _buildBottomBar(BuildContext context, RecipeCreateState state) {
     if (state is! RecipeCreateEditing) return null;
@@ -404,7 +375,8 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
 
 class _FullScreenLoader extends StatelessWidget {
   final String message;
-  const _FullScreenLoader({required this.message});
+  final double? progress;
+  const _FullScreenLoader({required this.message, this.progress});
 
   @override
   Widget build(BuildContext context) {
@@ -417,7 +389,11 @@ class _FullScreenLoader extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const CircularProgressIndicator(),
+                SizedBox(
+                  width: 72,
+                  height: 72,
+                  child: CircularProgressIndicator(value: progress),
+                ),
                 const SizedBox(height: 12),
                 Text(
                   message,
@@ -426,6 +402,16 @@ class _FullScreenLoader extends StatelessWidget {
                     fontSize: 16,
                   ),
                 ),
+                if (progress != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    '${((progress ?? 0) * 100).toInt()}%',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onInverseSurface,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

@@ -8,6 +8,8 @@ import '../../../domain/usecases/update_recipe.dart';
 // import '../../../domain/usecases/upload_recipe_images.dart';
 import '../../../domain/usecases/upload_image_with_presign.dart';
 import 'recipe_create_state.dart';
+import '../../../injection/injection.dart';
+import '../../../data/datasources/api_client.dart';
 
 class RecipeCreateCubit extends Cubit<RecipeCreateState> {
   final CreateRecipe _createRecipe;
@@ -394,6 +396,123 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
         cookingTime:
             currentState.cookingTime == 0 ? 20 : currentState.cookingTime,
         isDirty: true,
+      ));
+    }
+  }
+
+  /// 실제 AI 생성 호출: presign 업로드 후 imagePath로 생성 API 호출
+  Future<void> generateWithAi() async {
+    final currentState = state;
+    if (currentState is! RecipeCreateEditing) return;
+    if (currentState.thumbnailPath == null ||
+        currentState.thumbnailPath!.isEmpty) {
+      emit(RecipeCreateError(
+        message: '대표 이미지를 먼저 선택해주세요',
+        previousState: currentState,
+      ));
+      return;
+    }
+
+    try {
+      // 로딩 표시
+      emit(RecipeCreateUploading(
+        title: currentState.title,
+        description: currentState.description,
+        ingredients: currentState.ingredients,
+        steps: currentState.steps.isEmpty
+            ? [const RecipeStep(order: 1, description: '', imageUrl: null)]
+            : currentState.steps,
+        cookingTime: currentState.cookingTime,
+        servings: currentState.servings,
+        difficulty: currentState.difficulty,
+        tags: currentState.tags,
+        linkName: currentState.linkName,
+        linkUrl: currentState.linkUrl,
+        thumbnailPath: currentState.thumbnailPath,
+        currentStep: 'AI로 레시피 생성 중...',
+        progress: 0.2,
+      ));
+
+      // presign 업로드 필요 시 수행
+      String? uploadedThumbnailPath = currentState.thumbnailPath;
+      if (uploadedThumbnailPath != null &&
+          uploadedThumbnailPath.isNotEmpty &&
+          !_isRemoteUrl(uploadedThumbnailPath)) {
+        final bytes = await File(uploadedThumbnailPath).readAsBytes();
+        final res = await _uploadImageWithPresign(
+          contentType: _detectMimeType(uploadedThumbnailPath),
+          bytes: bytes,
+        );
+        final path = res.fold<String?>((_) => null, (p) => p);
+        if (path == null) {
+          emit(RecipeCreateError(
+            message: '대표 이미지 업로드에 실패했습니다',
+            previousState: currentState,
+          ));
+          return;
+        }
+        uploadedThumbnailPath = path;
+      }
+
+      // AI 생성 요청
+      final apiClient = getIt<ApiClient>();
+      final response = await apiClient.dio.post(
+        '/recipes/ai/generate',
+        data: {
+          'imagePath': uploadedThumbnailPath,
+          if (currentState.title.trim().isNotEmpty)
+            'title': currentState.title.trim(),
+        },
+      );
+
+      if (response.statusCode == 201) {
+        final data = response.data is Map<String, dynamic>
+            ? response.data
+            : (response.data['data'] ?? response.data);
+        final title = (data['title'] as String?)?.trim() ?? '';
+        final description = (data['description'] as String?)?.trim() ?? '';
+        final ingredients = (data['ingredients'] as String?)?.trim() ?? '';
+        final cookingTime =
+            (data['cookingTime'] as num?)?.toInt() ?? currentState.cookingTime;
+        final stepsJson = (data['steps'] as List<dynamic>? ?? []);
+        final steps = stepsJson
+            .map((s) => RecipeStep(
+                  order: (s['order'] as num?)?.toInt() ?? 1,
+                  description: (s['description'] as String?)?.trim() ?? '',
+                ))
+            .toList();
+
+        emit(RecipeCreateEditing(
+          draftId: currentState.draftId,
+          editingRecipeId: currentState.editingRecipeId,
+          title: currentState.title.trim().isEmpty ? title : currentState.title,
+          description: description,
+          ingredients: ingredients,
+          steps: steps.isNotEmpty
+              ? steps
+              : [const RecipeStep(order: 1, description: '', imageUrl: null)],
+          cookingTime: cookingTime,
+          servings: currentState.servings,
+          difficulty: currentState.difficulty,
+          tags: currentState.tags,
+          // Keep local gallery image for preview; server path is used only for API
+          thumbnailPath: currentState.thumbnailPath,
+          linkName: currentState.linkName,
+          linkUrl: currentState.linkUrl,
+          isDirty: true,
+          errors: const {},
+        ));
+        return;
+      }
+
+      emit(RecipeCreateError(
+        message: 'AI 레시피 생성에 실패했습니다',
+        previousState: currentState,
+      ));
+    } catch (e) {
+      emit(RecipeCreateError(
+        message: 'AI 레시피 생성 중 오류가 발생했습니다',
+        previousState: currentState,
       ));
     }
   }
