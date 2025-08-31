@@ -10,8 +10,7 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFiles,
-  BadRequestException,
-  HttpCode,
+  BadRequestException,  
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -83,8 +82,7 @@ export class RecipesController {
     description: '클라이언트에서 presign 이미지 경로를 전달하면, 이미지를 분석해 레시피(제목/설명/재료/조리시간/조리순서)를 생성하여 반환합니다.',
   })
   @ApiBody({ type: AiGenerateRecipeDto })
-  @ApiResponse({ status: 200, description: '성공', type: AiRecipeGenerateResponseDto })
-  @HttpCode(200)
+  @ApiResponse({ status: 201, description: '성공', type: AiRecipeGenerateResponseDto })  
   async aiGenerate(
     @CurrentUser() user: any,
     @Body() body: AiGenerateRecipeDto,
