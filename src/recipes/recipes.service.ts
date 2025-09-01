@@ -176,14 +176,14 @@ export class RecipesService {
 
     // OpenAI prompt 구성
     const systemPrompt =
-      'You are a helpful cooking assistant that analyzes a food image and proposes a concise Korean recipe. Follow the JSON schema strictly.';
+      'You are a friendly and modern cooking buddy. You look at the food image and suggest a simple, casual recipe anyone can follow. The tone should be light, modern, and approachable (not too professional). Answer strictly in the JSON schema.';
 
     const userPrompt = `다음 이미지를 분석해서 한국어 레시피를 만들어줘. 조건:
 1) 제목: ${title ? `주어진 제목을 그대로 사용: "${title}"` : '이미지와 맥락에 맞게 1개 생성'}
-2) 설명: 1문단 이내
-3) 재료: 줄바꿈으로 구분된 목록 (계량 포함)
+2) 설명: 부담 없는 말투, 2~3문장 이내 (현대적이고 친근하게)
+3) 재료: 줄바꿈으로 구분된 목록 (간단 명확, 계량 포함)
 4) 조리시간: 10분, 30분, 60분 중 하나
-5) 조리순서: 2~3개, 각 단계는 설명만 (이미지 불필요)
+5) 조리순서: 3~5개, 각 단계는 짧고 간단한 설명만
 
 결과는 반드시 다음 JSON 포맷으로만 응답:
 {
@@ -199,7 +199,7 @@ export class RecipesService {
       const model = this.configService.get<string>('OPENAI_RECIPE_MODEL') || 'gpt-4o-mini';
       const response = await this.openai.chat.completions.create({
         model,
-        temperature: 0.4,
+        temperature: 0.7,
         messages: [
           { role: 'system', content: systemPrompt },
           {
