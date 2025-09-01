@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:typed_data';
@@ -34,6 +35,15 @@ class RecipeCreateView extends StatefulWidget {
 
 class _RecipeCreateViewState extends State<RecipeCreateView> {
   int _step = 0; // 0: 기본정보(제목/설명), 1: 재료/시간, 2: 조리과정
+  int _lastPulseKey = 0;
+  bool _pulseActive = false;
+  Timer? _pulseTimer;
+
+  @override
+  void dispose() {
+    _pulseTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +82,22 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
               ),
             ),
           );
+        } else if (state is RecipeCreateEditing) {
+          // Trigger a short pulse when AI fills the form
+          if (state.aiPulseKey != _lastPulseKey && state.aiPulseKey > 0) {
+            _pulseTimer?.cancel();
+            setState(() {
+              _pulseActive = true;
+              _lastPulseKey = state.aiPulseKey;
+            });
+            _pulseTimer = Timer(const Duration(milliseconds: 700), () {
+              if (mounted) {
+                setState(() {
+                  _pulseActive = false;
+                });
+              }
+            });
+          }
         }
       },
       builder: (context, state) {
@@ -84,7 +110,10 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
                   message: state.currentStep.isNotEmpty
                       ? state.currentStep
                       : 'AI로 레시피 생성 중...',
-                  progress: state.progress,
+                  onCancel: state.canCancel
+                      ? () =>
+                          context.read<RecipeCreateCubit>().cancelAiGeneration()
+                      : null,
                 ),
             ],
           ),
@@ -171,72 +200,83 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
 
               if (_step == 0) ...[
                 // 기본 정보 (제목/설명)
-                BasicInfoForm(
-                  title: state.title,
-                  description: state.description,
-                  ingredients: state.ingredients,
-                  cookingTime: state.cookingTime,
-                  difficulty: state.difficulty,
-                  linkName: state.linkName,
-                  linkUrl: state.linkUrl,
-                  errors: state.errors,
-                  onTitleChanged: (value) =>
-                      context.read<RecipeCreateCubit>().updateTitle(value),
-                  onDescriptionChanged: (value) => context
-                      .read<RecipeCreateCubit>()
-                      .updateDescription(value),
-                  onIngredientsChanged: (value) => context
-                      .read<RecipeCreateCubit>()
-                      .updateIngredients(value),
-                  onCookingTimeChanged: (value) => context
-                      .read<RecipeCreateCubit>()
-                      .updateCookingTime(value),
-                  onDifficultyChanged: (value) =>
-                      context.read<RecipeCreateCubit>().updateDifficulty(value),
-                  onLinkNameChanged: (v) =>
-                      context.read<RecipeCreateCubit>().updateLinkName(v),
-                  onLinkUrlChanged: (v) =>
-                      context.read<RecipeCreateCubit>().updateLinkUrl(v),
-                  showIngredients: false,
-                  showCookingTime: false,
-                  showDifficulty: false,
+                // Keep a key to allow local pulse triggers but remove outer glow
+                KeyedSubtree(
+                  key: ValueKey(state.aiPulseKey),
+                  child: BasicInfoForm(
+                    title: state.title,
+                    description: state.description,
+                    ingredients: state.ingredients,
+                    cookingTime: state.cookingTime,
+                    difficulty: state.difficulty,
+                    linkName: state.linkName,
+                    linkUrl: state.linkUrl,
+                    errors: state.errors,
+                    pulseInputs: _pulseActive,
+                    onTitleChanged: (value) =>
+                        context.read<RecipeCreateCubit>().updateTitle(value),
+                    onDescriptionChanged: (value) => context
+                        .read<RecipeCreateCubit>()
+                        .updateDescription(value),
+                    onIngredientsChanged: (value) => context
+                        .read<RecipeCreateCubit>()
+                        .updateIngredients(value),
+                    onCookingTimeChanged: (value) => context
+                        .read<RecipeCreateCubit>()
+                        .updateCookingTime(value),
+                    onDifficultyChanged: (value) => context
+                        .read<RecipeCreateCubit>()
+                        .updateDifficulty(value),
+                    onLinkNameChanged: (v) =>
+                        context.read<RecipeCreateCubit>().updateLinkName(v),
+                    onLinkUrlChanged: (v) =>
+                        context.read<RecipeCreateCubit>().updateLinkUrl(v),
+                    showIngredients: false,
+                    showCookingTime: false,
+                    showDifficulty: false,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 // Step 1에서는 상단 버튼만 사용
               ] else if (_step == 1) ...[
                 // 재료 + 요리시간 슬라이더
-                BasicInfoForm(
-                  title: state.title,
-                  description: state.description,
-                  ingredients: state.ingredients,
-                  cookingTime: state.cookingTime,
-                  difficulty: state.difficulty,
-                  linkName: state.linkName,
-                  linkUrl: state.linkUrl,
-                  errors: state.errors,
-                  onTitleChanged: (value) =>
-                      context.read<RecipeCreateCubit>().updateTitle(value),
-                  onDescriptionChanged: (value) => context
-                      .read<RecipeCreateCubit>()
-                      .updateDescription(value),
-                  onIngredientsChanged: (value) => context
-                      .read<RecipeCreateCubit>()
-                      .updateIngredients(value),
-                  onCookingTimeChanged: (value) => context
-                      .read<RecipeCreateCubit>()
-                      .updateCookingTime(value),
-                  onDifficultyChanged: (value) =>
-                      context.read<RecipeCreateCubit>().updateDifficulty(value),
-                  onLinkNameChanged: (v) =>
-                      context.read<RecipeCreateCubit>().updateLinkName(v),
-                  onLinkUrlChanged: (v) =>
-                      context.read<RecipeCreateCubit>().updateLinkUrl(v),
-                  showTitle: false,
-                  showDescription: false,
-                  showIngredients: true,
-                  showCookingTime: true,
-                  showDifficulty: false,
-                  showLinkFields: true,
+                KeyedSubtree(
+                  key: ValueKey(state.aiPulseKey),
+                  child: BasicInfoForm(
+                    title: state.title,
+                    description: state.description,
+                    ingredients: state.ingredients,
+                    cookingTime: state.cookingTime,
+                    difficulty: state.difficulty,
+                    linkName: state.linkName,
+                    linkUrl: state.linkUrl,
+                    errors: state.errors,
+                    pulseInputs: _pulseActive,
+                    onTitleChanged: (value) =>
+                        context.read<RecipeCreateCubit>().updateTitle(value),
+                    onDescriptionChanged: (value) => context
+                        .read<RecipeCreateCubit>()
+                        .updateDescription(value),
+                    onIngredientsChanged: (value) => context
+                        .read<RecipeCreateCubit>()
+                        .updateIngredients(value),
+                    onCookingTimeChanged: (value) => context
+                        .read<RecipeCreateCubit>()
+                        .updateCookingTime(value),
+                    onDifficultyChanged: (value) => context
+                        .read<RecipeCreateCubit>()
+                        .updateDifficulty(value),
+                    onLinkNameChanged: (v) =>
+                        context.read<RecipeCreateCubit>().updateLinkName(v),
+                    onLinkUrlChanged: (v) =>
+                        context.read<RecipeCreateCubit>().updateLinkUrl(v),
+                    showTitle: false,
+                    showDescription: false,
+                    showIngredients: true,
+                    showCookingTime: true,
+                    showDifficulty: false,
+                    showLinkFields: true,
+                  ),
                 ),
               ] else ...[
                 // 조리 과정
@@ -275,6 +315,10 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
   // 업로드 전용 본문은 제거 (오버레이만 사용)
 
   Widget? _buildBottomBar(BuildContext context, RecipeCreateState state) {
+    if (state is RecipeCreateUploading) {
+      // Hide bar entirely during AI generation/upload to prevent navigation
+      return null;
+    }
     if (state is! RecipeCreateEditing) return null;
 
     return SafeArea(
@@ -375,8 +419,8 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
 
 class _FullScreenLoader extends StatelessWidget {
   final String message;
-  final double? progress;
-  const _FullScreenLoader({required this.message, this.progress});
+  final VoidCallback? onCancel;
+  const _FullScreenLoader({required this.message, this.onCancel});
 
   @override
   Widget build(BuildContext context) {
@@ -389,10 +433,10 @@ class _FullScreenLoader extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(
+                const SizedBox(
                   width: 72,
                   height: 72,
-                  child: CircularProgressIndicator(value: progress),
+                  child: CircularProgressIndicator(),
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -402,14 +446,18 @@ class _FullScreenLoader extends StatelessWidget {
                     fontSize: 16,
                   ),
                 ),
-                if (progress != null) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    '${((progress ?? 0) * 100).toInt()}%',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onInverseSurface,
-                      fontSize: 14,
+                if (onCancel != null) ...[
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: onCancel,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 10, horizontal: 18),
                     ),
+                    child: const Text('취소'),
                   ),
                 ],
               ],

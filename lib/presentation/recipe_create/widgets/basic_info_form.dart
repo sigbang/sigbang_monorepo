@@ -24,6 +24,8 @@ class BasicInfoForm extends StatefulWidget {
   final bool showCookingTime;
   final bool showDifficulty;
   final bool showLinkFields;
+  // When true, applies a brief glow to text inputs only
+  final bool pulseInputs;
 
   const BasicInfoForm({
     super.key,
@@ -48,6 +50,7 @@ class BasicInfoForm extends StatefulWidget {
     this.showCookingTime = true,
     this.showDifficulty = true,
     this.showLinkFields = false,
+    this.pulseInputs = false,
   });
 
   @override
@@ -233,32 +236,56 @@ class _BasicInfoFormState extends State<BasicInfoForm> {
         ),
         const SizedBox(height: 8),
 
-        // 텍스트 필드
-        TextField(
-          controller: controller,
-          onChanged: onChanged,
-          maxLines: maxLines,
-          maxLength: maxLength,
-          keyboardType: keyboardType,
-          decoration: InputDecoration(
-            hintText: hintText,
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(24),
-              borderSide: BorderSide(
-                color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+        // 텍스트 필드 (inner fill color + scale animations)
+        TweenAnimationBuilder<double>(
+          tween: Tween(begin: 1.0, end: widget.pulseInputs ? 1.02 : 1.0),
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+          builder: (context, scale, _) {
+            return Transform.scale(
+              alignment: Alignment.centerLeft,
+              scale: scale,
+              child: TweenAnimationBuilder<Color?>(
+                tween: ColorTween(
+                  begin: Colors.white,
+                  end: widget.pulseInputs ? Colors.amber.shade50 : Colors.white,
+                ),
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOut,
+                builder: (context, fill, __) {
+                  return TextField(
+                    controller: controller,
+                    onChanged: onChanged,
+                    maxLines: maxLines,
+                    maxLength: maxLength,
+                    keyboardType: keyboardType,
+                    decoration: InputDecoration(
+                      hintText: hintText,
+                      filled: true,
+                      fillColor: fill,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .outline
+                              .withOpacity(0.3),
+                        ),
+                      ),
+                      counterText: '',
+                      errorText: error,
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
-            ),
-            counterText: '',
-            errorText: error,
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(24),
-              borderSide: BorderSide(
-                color: Theme.of(context).colorScheme.error,
-              ),
-            ),
-          ),
+            );
+          },
         ),
       ],
     );

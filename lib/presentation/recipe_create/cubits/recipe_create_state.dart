@@ -29,6 +29,8 @@ class RecipeCreateEditing extends RecipeCreateState {
   final String linkUrl;
   final bool isDirty;
   final Map<String, String?> errors;
+  // Triggers micro-interaction pulse when AI fills fields
+  final int aiPulseKey;
 
   const RecipeCreateEditing({
     this.draftId,
@@ -46,6 +48,7 @@ class RecipeCreateEditing extends RecipeCreateState {
     this.linkUrl = '',
     this.isDirty = false,
     this.errors = const {},
+    this.aiPulseKey = 0,
   });
 
   RecipeCreateEditing copyWith({
@@ -64,6 +67,7 @@ class RecipeCreateEditing extends RecipeCreateState {
     String? linkUrl,
     bool? isDirty,
     Map<String, String?>? errors,
+    int? aiPulseKey,
   }) {
     return RecipeCreateEditing(
       draftId: draftId ?? this.draftId,
@@ -81,6 +85,7 @@ class RecipeCreateEditing extends RecipeCreateState {
       linkUrl: linkUrl ?? this.linkUrl,
       isDirty: isDirty ?? this.isDirty,
       errors: errors ?? this.errors,
+      aiPulseKey: aiPulseKey ?? this.aiPulseKey,
     );
   }
 
@@ -106,12 +111,14 @@ class RecipeCreateEditing extends RecipeCreateState {
         linkUrl,
         isDirty,
         errors,
+        aiPulseKey,
       ];
 }
 
 class RecipeCreateUploading extends RecipeCreateEditing {
   final double progress;
   final String currentStep;
+  final bool canCancel;
 
   const RecipeCreateUploading({
     required super.title,
@@ -129,10 +136,11 @@ class RecipeCreateUploading extends RecipeCreateEditing {
     super.errors = const {},
     this.progress = 0.0,
     this.currentStep = '',
+    this.canCancel = false,
   });
 
   @override
-  List<Object?> get props => [...super.props, progress, currentStep];
+  List<Object?> get props => [...super.props, progress, currentStep, canCancel];
 }
 
 /// 임시 저장 성공 (화면 유지, 스낵바만 표시)

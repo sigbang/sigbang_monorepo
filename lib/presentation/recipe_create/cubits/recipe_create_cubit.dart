@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
+import 'dart:async';
 import '../../../domain/entities/recipe.dart';
 import '../../../domain/usecases/create_recipe.dart';
 import '../../../domain/usecases/update_recipe.dart';
@@ -23,6 +24,55 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
     this._updateRecipe,
     this._uploadImageWithPresign,
   ) : super(RecipeCreateInitial());
+
+  // Rotating AI status messages while waiting for server response
+  Timer? _aiMessageTimer;
+  int _aiMessageIndex = 0;
+  Timer? _aiTimeoutTimer;
+  static const List<String> _aiMessages = [
+    '🥘사진을 분석 중입니다...',
+    '🧂최적의 레시피를 찾는 중...',
+    '🥄맛을 보고 간을 맞추는 중...',
+    '🧑‍🍳서빙 준비중...',
+  ];
+
+  void _startAiMessageRotation() {
+    _aiMessageIndex = 0;
+    _aiMessageTimer?.cancel();
+    _aiMessageTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      final currentState = state;
+      if (currentState is! RecipeCreateUploading) return;
+      _aiMessageIndex = (_aiMessageIndex + 1) % _aiMessages.length;
+      emit(RecipeCreateUploading(
+        title: currentState.title,
+        description: currentState.description,
+        ingredients: currentState.ingredients,
+        steps: currentState.steps,
+        cookingTime: currentState.cookingTime,
+        servings: currentState.servings,
+        difficulty: currentState.difficulty,
+        tags: currentState.tags,
+        linkName: currentState.linkName,
+        linkUrl: currentState.linkUrl,
+        thumbnailPath: currentState.thumbnailPath,
+        currentStep: _aiMessages[_aiMessageIndex],
+        progress: currentState.progress,
+        canCancel: true,
+      ));
+    });
+
+    _aiTimeoutTimer?.cancel();
+    _aiTimeoutTimer = Timer(const Duration(minutes: 1), () {
+      cancelAiGeneration();
+    });
+  }
+
+  void _stopAiMessageRotation() {
+    _aiMessageTimer?.cancel();
+    _aiMessageTimer = null;
+    _aiTimeoutTimer?.cancel();
+    _aiTimeoutTimer = null;
+  }
 
   /// 진입 시 빈 편집 모드 전환 (임시저장 제거)
   Future<void> startEditing() async {
@@ -429,9 +479,12 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
         linkName: currentState.linkName,
         linkUrl: currentState.linkUrl,
         thumbnailPath: currentState.thumbnailPath,
-        currentStep: 'AI로 레시피 생성 중...',
+        currentStep: _aiMessages.first,
         progress: 0.2,
+        canCancel: true,
       ));
+
+      _startAiMessageRotation();
 
       // presign 업로드 필요 시 수행
       String? uploadedThumbnailPath = currentState.thumbnailPath;
@@ -482,6 +535,28 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
                 ))
             .toList();
 
+        // Positive feedback just before showing results
+        _stopAiMessageRotation();
+        emit(RecipeCreateUploading(
+          title: currentState.title,
+          description: currentState.description,
+          ingredients: currentState.ingredients,
+          steps: currentState.steps.isEmpty
+              ? [const RecipeStep(order: 1, description: '', imageUrl: null)]
+              : currentState.steps,
+          cookingTime: currentState.cookingTime,
+          servings: currentState.servings,
+          difficulty: currentState.difficulty,
+          tags: currentState.tags,
+          linkName: currentState.linkName,
+          linkUrl: currentState.linkUrl,
+          thumbnailPath: currentState.thumbnailPath,
+          currentStep: '🥳 곧 완성됩니다!',
+          progress: 0.95,
+          canCancel: false,
+        ));
+        await Future.delayed(const Duration(milliseconds: 800));
+
         emit(RecipeCreateEditing(
           draftId: currentState.draftId,
           editingRecipeId: currentState.editingRecipeId,
@@ -500,6 +575,7 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
           linkName: currentState.linkName,
           linkUrl: currentState.linkUrl,
           isDirty: true,
+          aiPulseKey: currentState.aiPulseKey + 1,
           errors: const {},
         ));
         return;
@@ -510,9 +586,34 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
         previousState: currentState,
       ));
     } catch (e) {
+      _stopAiMessageRotation();
       emit(RecipeCreateError(
         message: 'AI 레시피 생성 중 오류가 발생했습니다',
         previousState: currentState,
+      ));
+    }
+  }
+
+  /// 사용자가 AI 생성을 취소하거나 타임아웃으로 취소
+  void cancelAiGeneration() {
+    final currentState = state;
+    _stopAiMessageRotation();
+    if (currentState is RecipeCreateUploading) {
+      emit(RecipeCreateEditing(
+        draftId: currentState.draftId,
+        editingRecipeId: currentState.editingRecipeId,
+        title: currentState.title,
+        description: currentState.description,
+        ingredients: currentState.ingredients,
+        steps: currentState.steps,
+        cookingTime: currentState.cookingTime,
+        servings: currentState.servings,
+        difficulty: currentState.difficulty,
+        tags: currentState.tags,
+        thumbnailPath: currentState.thumbnailPath,
+        linkName: currentState.linkName,
+        linkUrl: currentState.linkUrl,
+        isDirty: true,
       ));
     }
   }
@@ -706,6 +807,7 @@ class RecipeCreateCubit extends Cubit<RecipeCreateState> {
 
   /// 초기화
   void reset() {
+    _stopAiMessageRotation();
     emit(RecipeCreateInitial());
   }
 }
