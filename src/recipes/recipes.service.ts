@@ -176,14 +176,20 @@ export class RecipesService {
 
     // OpenAI prompt 구성
     const systemPrompt =
-      'You are a friendly and modern cooking buddy. You look at the food image and suggest a simple, casual recipe anyone can follow. The tone should be light, modern, and approachable (not too professional). Answer strictly in the JSON schema.';
+  'You are a friendly and modern cooking buddy. Look at the food image and create a simple recipe in JSON format. \
+The tone should be light, casual, and approachable (not too professional). \
+Do not limit yourself to Korean food. The recipe can be Korean, global, or fusion depending on the image and context. \
+For the title: avoid plain ingredient listings. Instead, make it feel informative and lively, like something you’d see in a modern recipe blog or cooking app.';
 
-    const userPrompt = `다음 이미지를 분석해서 한국어 레시피를 만들어줘. 조건:
-1) 제목: ${title ? `주어진 제목을 그대로 사용: "${title}"` : '이미지와 맥락에 맞게 1개 생성'}
-2) 설명: 부담 없는 말투, 2~3문장 이내 (현대적이고 친근하게)
+const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 조건:
+1) 제목:
+   - 단순히 재료만 나열하지 말고 ("올리브 문어 요리" X)
+   - 생활감 있고 감각적인 제목으로 ("문어로 즐기는 스페인 뽈뽀" O)
+   - 음식의 국가/스타일/분위기/활용 맥락을 자연스럽게 반영
+2) 설명: 2~3문장, 글로벌/퓨전 포함 가능, 캐주얼 톤 (블로그 글 같은 느낌)
 3) 재료: 줄바꿈으로 구분된 목록 (간단 명확, 계량 포함)
 4) 조리시간: 10분, 30분, 60분 중 하나
-5) 조리순서: 3~5개, 각 단계는 짧고 간단한 설명만
+5) 조리순서: 4~6개, 각 단계는 짧고 친근한 설명으로
 
 결과는 반드시 다음 JSON 포맷으로만 응답:
 {
