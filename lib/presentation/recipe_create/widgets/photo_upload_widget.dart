@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import '../../../core/config/env_config.dart';
 
 class PhotoUploadWidget extends StatelessWidget {
   final String? imagePath;
@@ -72,21 +73,7 @@ class PhotoUploadWidget extends StatelessWidget {
                         child: SizedBox(
                           width: double.infinity,
                           height: double.infinity,
-                          child: imagePath!.startsWith('http')
-                              ? Image.network(
-                                  imagePath!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return _buildPlaceholder(context);
-                                  },
-                                )
-                              : Image.file(
-                                  File(imagePath!),
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return _buildPlaceholder(context);
-                                  },
-                                ),
+                          child: _buildImage(context, imagePath!),
                         ),
                       ),
 
@@ -164,6 +151,41 @@ class PhotoUploadWidget extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  Widget _buildImage(BuildContext context, String path) {
+    if (path.startsWith('http')) {
+      return Image.network(
+        path,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            _buildPlaceholder(context),
+      );
+    }
+    try {
+      final file = File(path);
+      if (file.existsSync()) {
+        return Image.file(
+          file,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) =>
+              _buildPlaceholder(context),
+        );
+      }
+    } catch (_) {}
+    final resolved = _joinUrl(EnvConfig.baseUrl, path);
+    return Image.network(
+      resolved,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => _buildPlaceholder(context),
+    );
+  }
+
+  String _joinUrl(String base, String relative) {
+    if (relative.isEmpty) return base;
+    if (base.endsWith('/')) base = base.substring(0, base.length - 1);
+    if (relative.startsWith('/')) relative = relative.substring(1);
+    return '$base/$relative';
   }
 
   Widget _buildOverlayButton(

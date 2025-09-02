@@ -167,6 +167,10 @@ class RecipeService {
     final response = await _apiClient.dio.post(
       '/recipes',
       data: createDto,
+      options: Options(
+        sendTimeout: const Duration(minutes: 2),
+        receiveTimeout: const Duration(minutes: 2),
+      ),
     );
 
     if (response.statusCode == 201 || response.statusCode == 200) {
@@ -267,12 +271,18 @@ class RecipeService {
     if (uploadUrl == null) {
       throw Exception('Presign response missing token/uploadUrl');
     }
-    final dio = Dio();
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 20),
+        receiveTimeout: const Duration(seconds: 60),
+        sendTimeout: const Duration(seconds: 60),
+        headers: {'Content-Type': contentType},
+      ),
+    );
     await dio.put(
       uploadUrl,
       data: bytes,
       options: Options(
-        headers: {'Content-Type': contentType},
         followRedirects: false,
         validateStatus: (code) => code != null && code >= 200 && code < 400,
       ),

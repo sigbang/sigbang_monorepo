@@ -5,6 +5,7 @@ import '../../../domain/entities/recipe.dart';
 import '../../common/widgets/app_confirm_dialog.dart';
 import '../../../core/image/image_processing_service.dart';
 import '../../../core/image/gallery_picker_service.dart';
+import '../../../core/config/env_config.dart';
 
 class RecipeStepsEditor extends StatefulWidget {
   final List<RecipeStep> steps;
@@ -318,14 +319,28 @@ class _RecipeStepsEditorState extends State<RecipeStepsEditor> {
                         child: GestureDetector(
                           onTap: () => _pickImageFromGallery(index),
                           child: Image(
-                            image: step.imageUrl!.startsWith('http')
-                                ? NetworkImage(step.imageUrl!) as ImageProvider
-                                : FileImage(
-                                    File(step.imageUrl!),
-                                  ) as ImageProvider,
+                            image: _resolveImageProvider(step.imageUrl!),
                             height: 160,
                             width: double.infinity,
                             fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                height: 160,
+                                width: double.infinity,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest
+                                    .withOpacity(0.6),
+                                child: Center(
+                                  child: Icon(
+                                    Icons.broken_image,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ),
@@ -394,6 +409,28 @@ class _RecipeStepsEditorState extends State<RecipeStepsEditor> {
     if (processed.tempFile != null) {
       widget.onSetStepImage(stepIndex, processed.tempFile!.path);
     }
+  }
+
+  ImageProvider _resolveImageProvider(String path) {
+    if (path.startsWith('http')) {
+      return NetworkImage(path);
+    }
+    try {
+      final file = File(path);
+      if (file.existsSync()) {
+        return FileImage(file);
+      }
+    } catch (_) {}
+    // If local file is missing (e.g., temp cleaned), try interpreting as server-relative path
+    final resolved = _joinUrl(EnvConfig.baseUrl, path);
+    return NetworkImage(resolved);
+  }
+
+  String _joinUrl(String base, String relative) {
+    if (relative.isEmpty) return base;
+    if (base.endsWith('/')) base = base.substring(0, base.length - 1);
+    if (relative.startsWith('/')) relative = relative.substring(1);
+    return '$base/$relative';
   }
 
   void _confirmRemoveStep(BuildContext context, int index) async {
