@@ -20,6 +20,7 @@ class ApiClient {
         baseUrl: EnvConfig.baseUrl,
         connectTimeout: const Duration(seconds: 30),
         receiveTimeout: const Duration(seconds: 30),
+        sendTimeout: const Duration(seconds: 60),
         headers: {'Content-Type': 'application/json'},
       ),
     );
@@ -140,7 +141,14 @@ class ApiClient {
       }
 
       // 인터셉터가 없는 별도 Dio 인스턴스로 갱신 요청
-      final response = await Dio().post(
+      final response = await Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(seconds: 15),
+          sendTimeout: const Duration(seconds: 30),
+          headers: {'Content-Type': 'application/json'},
+        ),
+      ).post(
         '${EnvConfig.baseUrl}/auth/refresh',
         data: {'refreshToken': refreshToken},
       );
