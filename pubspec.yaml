@@ -68,6 +68,7 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   # Native splash screen generator
   flutter_native_splash: ^2.4.1
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
@@ -90,3 +91,9 @@ flutter_native_splash:
     image: assets/images/logo_splash.png
     color: "#FFFFFF"
   web: false
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  min_sdk_android: 21 # (안드로이드 최소 SDK, 보통 21로 둠)

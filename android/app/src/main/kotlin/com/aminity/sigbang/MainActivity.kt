@@ -1,4 +1,4 @@
-package com.example.sigbang
+package com.aminity.sigbang
 
 import io.flutter.embedding.android.FlutterActivity
 
