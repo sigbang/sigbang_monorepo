@@ -7,13 +7,14 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { SupabaseService } from '../database/supabase.service';
-import { 
-  CreateRecipeDto, 
-  UpdateRecipeDto, 
+import {
+  CreateRecipeDto,
+  UpdateRecipeDto,
   RecipeQueryDto,
   RecipeResponseDto,
   DraftRecipeResponseDto,
-  RecipeStatus 
+  RecipeStatus,
+  RecipeSearchQueryDto,
 } from './dto/recipes.dto';
 import { ConfigService } from '@nestjs/config';
 // sharp 로더: CJS/ESM 모두 호환되도록 런타임에서 안전하게 로드
@@ -349,8 +350,8 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
 
     const hasMore = unique.length > limit;
     const pageItems = hasMore ? unique.slice(0, limit) : unique;
-    const last = pageItems[pageItems.length - 1];
-    const nextCursor = last ? Buffer.from(JSON.stringify({ id: last.id })).toString('base64') : null;
+    const lastItem = pageItems[pageItems.length - 1];
+    const nextCursor = lastItem ? Buffer.from(JSON.stringify({ id: lastItem.id })).toString('base64') : null;
 
     const recipes = pageItems.map((recipe: any) => ({
       ...recipe,
@@ -371,6 +372,169 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
       },
     };
   }
+
+  // 7. 검색 (TRGM + 트렌드 혼합 점수, 키셋 페이지네이션)
+  async search(params: RecipeSearchQueryDto, userId?: string): Promise<{ items: any[]; nextCursor?: string }> {
+    const t0 = Date.now();
+    const { q, limit = 20, cursor } = params;
+
+    // 캐시 키
+    const cursorKey = cursor ? cursor : '_none';
+    const cacheKey = `search:${q && q.trim() ? q.trim() : '_none'}:${cursorKey}`;
+
+    // 간단한 프로세스 캐시 (60~120s)
+    const g: any = global as any;
+    if (!g.__searchCache) {
+      g.__searchCache = new Map<string, { expire: number; value: any }>();
+    }
+    const cached = g.__searchCache.get(cacheKey);
+    if (cached && cached.expire > Date.now()) {
+      return cached.value;
+    }
+
+    const safeLimit = Math.max(1, Math.min(50, limit));
+
+    // 커서: {score,id}
+    let afterScore: number | null = null;
+    let afterId: string | null = null;
+    if (cursor) {
+      try {
+        const decoded = JSON.parse(Buffer.from(cursor, 'base64').toString('utf-8')) as { score: number; id: string };
+        afterScore = decoded.score;
+        afterId = decoded.id;
+      } catch (e) {
+        this.logger.warn(`search cursor decode failed: ${String(e)}`);
+      }
+    }
+
+    // q 없음 → 트렌드 피드 (trendScore desc, id desc)
+    if (!q || !q.trim()) {
+      const rows = await (this.prismaService as any).$queryRaw<any[]>`
+        SELECT r.*,
+               COALESCE(rc."trendScore", 0) AS trend_score
+        FROM recipes r
+        LEFT JOIN recipe_counters rc ON rc."recipeId" = r.id
+        WHERE r."status" = 'PUBLISHED' AND r."isHidden" = false
+          AND (${afterScore as any}::numeric IS NULL OR (COALESCE(rc."trendScore",0), r.id) < (${afterScore as any}::numeric, ${afterId as any}::text))
+        ORDER BY COALESCE(rc."trendScore", 0) DESC, r.id DESC
+        LIMIT ${safeLimit + 1}
+      `;
+
+      const page = rows.slice(0, safeLimit);
+      const next = rows.length > safeLimit ? rows[safeLimit] : null;
+      const nextCursor = next
+        ? Buffer.from(JSON.stringify({ score: Number(next.trend_score) || 0, id: next.id })).toString('base64')
+        : undefined;
+
+      // 상세 정보 로드 (피드 카드 형태)
+      const ids = page.map(r => r.id);
+      const details = ids.length
+        ? await this.prismaService.recipe.findMany({
+            where: { id: { in: ids } },
+            include: {
+              author: { select: { id: true, nickname: true, profileImage: true } },
+              tags: { include: { tag: true } },
+              steps: { orderBy: { order: 'asc' }, take: 1 },
+              _count: { select: { likes: true, comments: true } },
+              ...(userId && {
+                likes: { where: { userId }, select: { id: true } },
+                saves: { where: { userId }, select: { id: true } },
+              }),
+            },
+          })
+        : [];
+      const byId = new Map(details.map(d => [d.id, d]));
+      const items = ids.map(id => {
+        const recipe: any = byId.get(id);
+        if (!recipe) return null;
+        return {
+          ...recipe,
+          tags: recipe.tags.map((t: any) => ({ name: t.tag.name, emoji: t.tag.emoji })),
+          steps: recipe.steps.map((s: any) => ({ order: s.order, description: s.description, imageUrl: s.imageUrl })),
+          likesCount: recipe._count.likes,
+          commentsCount: recipe._count.comments,
+          isLiked: userId ? recipe.likes?.length > 0 : false,
+          isSaved: userId ? recipe.saves?.length > 0 : false,
+        };
+      }).filter(Boolean) as any[];
+
+      const result = { items, nextCursor };
+      g.__searchCache.set(cacheKey, { expire: Date.now() + 90_000, value: result });
+      this.logger.log(`search(q:none) u=${userId ?? 'anon'} took=${Date.now() - t0}ms len=${page.length}`);
+      return result;
+    }
+
+    // q 있음 → 혼합 점수 정렬
+    const qTrim = q.trim();
+    const rows = await (this.prismaService as any).$queryRaw<any[]>`
+      WITH scored AS (
+        SELECT r.*,
+               GREATEST(similarity(r.title, ${qTrim as any}), similarity(r.ingredients, ${qTrim as any})) AS text_score,
+               CASE
+                 WHEN ${qTrim as any} = ANY(COALESCE(r."altTitles", ARRAY[]::text[])) THEN 0.15
+                 WHEN EXISTS (
+                   SELECT 1 FROM unnest(COALESCE(r."altTitles", ARRAY[]::text[])) t WHERE t ILIKE '%' || ${qTrim as any} || '%'
+                 ) THEN 0.08
+                 ELSE 0
+               END AS alias_bonus,
+               COALESCE(rc."trendScore", 0) AS trend_score
+        FROM recipes r
+        LEFT JOIN recipe_counters rc ON rc."recipeId" = r.id
+        WHERE r."status" = 'PUBLISHED' AND r."isHidden" = false
+          AND (r.title % ${qTrim as any} OR r.ingredients % ${qTrim as any} OR (${qTrim as any} IS NOT NULL AND ${qTrim as any} <> ''))
+      )
+      SELECT *, (0.7 * text_score + 0.1 * alias_bonus + 0.3 * trend_score) AS total_score
+      FROM scored
+      WHERE (${afterScore as any}::numeric IS NULL OR (0.7 * text_score + 0.1 * alias_bonus + 0.3 * trend_score, id) < (${afterScore as any}::numeric, ${afterId as any}::text))
+      ORDER BY total_score DESC, id DESC
+      LIMIT ${safeLimit + 1}
+    `;
+
+    const page = rows.slice(0, safeLimit);
+    const next = rows.length > safeLimit ? rows[safeLimit] : null;
+    const nextCursor = next
+      ? Buffer.from(JSON.stringify({ score: Number((next as any).total_score) || 0, id: (next as any).id })).toString('base64')
+      : undefined;
+
+    // 상세 정보 로드 (피드 카드 형태)
+    const ids = page.map(r => r.id);
+    const details = ids.length
+      ? await this.prismaService.recipe.findMany({
+          where: { id: { in: ids } },
+          include: {
+            author: { select: { id: true, nickname: true, profileImage: true } },
+            tags: { include: { tag: true } },
+            steps: { orderBy: { order: 'asc' }, take: 1 },
+            _count: { select: { likes: true, comments: true } },
+            ...(userId && {
+              likes: { where: { userId }, select: { id: true } },
+              saves: { where: { userId }, select: { id: true } },
+            }),
+          },
+        })
+      : [];
+    const byId = new Map(details.map(d => [d.id, d]));
+    const items = ids.map(id => {
+      const recipe: any = byId.get(id);
+      if (!recipe) return null;
+      return {
+        ...recipe,
+        tags: recipe.tags.map((t: any) => ({ name: t.tag.name, emoji: t.tag.emoji })),
+        steps: recipe.steps.map((s: any) => ({ order: s.order, description: s.description, imageUrl: s.imageUrl })),
+        likesCount: recipe._count.likes,
+        commentsCount: recipe._count.comments,
+        isLiked: userId ? recipe.likes?.length > 0 : false,
+        isSaved: userId ? recipe.saves?.length > 0 : false,
+      };
+    }).filter(Boolean) as any[];
+
+    const result = { items, nextCursor };
+    const ttl = 60_000 + Math.floor(Math.random() * 60_000);
+    g.__searchCache.set(cacheKey, { expire: Date.now() + ttl, value: result });
+    this.logger.log(`search(q) u=${userId ?? 'anon'} took=${Date.now() - t0}ms len=${page.length}`);
+    return result;
+  }
+
   // 레시피 생성 (즉시 공개)
   async create(userId: string, createRecipeDto: CreateRecipeDto) {
     const { tags, steps, thumbnailPath, ...recipeData } = createRecipeDto as any;

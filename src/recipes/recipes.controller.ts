@@ -29,7 +29,9 @@ import {
   UpdateRecipeDto, 
   RecipeQueryDto,
   RecipeResponseDto,
-  DraftRecipeResponseDto
+  DraftRecipeResponseDto,
+  RecipeSearchQueryDto,
+  RecipeSearchResponseDto,
 } from './dto/recipes.dto';
 import { JwtAuthGuard } from '../common/guards/jwt.guard';
 import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt.guard';
@@ -309,6 +311,18 @@ export class RecipesController {
   })
   async getFeed(@Query() query: RecipeQueryDto, @CurrentUser() user?: any) {
     return this.recipesService.getFeed(query, user?.id);
+  }
+
+  // 7. 검색 API (q 없으면 트렌드 피드)
+  @Get('search')
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({ summary: '레시피 검색 (TRGM + 트렌드 혼합)' })
+  @ApiQuery({ name: 'q', required: false, description: '검색어. 없으면 큐레이션 피드' })
+  @ApiQuery({ name: 'limit', required: false, description: '페이지 크기(기본 20)' })
+  @ApiQuery({ name: 'cursor', required: false, description: '키셋 커서 Base64({score,id})' })
+  @ApiResponse({ status: 200, description: '검색 결과', type: Object })
+  async search(@Query() query: RecipeSearchQueryDto, @CurrentUser() user?: any): Promise<RecipeSearchResponseDto> {
+    return this.recipesService.search(query, user?.id);
   }
 
   // 대표 이미지 업로드

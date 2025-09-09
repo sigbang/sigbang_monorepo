@@ -296,6 +296,36 @@ export class RecipeQueryDto {
   since?: string;
 }
 
+// 검색 DTO
+export class RecipeSearchQueryDto {
+  @ApiProperty({ description: '검색어. 빈 문자열 또는 미입력 시 큐레이션 피드', required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  q?: string;
+
+  @ApiProperty({ description: '페이지 크기 (기본 20, 최대 50)', required: false, default: 20 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  @Type(() => Number)
+  limit?: number = 20;
+
+  @ApiProperty({ description: '커서(Base64). {score:number,id:string} 직렬화', required: false })
+  @IsOptional()
+  @IsString()
+  cursor?: string;
+}
+
+export class RecipeSearchResponseDto {
+  @ApiProperty({ type: [Object] })
+  items: any[];
+
+  @ApiProperty({ required: false, description: '다음 페이지 커서' })
+  nextCursor?: string;
+}
+
 // 레시피 응답 DTO
 export class RecipeResponseDto {
   @ApiProperty({ example: 'uuid', description: '레시피 ID' })

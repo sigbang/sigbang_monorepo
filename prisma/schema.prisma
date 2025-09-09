@@ -10,6 +10,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // 사용자 모델
@@ -61,6 +62,7 @@ model Recipe {
   title           String
   description     String
   ingredients     String   // 멀티라인 재료 (TEXT)
+  altTitles       String[] @db.Text @default([]) // 다국어 별칭(초기 글로벌 대응)
   thumbnailImage  String?  // 대표 이미지 URL
   linkTitle       String?  // 관련 링크 제목
   linkUrl         String?  // 관련 링크 주소
@@ -82,8 +84,52 @@ model Recipe {
   reports         Report[]
   tags            RecipeTag[]
   steps           RecipeStep[]
+
+  // Opposite sides
+  counter         RecipeCounter?   // 1:1
+  events          RecipeEvent[]    // 1:N
+  editorialBoost  EditorialBoost?  // 1:1
   
   @@map("recipes")
+}
+
+// 레시피 트렌드 카운터 (최근 7일 집계)
+model RecipeCounter {
+  id         String   @id @default(uuid())
+  recipeId   String   @unique
+  views7d    Int      @default(0)
+  saves7d    Int      @default(0)
+  likes7d    Int      @default(0)
+  trendScore Decimal  @default(0) @db.Decimal(6, 4)
+  updatedAt  DateTime @updatedAt
+
+  recipe     Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@map("recipe_counters")
+}
+
+// 레시피 이벤트 로그 (view/save/like)
+model RecipeEvent {
+  id         String   @id @default(uuid())
+  recipeId   String
+  type       String   // 'view' | 'save' | 'like'
+  occurredAt DateTime @default(now())
+
+  recipe     Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@map("recipe_events")
+}
+
+// 운영자 부스팅 (일시적 랭킹 가중치)
+model EditorialBoost {
+  id        String   @id @default(uuid())
+  recipeId  String   @unique
+  boost     Decimal  @db.Decimal(3, 2) // 0.00~1.00
+  expiresAt DateTime?
+
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@map("editorial_boosts")
 }
 
 // 레시피 태그 모델
