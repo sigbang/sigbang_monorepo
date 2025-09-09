@@ -13,6 +13,7 @@ import { SavesModule } from './saves/saves.module';
 import { AdminModule } from './admin/admin.module';
 import { JwtModule } from '@nestjs/jwt';
 import { MediaModule } from './media/media.module';
+import { TrendCronModule } from './jobs/trend-cron.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { MediaModule } from './media/media.module';
     SavesModule,
     AdminModule,
     MediaModule,
+    TrendCronModule,
   ],
   controllers: [AppController],
   providers: [AppService],
