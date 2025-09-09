@@ -1,5 +1,5 @@
 # ---------- Build stage ----------
-FROM node:20-slim AS builder
+FROM node:20-bullseye-slim AS builder
 WORKDIR /app
 
 # Install deps (dev 포함)
@@ -13,11 +13,11 @@ RUN npx prisma generate
 RUN npm run build
 
 # ---------- Production stage ----------
-FROM node:20-slim AS production
+FROM node:20-bullseye-slim AS builder
 WORKDIR /app
 
 # minimal runtime packages (dumb-init만 필요)
-RUN apt-get update && apt-get install -y --no-install-recommends dumb-init \
+RUN apt-get update && apt-get install -y --no-install-recommends dumb-init openssl \
   && rm -rf /var/lib/apt/lists/*
 
 # 프로덕션 의존성만 설치
