@@ -13,7 +13,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # ---------- Production stage ----------
-FROM node:20-bullseye-slim AS builder
+FROM node:20-bullseye-slim AS production
 WORKDIR /app
 
 # minimal runtime packages (dumb-init만 필요)
