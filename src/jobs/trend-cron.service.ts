@@ -12,6 +12,7 @@ export class TrendCronService {
   async refreshTrend() {
     this.logger.log('Refreshing counters + trendScore ...');
     await this.upsertCounters7d();
+    await this.backfillMissingCounters();
     await this.updateTrendScore();
     this.logger.log('Done refreshing trend.');
   }
@@ -53,6 +54,17 @@ export class TrendCronService {
         ON eb."recipeId" = c."recipeId"
         AND (eb."expiresAt" IS NULL OR eb."expiresAt" > now())
       WHERE r.id = c."recipeId";
+    `;
+  }
+
+  private async backfillMissingCounters() {
+    // 공개 글 중 카운터가 없는 레코드 0값으로 백필
+    await (this.prisma as any).$executeRaw`
+      INSERT INTO recipe_counters ("recipeId","views7d","saves7d","likes7d","trendScore")
+      SELECT r.id, 0, 0, 0, 0
+      FROM recipes r
+      LEFT JOIN recipe_counters c ON c."recipeId" = r.id
+      WHERE r."status" = 'PUBLISHED' AND r."isHidden" = false AND c."recipeId" IS NULL;
     `;
   }
 }

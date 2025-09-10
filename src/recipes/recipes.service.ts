@@ -481,7 +481,12 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
         FROM recipes r
         LEFT JOIN recipe_counters rc ON rc."recipeId" = r.id
         WHERE r."status" = 'PUBLISHED' AND r."isHidden" = false
-          AND (r.title % ${qTrim as any} OR r.ingredients % ${qTrim as any} OR (${qTrim as any} IS NOT NULL AND ${qTrim as any} <> ''))
+          AND (
+            r.title ILIKE '%' || ${qTrim as any} || '%'
+            OR r.ingredients ILIKE '%' || ${qTrim as any} || '%'
+            OR r.title % ${qTrim as any}
+            OR r.ingredients % ${qTrim as any}
+          )
       )
       SELECT *, (0.7 * text_score + 0.1 * alias_bonus + 0.3 * trend_score) AS total_score
       FROM scored
