@@ -43,6 +43,13 @@ abstract class RecipeRepository {
     String? cursor,
   });
 
+  // 레시피 검색 (커서 기반)
+  Future<Either<Failure, PaginatedRecipes>> searchRecipes({
+    required String query,
+    required int limit,
+    String? cursor,
+  });
+
   // 레시피 좋아요/취소
   Future<Either<Failure, void>> toggleLike(String recipeId, String userId);
 

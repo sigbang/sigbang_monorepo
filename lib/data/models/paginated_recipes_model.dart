@@ -9,12 +9,40 @@ class PaginatedRecipesModel extends PaginatedRecipes {
 
   factory PaginatedRecipesModel.fromJson(Map<String, dynamic> json) {
     final data = json['data'] ?? json;
+
+    // Support multiple payload shapes: recipes | items | results | list
+    final rawList = (data['recipes'] ??
+            data['items'] ??
+            data['results'] ??
+            data['list']) as List<dynamic>? ??
+        const [];
+
+    final recipes = rawList
+        .map((recipe) => RecipeModel.fromJson(recipe as Map<String, dynamic>))
+        .toList();
+
+    // Page info may be nested or flat; build a map robustly
+    final Map<String, dynamic> pageInfoMap =
+        (data['pageInfo'] as Map<String, dynamic>?) ??
+            (data['pagination'] as Map<String, dynamic>?) ??
+            (json['pageInfo'] as Map<String, dynamic>?) ??
+            (json['pagination'] as Map<String, dynamic>?) ??
+            <String, dynamic>{};
+
+    // Fallbacks for cursor/limit if not present in map
+    pageInfoMap.putIfAbsent(
+        'nextCursor',
+        () =>
+            data['nextCursor'] ??
+            data['cursor'] ??
+            json['nextCursor'] ??
+            json['cursor']);
+    pageInfoMap.putIfAbsent(
+        'limit', () => data['limit'] ?? json['limit'] ?? 20);
+
     return PaginatedRecipesModel(
-      recipes: (data['recipes'] as List<dynamic>)
-          .map((recipe) => RecipeModel.fromJson(recipe as Map<String, dynamic>))
-          .toList(),
-      pagination: PaginationModel.fromJson(
-          (data['pageInfo'] ?? data['pagination']) as Map<String, dynamic>),
+      recipes: recipes,
+      pagination: PaginationModel.fromJson(pageInfoMap),
     );
   }
 

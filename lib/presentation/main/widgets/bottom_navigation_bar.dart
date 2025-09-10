@@ -42,14 +42,14 @@ class CustomBottomNavigationBar extends StatelessWidget {
           currentIndex: currentIndex,
           onTap: (index) {
             // 로그인이 필요한 탭들 (레시피 추가, 프로필)
-            if (!isLoggedIn && (index == 2 || index == 3)) {
+            if (!isLoggedIn && (index == 3 || index == 4)) {
               // 로그인 화면으로 이동
               context.push('/login');
               return;
             }
 
             // 레시피 추가 탭의 경우 직접 레시피 등록 화면으로 이동
-            if (index == 2 && isLoggedIn) {
+            if (index == 3 && isLoggedIn) {
               context.push('/create-recipe');
               return;
             }
@@ -66,6 +66,10 @@ class CustomBottomNavigationBar extends StatelessWidget {
             BottomNavigationBarItem(
               icon: Icon(Icons.restaurant_menu),
               label: '피드',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.search),
+              label: '검색',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.add_circle_outline),

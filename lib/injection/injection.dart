@@ -18,6 +18,7 @@ import '../domain/usecases/logout_all.dart';
 import '../domain/usecases/get_current_user.dart';
 import '../domain/usecases/initialize_auth.dart';
 import '../domain/usecases/get_recipe_feed.dart';
+import '../domain/usecases/search_recipes.dart';
 import '../domain/usecases/get_recipe_detail.dart';
 import '../domain/usecases/create_recipe.dart';
 import '../domain/usecases/update_recipe.dart';
@@ -37,6 +38,7 @@ import '../presentation/feed/cubits/feed_cubit.dart';
 import '../presentation/recipe_detail/cubits/recipe_detail_cubit.dart';
 import '../presentation/recipe_create/cubits/recipe_create_cubit.dart';
 import '../presentation/profile/cubits/profile_recipes_cubit.dart';
+import '../presentation/search/cubits/search_cubit.dart';
 import '../core/session/session_manager.dart';
 import '../presentation/session/session_cubit.dart';
 import '../core/session/session_binding.dart';
@@ -115,6 +117,8 @@ Future<void> setupDependencyInjection() async {
   // Recipe Use cases
   getIt.registerLazySingleton<GetRecipeFeed>(
       () => GetRecipeFeed(getIt<RecipeRepository>()));
+  getIt.registerLazySingleton<SearchRecipes>(
+      () => SearchRecipes(getIt<RecipeRepository>()));
   getIt.registerLazySingleton<GetRecipeDetail>(
       () => GetRecipeDetail(getIt<RecipeRepository>()));
   getIt.registerLazySingleton<CreateRecipe>(
@@ -172,6 +176,9 @@ Future<void> setupDependencyInjection() async {
   getIt.registerFactory<ProfileRecipesCubit>(() => ProfileRecipesCubit(
         getIt<GetMyRecipes>(),
         getIt<GetMySavedRecipes>(),
+      ));
+  getIt.registerFactory<SearchCubit>(() => SearchCubit(
+        getIt<SearchRecipes>(),
       ));
 
   // Session support

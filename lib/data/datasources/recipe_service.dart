@@ -225,6 +225,33 @@ class RecipeService {
     }
   }
 
+  /// 레시피 검색 (커서 기반)
+  Future<PaginatedRecipesModel> searchRecipes({
+    required String query,
+    required int limit,
+    String? cursor,
+  }) async {
+    if (kDebugMode) {
+      print('🔎 Searching recipes: q="$query", limit=$limit, cursor=$cursor');
+    }
+
+    final response = await _apiClient.dio.get(
+      '/recipes/search',
+      queryParameters: {
+        // 서버 스펙에 맞춘 파라미터 키
+        'q': query,
+        'limit': limit,
+        if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return PaginatedRecipesModel.fromJson(
+          response.data as Map<String, dynamic>);
+    }
+    throw Exception('레시피 검색 실패: ${response.statusCode}');
+  }
+
   /// 서버에서 발급한 Supabase signed URL 정보를 사용해 업로드 후 경로 반환
   Future<String> uploadImageWithPresign({
     required String contentType,

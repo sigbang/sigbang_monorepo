@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../../domain/entities/user.dart';
 import '../../home/pages/home_page.dart';
 import '../../feed/pages/feed_page.dart';
+import '../../search/pages/search_page.dart';
 import '../../profile/pages/profile_page.dart';
 import '../widgets/bottom_navigation_bar.dart';
 
@@ -31,6 +32,7 @@ class _MainPageState extends State<MainPage> {
     _pages = [
       const HomePage(), // 홈
       const FeedPage(), // 피드
+      const SearchPage(), // 검색
       const RecipeCreatePlaceholder(), // 레시피 추가 화면
       widget.isLoggedIn
           ? ProfilePage(user: widget.user) // 프로필 (로그인 시)
@@ -46,7 +48,7 @@ class _MainPageState extends State<MainPage> {
   void didUpdateWidget(covariant MainPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.isLoggedIn != widget.isLoggedIn) {
-      _pages[3] = widget.isLoggedIn
+      _pages[4] = widget.isLoggedIn
           ? ProfilePage(user: widget.user)
           : const Scaffold(
               body: Center(
