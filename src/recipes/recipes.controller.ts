@@ -10,7 +10,8 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFiles,
-  BadRequestException,  
+  BadRequestException,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -57,7 +58,7 @@ export class RecipesController {
   @ApiResponse({ status: 403, description: '권한 없음' })
   @ApiResponse({ status: 404, description: '레시피를 찾을 수 없음' })
   async update(
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @CurrentUser() user: any,
     @Body() updateRecipeDto: UpdateRecipeDto,
   ) {
@@ -152,7 +153,7 @@ export class RecipesController {
   @ApiResponse({ status: 403, description: '권한 없음' })
   @ApiResponse({ status: 404, description: '레시피를 찾을 수 없음' })
   async updateDraft(
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @CurrentUser() user: any,
     @Body() updateRecipeDto: UpdateRecipeDto,
   ) {
@@ -187,7 +188,7 @@ export class RecipesController {
   @ApiResponse({ status: 400, description: '잘못된 요청 (최소 요구사항 미충족 등)' })
   @ApiResponse({ status: 403, description: '권한 없음' })
   @ApiResponse({ status: 404, description: '레시피를 찾을 수 없음' })
-  async publish(@Param('id') id: string, @CurrentUser() user: any) {
+  async publish(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string, @CurrentUser() user: any) {
     return this.recipesService.publish(id, user.id);
   }
 
@@ -232,25 +233,6 @@ export class RecipesController {
     @Body() updateRecipeDto: UpdateRecipeDto,
   ) {
     return this.recipesService.updateMyDraft(user.id, updateRecipeDto);
-  }
-
-  // 5. 레시피 상세 조회
-  @Get(':id')
-  @UseGuards(OptionalJwtAuthGuard)
-  @ApiOperation({ 
-    summary: '레시피 상세 조회',
-    description: '레시피의 전체 정보를 조회합니다. 공개된 레시피만 조회 가능하며, 본인의 글인 경우 임시저장도 조회 가능합니다.'
-  })
-  @ApiParam({ name: 'id', description: '레시피 ID' })
-  @ApiResponse({ 
-    status: 200, 
-    description: '레시피 상세 조회 성공',
-    type: RecipeResponseDto
-  })
-  @ApiResponse({ status: 403, description: '권한 없음 (비공개 레시피)' })
-  @ApiResponse({ status: 404, description: '레시피를 찾을 수 없음' })
-  async getRecipe(@Param('id') id: string, @CurrentUser() user?: any) {
-    return this.recipesService.getRecipe(id, user?.id);
   }
 
   // 6. 피드 조회 (공개된 레시피만)
@@ -325,6 +307,25 @@ export class RecipesController {
     return this.recipesService.search(query, user?.id);
   }
 
+  // 5. 레시피 상세 조회
+  @Get(':id')
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({ 
+    summary: '레시피 상세 조회',
+    description: '레시피의 전체 정보를 조회합니다. 공개된 레시피만 조회 가능하며, 본인의 글인 경우 임시저장도 조회 가능합니다.'
+  })
+  @ApiParam({ name: 'id', description: '레시피 ID' })
+  @ApiResponse({ 
+    status: 200, 
+    description: '레시피 상세 조회 성공',
+    type: RecipeResponseDto
+  })
+  @ApiResponse({ status: 403, description: '권한 없음 (비공개 레시피)' })
+  @ApiResponse({ status: 404, description: '레시피를 찾을 수 없음' })
+  async getRecipe(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string, @CurrentUser() user?: any) {
+    return this.recipesService.getRecipe(id, user?.id);
+  }
+
   // 대표 이미지 업로드
   @Post(':id/thumbnail')
   @UseGuards(JwtAuthGuard)
@@ -350,7 +351,7 @@ export class RecipesController {
   @ApiResponse({ status: 403, description: '권한 없음' })
   @ApiResponse({ status: 404, description: '레시피를 찾을 수 없음' })
   async uploadThumbnail(
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @CurrentUser() user: any,
     @UploadedFiles() files: Express.Multer.File[],
   ) {
@@ -433,7 +434,7 @@ export class RecipesController {
   })
   @ApiResponse({ status: 403, description: '권한 없음' })
   @ApiResponse({ status: 404, description: '레시피를 찾을 수 없음' })
-  async remove(@Param('id') id: string, @CurrentUser() user: any) {
+  async remove(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string, @CurrentUser() user: any) {
     return this.recipesService.remove(id, user.id);
   }
 }
