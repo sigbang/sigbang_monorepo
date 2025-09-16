@@ -29,6 +29,11 @@ export class TrendCronService {
         COALESCE((SELECT "trendScore" FROM recipe_counters c2 WHERE c2."recipeId" = e."recipeId"), 0)
       FROM recipe_events e
       WHERE e."occurredAt" >= now() - interval '7 day'
+        AND EXISTS (
+          SELECT 1 FROM recipes r
+          JOIN users u ON u.id = r."authorId"
+          WHERE r.id = e."recipeId" AND r."authorId" IS NOT NULL AND u.status = 'ACTIVE'
+        )
       GROUP BY e."recipeId"
       ON CONFLICT ("recipeId") DO UPDATE SET
         "views7d" = EXCLUDED."views7d",
@@ -64,7 +69,9 @@ export class TrendCronService {
       SELECT r.id, 0, 0, 0, 0
       FROM recipes r
       LEFT JOIN recipe_counters c ON c."recipeId" = r.id
-      WHERE r."status" = 'PUBLISHED' AND r."isHidden" = false AND c."recipeId" IS NULL;
+      WHERE r."status" = 'PUBLISHED' AND r."isHidden" = false AND r."authorId" IS NOT NULL
+        AND EXISTS (SELECT 1 FROM users u WHERE u.id = r."authorId" AND u.status = 'ACTIVE')
+        AND c."recipeId" IS NULL;
     `;
   }
 }

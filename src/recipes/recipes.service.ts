@@ -79,6 +79,8 @@ export class RecipesService {
     const whereBase: any = {
       status: RecipeStatus.PUBLISHED,
       isHidden: false,
+      authorId: { not: null },
+      author: { status: 'ACTIVE' as any },
     };
 
     // 1차: 7일 이내 상위 후보를 인기순으로 로드 (좋아요/댓글/저장과 조회수 가중치)
@@ -273,6 +275,8 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
     const whereBase: any = {
       status: RecipeStatus.PUBLISHED,
       isHidden: false,
+      authorId: { not: null },
+      author: { status: 'ACTIVE' as any },
     };
 
     // 팔로우 저자, 내가 좋아요/저장한 태그 추출
@@ -415,6 +419,8 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
         FROM recipes r
         LEFT JOIN recipe_counters rc ON rc."recipeId" = r.id
         WHERE r."status" = 'PUBLISHED' AND r."isHidden" = false
+          AND r."authorId" IS NOT NULL
+          AND EXISTS (SELECT 1 FROM users u WHERE u.id = r."authorId" AND u.status = 'ACTIVE')
           AND (${afterScore as any}::numeric IS NULL OR (COALESCE(rc."trendScore",0), r.id) < (${afterScore as any}::numeric, ${afterId as any}::text))
         ORDER BY COALESCE(rc."trendScore", 0) DESC, r.id DESC
         LIMIT ${safeLimit + 1}
@@ -481,6 +487,8 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
         FROM recipes r
         LEFT JOIN recipe_counters rc ON rc."recipeId" = r.id
         WHERE r."status" = 'PUBLISHED' AND r."isHidden" = false
+          AND r."authorId" IS NOT NULL
+          AND EXISTS (SELECT 1 FROM users u WHERE u.id = r."authorId" AND u.status = 'ACTIVE')
           AND (
             r.title ILIKE '%' || ${qTrim as any} || '%'
             OR r.ingredients ILIKE '%' || ${qTrim as any} || '%'
@@ -1086,6 +1094,19 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
       throw new NotFoundException('레시피를 찾을 수 없습니다.');
     }
 
+    // 상세 조회 정책: authorId == null 이거나 author.status == DELETED → 404
+    if (!recipe.authorId) {
+      throw new NotFoundException('레시피를 찾을 수 없습니다.');
+    }
+    try {
+      const author = await this.prismaService.user.findUnique({ where: { id: recipe.authorId }, select: { id: true, /* @ts-ignore */ status: true as any } as any });
+      if (!author || (author as any).status === 'DELETED') {
+        throw new NotFoundException('레시피를 찾을 수 없습니다.');
+      }
+    } catch {
+      throw new NotFoundException('레시피를 찾을 수 없습니다.');
+    }
+
     // 공개되지 않은 레시피는 작성자만 조회 가능
     if (recipe.status !== RecipeStatus.PUBLISHED && recipe.authorId !== userId) {
       throw new ForbiddenException('레시피를 조회할 권한이 없습니다.');
@@ -1143,6 +1164,8 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
     const baseWhere: any = {
       status: RecipeStatus.PUBLISHED,
       isHidden: false,
+      authorId: { not: null },
+      author: { status: 'ACTIVE' as any },
       ...(difficulty && { difficulty }),
       ...(maxCookingTime && { cookingTime: { lte: maxCookingTime } }),
       ...(tag && {

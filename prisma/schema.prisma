@@ -15,17 +15,18 @@ datasource db {
 
 // 사용자 모델
 model User {
-  id          String   @id @default(uuid())
-  email       String   @unique
-  nickname    String   @unique
+  id           String     @id @default(uuid())
+  email        String     @unique
+  nickname     String     @unique
   profileImage String?
-  bio         String?
-  isActive    Boolean  @default(true) // Soft delete용
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  bio          String?
+  status       UserStatus @default(ACTIVE)
+  deletedAt    DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
   
   // Supabase Auth와 연동을 위한 필드 (OAuth 사용자는 null 가능)
-  supabaseId  String?  @unique
+  supabaseId   String?    @unique
   
   // 관계
   recipes      Recipe[]
@@ -76,8 +77,8 @@ model Recipe {
   updatedAt       DateTime @updatedAt
   
   // 관계
-  authorId        String
-  author          User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId        String?
+  author          User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
   comments        Comment[]
   likes           Like[]
   saves           Save[]
@@ -181,8 +182,8 @@ model Comment {
   updatedAt DateTime @updatedAt
   
   // 관계
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId  String?
+  author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
   recipeId  String
   recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   reports   Report[]
@@ -285,6 +286,12 @@ enum Difficulty {
 enum RecipeStatus {
   DRAFT
   PUBLISHED
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
 }
 
 enum ReportReason {

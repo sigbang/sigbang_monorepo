@@ -21,11 +21,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         email: true,
         nickname: true,
         profileImage: true,
-        isActive: true,
+        status: true,
       },
     });
 
-    if (!user || !user.isActive) {
+    if (!user || user.status !== 'ACTIVE') {
       throw new UnauthorizedException('사용자를 찾을 수 없거나 비활성화된 계정입니다.');
     }
 

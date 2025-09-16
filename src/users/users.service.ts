@@ -161,17 +161,15 @@ export class UsersService {
 
   async deleteAccount(userId: string) {
     try {
-      // Soft delete - isActive를 false로 설정
+      // Soft delete - status=DELETED, deletedAt
       await this.prismaService.user.update({
         where: { id: userId },
-        data: { isActive: false },
+        data: { status: 'DELETED', deletedAt: new Date() } as any,
       });
 
-      // 사용자의 모든 레시피도 비공개 처리
-      await this.prismaService.recipe.updateMany({
-        where: { authorId: userId },
-        data: { status: 'DRAFT' },
-      });
+      // 연결된 레시피/댓글 authorId NULL 처리
+      await this.prismaService.recipe.updateMany({ where: { authorId: userId }, data: { authorId: null } });
+      await this.prismaService.comment.updateMany({ where: { authorId: userId }, data: { authorId: null } });
 
       return { message: '계정이 성공적으로 탈퇴되었습니다.' };
     } catch (error) {
@@ -181,7 +179,7 @@ export class UsersService {
 
   async findUserById(userId: string) {
     const user = await this.prismaService.user.findUnique({
-      where: { id: userId, isActive: true },
+      where: { id: userId },
       include: {
         _count: {
           select: {
@@ -193,7 +191,7 @@ export class UsersService {
       },
     });
 
-    if (!user) {
+    if (!user || (user as any).status !== 'ACTIVE') {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
 

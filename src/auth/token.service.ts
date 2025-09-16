@@ -75,7 +75,7 @@ export class TokenService {
       throw new UnauthorizedException('유효하지 않은 리프레시 토큰입니다.');
     }
 
-    if (!storedToken.user.isActive) {
+    if ((storedToken.user as any).status !== 'ACTIVE') {
       throw new UnauthorizedException('비활성화된 사용자입니다.');
     }
 

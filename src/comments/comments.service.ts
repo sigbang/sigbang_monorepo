@@ -6,11 +6,13 @@ export class CommentsService {
   constructor(private prismaService: PrismaService) {}
 
   async create(userId: string, recipeId: string, content: string) {
-    const recipe = await this.prismaService.recipe.findUnique({
+    const recipe = await this.prismaService.recipe.findFirst({
       where: { 
         id: recipeId,
         status: 'PUBLISHED',
-        isHidden: false 
+        isHidden: false,
+        authorId: { not: null },
+        author: { status: 'ACTIVE' as any },
       },
     });
 
@@ -43,6 +45,7 @@ export class CommentsService {
       where: {
         recipeId,
         isHidden: false,
+        authorId: { not: null },
       },
       include: {
         author: {

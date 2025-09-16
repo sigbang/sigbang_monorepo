@@ -46,7 +46,7 @@ export class AdminService {
   async blockUser(userId: string, adminId: string, reason?: string) {
     await this.prismaService.user.update({
       where: { id: userId },
-      data: { isActive: false },
+      data: { status: 'SUSPENDED' },
     });
 
     await this.prismaService.adminAction.create({

@@ -94,7 +94,7 @@ export class AuthService {
         where: { supabaseId: data.user.id },
       });
 
-      if (!user || !user.isActive) {
+      if (!user || (user as any).status !== 'ACTIVE') {
         throw new NotFoundException('사용자를 찾을 수 없거나 비활성화된 계정입니다.');
       }
 
