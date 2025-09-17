@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../presentation/session/session_cubit.dart';
+import '../../../core/utils/action_guard.dart';
 
 class CustomBottomNavigationBar extends StatelessWidget {
   final int currentIndex;
@@ -50,6 +53,17 @@ class CustomBottomNavigationBar extends StatelessWidget {
 
             // 레시피 추가 탭의 경우 직접 레시피 등록 화면으로 이동
             if (index == 3 && isLoggedIn) {
+              final user = context.read<SessionCubit>().state.user;
+              final canCreate =
+                  ActionGuard.canPerform(user?.status, ActionType.createRecipe);
+              if (!canCreate) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content: Text(ActionGuard.getRestrictionMessage(
+                          ActionType.createRecipe))),
+                );
+                return;
+              }
               context.push('/create-recipe');
               return;
             }

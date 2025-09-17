@@ -8,6 +8,7 @@ import '../../../domain/usecases/get_current_user.dart';
 import '../../../domain/usecases/delete_recipe.dart';
 import '../../../domain/usecases/toggle_like.dart';
 import '../../../domain/usecases/toggle_save.dart';
+import '../../../core/errors/failure.dart';
 import 'recipe_detail_state.dart';
 
 class RecipeDetailCubit extends Cubit<RecipeDetailState> {
@@ -76,8 +77,16 @@ class RecipeDetailCubit extends Cubit<RecipeDetailState> {
           if (kDebugMode) {
             print('❌ Recipe detail load failed: ${failure.toString()}');
           }
+          String message;
+          if (failure is NotFoundFailure) {
+            message = '삭제되었거나 이용할 수 없는 레시피입니다';
+          } else if (failure is ForbiddenFailure) {
+            message = '접근 권한이 없는 레시피입니다';
+          } else {
+            message = '레시피를 불러오는데 실패했습니다';
+          }
           emit(RecipeDetailError(
-            message: '레시피를 불러오는데 실패했습니다',
+            message: message,
             isLoggedIn: isLoggedIn,
           ));
         },

@@ -13,15 +13,53 @@ import '../widgets/basic_info_form.dart';
 import '../widgets/recipe_steps_editor.dart';
 // import '../widgets/tag_selector.dart';
 import '../../common/widgets/app_confirm_dialog.dart';
+import '../../../core/utils/action_guard.dart';
+import '../../session/session_cubit.dart';
 
 class RecipeCreatePage extends StatelessWidget {
   const RecipeCreatePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => getIt<RecipeCreateCubit>()..startEditing(),
-      child: const RecipeCreateView(),
+    return BlocBuilder<SessionCubit, SessionState>(
+      builder: (context, sessionState) {
+        final canCreate = ActionGuard.canPerform(
+            sessionState.user?.status, ActionType.createRecipe);
+
+        if (!canCreate && sessionState.user != null) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('레시피 생성')),
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.block,
+                    size: 64,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    ActionGuard.getRestrictionMessage(ActionType.createRecipe),
+                    style: Theme.of(context).textTheme.titleMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('돌아가기'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return BlocProvider(
+          create: (context) => getIt<RecipeCreateCubit>()..startEditing(),
+          child: const RecipeCreateView(),
+        );
+      },
     );
   }
 }

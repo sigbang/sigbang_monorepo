@@ -11,6 +11,7 @@ import '../cubits/profile_recipes_cubit.dart';
 import '../cubits/profile_recipes_state.dart';
 import '../../home/widgets/recipe_card.dart';
 import '../../../data/datasources/api_client.dart';
+import '../../../domain/entities/user.dart' show UserStatus;
 
 class ProfilePage extends StatelessWidget {
   final User? user;
@@ -84,6 +85,29 @@ class _ProfileView extends StatelessWidget {
                     getIt<ProfileRecipesCubit>()..loadInitial(),
                 child: Column(
                   children: [
+                    if (displayUser?.status == UserStatus.suspended)
+                      Container(
+                        width: double.infinity,
+                        color: Colors.amber.withOpacity(0.2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                        child: Row(
+                          children: [
+                            Icon(Icons.warning_amber_rounded,
+                                color: Theme.of(context).colorScheme.error),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '계정이 일시 정지되었습니다. 일부 기능을 사용할 수 없습니다.',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     const SizedBox(height: 8),
                     CircleAvatar(
                       radius: 40,

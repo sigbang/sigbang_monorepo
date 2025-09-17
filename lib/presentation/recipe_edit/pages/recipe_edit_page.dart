@@ -6,6 +6,8 @@ import '../../recipe_create/pages/recipe_create_page.dart'
     show RecipeCreateView;
 import '../../../domain/usecases/get_recipe_detail.dart';
 import '../../../injection/injection.dart';
+import '../../../core/utils/action_guard.dart';
+import '../../session/session_cubit.dart';
 
 class RecipeEditPage extends StatelessWidget {
   final String recipeId;
@@ -14,9 +16,45 @@ class RecipeEditPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => getIt<RecipeCreateCubit>()..startEditing(),
-      child: _RecipeEditScaffold(recipeId: recipeId),
+    return BlocBuilder<SessionCubit, SessionState>(
+      builder: (context, sessionState) {
+        final canEdit = ActionGuard.canPerform(
+            sessionState.user?.status, ActionType.editRecipe);
+
+        if (!canEdit && sessionState.user != null) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('레시피 수정')),
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.block,
+                    size: 64,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    ActionGuard.getRestrictionMessage(ActionType.editRecipe),
+                    style: Theme.of(context).textTheme.titleMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('돌아가기'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return BlocProvider(
+          create: (context) => getIt<RecipeCreateCubit>()..startEditing(),
+          child: _RecipeEditScaffold(recipeId: recipeId),
+        );
+      },
     );
   }
 }

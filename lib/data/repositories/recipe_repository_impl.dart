@@ -1,5 +1,6 @@
 import 'package:dartz/dartz.dart';
 import 'dart:typed_data';
+import 'package:dio/dio.dart';
 import '../../core/errors/failure.dart';
 import '../../domain/entities/recipe.dart';
 import '../../domain/entities/recipe_query.dart';
@@ -29,6 +30,13 @@ class RecipeRepositoryImpl implements RecipeRepository {
     try {
       final result = await _recipeService.getRecipe(id, userId);
       return Right(result.toDomain());
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return const Left(NotFoundFailure(message: '레시피를 찾을 수 없습니다'));
+      } else if (e.response?.statusCode == 403) {
+        return const Left(ForbiddenFailure(message: '접근 권한이 없습니다'));
+      }
+      return Left(ServerFailure(message: e.toString()));
     } catch (e) {
       return Left(ServerFailure(message: e.toString()));
     }

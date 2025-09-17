@@ -94,18 +94,25 @@ class RecipeService {
       print('📖 Fetching recipe detail: $id');
     }
 
-    final response = await _apiClient.dio.get('/recipes/$id');
+    try {
+      final response = await _apiClient.dio.get('/recipes/$id');
 
-    if (response.statusCode == 200) {
-      final payload = response.data['data'] ?? response.data;
-      if (kDebugMode) {
-        try {
-          print('✅ Recipe loaded: ${payload['title']}');
-        } catch (_) {}
+      if (response.statusCode == 200) {
+        final payload = response.data['data'] ?? response.data;
+        if (kDebugMode) {
+          try {
+            print('✅ Recipe loaded: ${payload['title']}');
+          } catch (_) {}
+        }
+        return RecipeModel.fromJson(payload as Map<String, dynamic>);
+      } else {
+        throw Exception('레시피 조회 실패: ${response.statusCode}');
       }
-      return RecipeModel.fromJson(payload as Map<String, dynamic>);
-    } else {
-      throw Exception('레시피 조회 실패: ${response.statusCode}');
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        throw Exception('404 Not Found');
+      }
+      rethrow;
     }
   }
 

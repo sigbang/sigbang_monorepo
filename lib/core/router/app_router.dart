@@ -11,6 +11,9 @@ import '../../presentation/search/pages/search_page.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../presentation/home/cubits/home_cubit.dart';
 import '../../presentation/home/cubits/home_state.dart';
+import '../../injection/injection.dart';
+import '../../presentation/session/session_cubit.dart';
+import '../../domain/entities/user.dart' show UserStatus;
 
 class AppRouter {
   static const String login = '/login';
@@ -21,6 +24,19 @@ class AppRouter {
   static const String recipeEdit = '/edit-recipe';
   static const String profile = '/profile';
   static const String search = '/search';
+
+  static String? _guardSuspendedAccess(
+      BuildContext context, GoRouterState state) {
+    try {
+      final user = getIt<SessionCubit>().state.user;
+      if (user?.status == UserStatus.suspended) {
+        return main; // Redirect to main page
+      }
+    } catch (_) {
+      // If session cubit not available, allow access
+    }
+    return null; // Allow access
+  }
 
   static final GoRouter _router = GoRouter(
     initialLocation: main,
@@ -86,11 +102,13 @@ class AppRouter {
       GoRoute(
         path: recipeCreate,
         name: 'recipe_create',
+        redirect: _guardSuspendedAccess,
         builder: (context, state) => const RecipeCreatePage(),
       ),
       GoRoute(
         path: '$recipeEdit/:recipeId',
         name: 'recipe_edit',
+        redirect: _guardSuspendedAccess,
         builder: (context, state) {
           final recipeId = state.pathParameters['recipeId']!;
           return RecipeEditPage(recipeId: recipeId);

@@ -1,0 +1,62 @@
+{
+  "project_info": {
+    "project_number": "656282694766",
+    "project_id": "sigbang-firebase",
+    "storage_bucket": "sigbang-firebase.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:656282694766:android:8a2a752d952f4c47c9a27f",
+        "android_client_info": {
+          "package_name": "com.aminity.sigbang"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "656282694766-3nukta8ador80hpv1r48rsg9gq7mac66.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aminity.sigbang",
+            "certificate_hash": "664da9a02d0a417c587c195589156e5c8097b2b2"
+          }
+        },
+        {
+          "client_id": "656282694766-lrk6jgvtukqngln7tib8vi4foj5poq5o.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aminity.sigbang",
+            "certificate_hash": "eac5393028c4b8508ab04bc1426311ce24419e2e"
+          }
+        },
+        {
+          "client_id": "656282694766-p41mpn61kthbh62pehl1d0ivbd62ts8s.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA0RQoblxPCvrmQNHjXiVPieZLlAlGHH2M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "656282694766-p41mpn61kthbh62pehl1d0ivbd62ts8s.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "656282694766-ofc0haf8cco2g9r5dslour95429gth6q.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.sigbang"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

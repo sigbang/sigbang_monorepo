@@ -7,6 +7,7 @@ import '../core/constants/app_strings.dart';
 import '../generated/app_localizations.dart';
 import '../injection/injection.dart';
 import '../presentation/home/cubits/home_cubit.dart';
+import '../presentation/session/session_cubit.dart';
 
 /// The main application widget.
 class MyApp extends StatelessWidget {
@@ -14,8 +15,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<HomeCubit>.value(
-      value: getIt<HomeCubit>()..loadHome(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<HomeCubit>.value(
+          value: getIt<HomeCubit>()..loadHome(),
+        ),
+        BlocProvider<SessionCubit>.value(
+          value: getIt<SessionCubit>(),
+        ),
+      ],
       child: MaterialApp.router(
         // Provide the generated AppLocalizations to the MaterialApp.
         localizationsDelegates: const [

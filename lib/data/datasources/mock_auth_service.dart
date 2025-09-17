@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import '../../domain/entities/user.dart';
 import '../models/login_response_model.dart';
 import '../models/user_model.dart';
 
@@ -13,6 +14,7 @@ class MockAuthService {
   static const String _mockNickname = "구글사용자";
   static const String _mockProfileImage =
       "https://lh3.googleusercontent.com/a/default-user";
+  static const UserStatus _mockStatus = UserStatus.active;
 
   /// Mock Google 로그인 응답을 생성합니다.
   static Map<String, dynamic> createMockGoogleResponse() {
@@ -89,6 +91,7 @@ class MockAuthService {
       email: _mockEmail,
       name: _mockNickname,
       avatarUrl: _mockProfileImage,
+      status: _mockStatus,
     );
   }
 }

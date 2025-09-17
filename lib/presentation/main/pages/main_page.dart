@@ -6,6 +6,7 @@ import '../../feed/pages/feed_page.dart';
 import '../../search/pages/search_page.dart';
 import '../../profile/pages/profile_page.dart';
 import '../widgets/bottom_navigation_bar.dart';
+import '../../common/widgets/suspended_banner.dart';
 
 class MainPage extends StatefulWidget {
   final User? user;
@@ -72,9 +73,16 @@ class _MainPageState extends State<MainPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
+      body: Column(
+        children: [
+          const SuspendedBanner(),
+          Expanded(
+            child: IndexedStack(
+              index: _currentIndex,
+              children: _pages,
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: CustomBottomNavigationBar(
         currentIndex: _currentIndex,

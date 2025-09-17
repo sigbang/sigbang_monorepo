@@ -63,8 +63,10 @@ class ApiClient {
           handler.next(options);
         },
         onError: (error, handler) async {
+          final statusCode = error.response?.statusCode;
+
           // 401 에러 시 자동 토큰 갱신
-          if (error.response?.statusCode == 401) {
+          if (statusCode == 401) {
             if (kDebugMode) {
               print('🔄 Token expired, attempting refresh...');
             }
@@ -96,6 +98,13 @@ class ApiClient {
               }
               await _handleLogout();
             }
+          }
+          // 403 에러 시 사용자 상태 재검증
+          else if (statusCode == 403) {
+            if (kDebugMode) {
+              print('🚫 Forbidden access, revalidating user status...');
+            }
+            await _handleForbidden();
           }
           handler.next(error);
         },
@@ -185,6 +194,49 @@ class ApiClient {
     await SecureStorageService.clearAll();
     if (_onTokenExpired != null) {
       _onTokenExpired!();
+    }
+  }
+
+  // 403 처리 (사용자 상태 재검증)
+  Future<void> _handleForbidden() async {
+    try {
+      // 별도 Dio 인스턴스로 /users/me 조회
+      final response = await Dio(
+        BaseOptions(
+          baseUrl: EnvConfig.baseUrl,
+          connectTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(seconds: 15),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization':
+                'Bearer ${await SecureStorageService.getAccessToken()}'
+          },
+        ),
+      ).get('/users/me');
+
+      if (response.statusCode == 200) {
+        // 상태 확인 후 SUSPENDED/DELETED 처리
+        final data = response.data is Map<String, dynamic>
+            ? response.data
+            : (response.data['data'] ?? response.data);
+        final status = data['status']?.toString().toLowerCase();
+
+        if (status == 'deleted') {
+          // 탈퇴 계정 - 즉시 로그아웃
+          await _handleLogout();
+        } else if (status == 'suspended') {
+          // 정지 계정 - 세션 업데이트만 (UI에서 처리)
+          if (kDebugMode) {
+            print('⚠️ Account suspended, UI will handle restrictions');
+          }
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Failed to revalidate user status: $e');
+      }
+      // 재검증 실패 시 안전하게 로그아웃
+      await _handleLogout();
     }
   }
 

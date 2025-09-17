@@ -53,9 +53,6 @@ Future<void> setupDependencyInjection() async {
           'profile',
           'openid',
         ],
-        // GCP 프로젝트 설정에서 생성한 웹 어플리케이션 클라이언트 ID
-        clientId:
-            '185415114151-3o8o60efo73qsvdsbmvidbcat7k0brhb.apps.googleusercontent.com',
       ));
 
   // API Client (wire token-expired callback to reset session)

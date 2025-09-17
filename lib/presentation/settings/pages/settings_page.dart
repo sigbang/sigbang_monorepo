@@ -7,6 +7,7 @@ import '../../../injection/injection.dart';
 import '../../common/widgets/app_logo.dart';
 import '../../login/cubits/login_cubit.dart';
 import '../../login/cubits/login_state.dart';
+import '../../../data/datasources/auth_service_new.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -166,6 +167,23 @@ class SettingsView extends StatelessWidget {
                     },
                   ),
                 ),
+
+                // 회원 탈퇴
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showDeleteAccountDialog(context),
+                    icon: const Icon(Icons.delete_forever, color: Colors.red),
+                    label: const Text(
+                      '회원 탈퇴',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.red),
+                      minimumSize: const Size(double.infinity, 48),
+                    ),
+                  ),
+                ),
               ],
             ),
             BlocBuilder<LoginCubit, LoginState>(
@@ -216,6 +234,72 @@ class SettingsView extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _showDeleteAccountDialog(BuildContext context) {
+    bool agreed = false;
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('회원 탈퇴'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('탈퇴 시 모든 데이터가 영구 삭제되며 복구할 수 없습니다.'),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Checkbox(
+                    value: agreed,
+                    onChanged: (v) => setState(() => agreed = v ?? false),
+                  ),
+                  const Expanded(
+                    child: Text('안내를 확인했으며 탈퇴에 동의합니다'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: !agreed
+                  ? null
+                  : () async {
+                      Navigator.of(dialogContext).pop();
+                      await _deleteAccount(context);
+                    },
+              child: const Text(
+                '탈퇴하기',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteAccount(BuildContext context) async {
+    try {
+      final auth = getIt<AuthService>();
+      await auth.deleteMe();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('탈퇴가 완료되었습니다')),
+        );
+        context.go(AppRouter.login);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('탈퇴에 실패했습니다: $e')),
+      );
+    }
   }
 }
 

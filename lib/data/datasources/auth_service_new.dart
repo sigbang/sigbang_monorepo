@@ -214,6 +214,84 @@ class AuthService {
     }
   }
 
+  /// 회원 탈퇴를 수행합니다.
+  Future<void> deleteMe() async {
+    try {
+      final response = await _apiClient.dio.delete('/users/me');
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        // 모든 로컬 데이터 정리
+        await _cleanupAllLocalData();
+        if (kDebugMode) {
+          print('✅ Account deletion completed');
+        }
+        return;
+      }
+      throw Exception('회원 탈퇴 실패: ${response.statusCode}');
+    } on DioException catch (e) {
+      throw Exception('회원 탈퇴 실패: ${e.response?.statusCode ?? ''} ${e.message}');
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Delete account error: $e');
+      }
+      throw Exception('회원 탈퇴 실패: $e');
+    }
+  }
+
+  /// 모든 로컬 데이터를 정리합니다.
+  Future<void> _cleanupAllLocalData() async {
+    try {
+      // 1. Google Sign-In 로그아웃
+      await _googleSignIn.signOut();
+
+      // 2. 모든 보안 저장소 데이터 삭제
+      await SecureStorageService.clearAll();
+
+      // 3. 푸시 토큰 해지 (FCM이 있다면)
+      await _clearPushToken();
+
+      // 4. 이미지 캐시 정리 (있다면)
+      await _clearImageCache();
+
+      if (kDebugMode) {
+        print('✅ All local data cleared');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️ Partial cleanup failure: $e');
+      }
+    }
+  }
+
+  /// 푸시 토큰을 해지합니다.
+  Future<void> _clearPushToken() async {
+    try {
+      // FCM이나 다른 푸시 서비스가 있다면 여기서 해지
+      // 예: await FirebaseMessaging.instance.deleteToken();
+      if (kDebugMode) {
+        print('🔔 Push token cleared (placeholder)');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️ Push token clear failed: $e');
+      }
+    }
+  }
+
+  /// 이미지 캐시를 정리합니다.
+  Future<void> _clearImageCache() async {
+    try {
+      // 이미지 캐시 매니저가 있다면 여기서 정리
+      // 예: await DefaultCacheManager().emptyCache();
+      if (kDebugMode) {
+        print('🖼️ Image cache cleared (placeholder)');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️ Image cache clear failed: $e');
+      }
+    }
+  }
+
   /// 서버에서 현재 사용자 정보를 가져옵니다.
   Future<UserModel?> getCurrentUser() async {
     try {
@@ -236,10 +314,13 @@ class AuthService {
         return null;
       }
 
-      final response = await _apiClient.dio.get('/auth/me');
+      final response = await _apiClient.dio.get('/users/me');
 
       if (response.statusCode == 200) {
-        final userModel = UserModel.fromJson(response.data);
+        final data = response.data is Map<String, dynamic>
+            ? response.data
+            : (response.data['data'] ?? response.data);
+        final userModel = UserModel.fromJson(data as Map<String, dynamic>);
 
         // 로컬에 저장
         await SecureStorageService.saveUserInfo(

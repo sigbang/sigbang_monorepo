@@ -28,3 +28,11 @@ class CacheFailure extends Failure {
 class UnknownFailure extends Failure {
   const UnknownFailure({super.message = 'Unknown error occurred'});
 }
+
+class NotFoundFailure extends Failure {
+  const NotFoundFailure({super.message = 'Resource not found'});
+}
+
+class ForbiddenFailure extends Failure {
+  const ForbiddenFailure({super.message = 'Access forbidden'});
+}
