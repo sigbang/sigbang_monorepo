@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "656282694766-1sgq0frtlkp9ego792lhhugmus60tn5a.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aminity.sigbang",
+            "certificate_hash": "f23ca447d79066cb6d6fb573b4ba2748110fbdb5"
+          }
+        },
+        {
           "client_id": "656282694766-3nukta8ador80hpv1r48rsg9gq7mac66.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
