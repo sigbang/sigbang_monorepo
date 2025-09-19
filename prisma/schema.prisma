@@ -38,6 +38,7 @@ model User {
   followerRelations  Follow[] @relation("UserFollowers") // 나를 팔로우하는 관계들 (내가 following)
   reports      Report[] // 신고한 내역
   refreshTokens RefreshToken[] // JWT 리프레시 토큰
+  lifecycleEvents UserLifecycleEvent[]
   
   @@map("users")
 }
@@ -276,6 +277,27 @@ model AdminAction {
   @@map("admin_actions")
 }
 
+// 계정 라이프사이클 이벤트 로그
+model UserLifecycleEvent {
+  id         String              @id @default(uuid())
+  userId     String
+  type       LifecycleEventType
+  actorType  ActorType
+  actorId    String?
+  prevStatus UserStatus?
+  nextStatus UserStatus?
+  reason     String?
+  ip         String?
+  userAgent  String?
+  source     String?
+  createdAt  DateTime           @default(now())
+
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("user_lifecycle_events")
+}
+
 // 열거형들
 enum Difficulty {
   EASY
@@ -315,4 +337,22 @@ enum AdminActionType {
   BLOCK_USER
   UNBLOCK_USER
   DELETE_CONTENT
+}
+
+enum LifecycleEventType {
+  SIGN_UP
+  DELETE
+  REACTIVATE
+  SUSPEND
+  UNSUSPEND
+  LOGIN
+  LOGOUT
+  PASSWORD_RESET
+  PROFILE_UPDATE
+}
+
+enum ActorType {
+  USER
+  ADMIN
+  SYSTEM
 }

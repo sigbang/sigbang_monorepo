@@ -21,14 +21,70 @@ export class AuthService {
   async signUp(signUpDto: SignUpDto) {
     const { email, password, nickname } = signUpDto;
 
-    // 닉네임 중복 체크
-    const existingUser = await this.prismaService.user.findUnique({
-      where: { nickname },
+    // 이메일 기준 기존 계정 조회 (재활성화 허용)
+    const existingByEmail = await this.prismaService.user.findUnique({
+      where: { email },
+      select: { id: true, status: true, deletedAt: true, nickname: true, supabaseId: true },
     });
 
-    if (existingUser) {
-      throw new ConflictException('이미 사용 중인 닉네임입니다.');
+    if (existingByEmail) {
+      // 탈퇴 계정 → 재활성화 플로우
+      if ((existingByEmail as any).status === 'DELETED') {
+        // Supabase 계정 동기화(비밀번호 갱신 또는 신규 생성)
+        if (existingByEmail.supabaseId) {
+          await this.supabaseService.getServiceClient().auth.admin.updateUserById(
+            existingByEmail.supabaseId,
+            { password },
+          );
+        } else {
+          const { data, error } = await this.supabaseService.getServiceClient().auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+          });
+          if (error) throw new ConflictException('재활성화 중 오류가 발생했습니다: ' + error.message);
+          await this.prismaService.user.update({ where: { id: existingByEmail.id }, data: { supabaseId: (data as any).user.id } });
+        }
+
+        // 닉네임 변경 요청 시 중복 체크 후 반영
+        if (nickname && nickname !== existingByEmail.nickname) {
+          const dup = await this.prismaService.user.findFirst({ where: { nickname, id: { not: existingByEmail.id } } });
+          if (dup) throw new ConflictException('이미 사용 중인 닉네임입니다.');
+        }
+
+        const reactivated = await this.prismaService.user.update({
+          where: { id: existingByEmail.id },
+          data: { status: 'ACTIVE' as any, deletedAt: null, ...(nickname ? { nickname } : {}) },
+        });
+
+        // 이벤트 로그: REACTIVATE
+        await (this.prismaService as any).userLifecycleEvent.create({
+          data: {
+            userId: reactivated.id,
+            type: 'REACTIVATE',
+            actorType: 'USER',
+            actorId: reactivated.id,
+            prevStatus: 'DELETED',
+            nextStatus: 'ACTIVE',
+            source: 'email',
+          },
+        });
+
+        const tokens = await this.tokenService.generateTokenPair(reactivated.id, email);
+        return {
+          message: '계정이 재활성화되었습니다.',
+          ...tokens,
+          user: { id: reactivated.id, email, nickname: reactivated.nickname },
+        };
+      }
+
+      // 기존 활성/정지 계정이면 가입 불가
+      throw new ConflictException('이미 가입된 이메일입니다.');
     }
+
+    // 신규 가입 경로: 닉네임 중복 체크
+    const existingUser = await this.prismaService.user.findUnique({ where: { nickname } });
+    if (existingUser) throw new ConflictException('이미 사용 중인 닉네임입니다.');
 
     try {
       // Supabase Auth로 사용자 생성
@@ -50,6 +106,18 @@ export class AuthService {
           email,
           nickname,
           supabaseId: data.user.id,
+        },
+      });
+
+      // 이벤트 로그: SIGN_UP
+      await (this.prismaService as any).userLifecycleEvent.create({
+        data: {
+          userId: user.id,
+          type: 'SIGN_UP',
+          actorType: 'USER',
+          actorId: user.id,
+          nextStatus: 'ACTIVE',
+          source: 'email',
         },
       });
 
@@ -101,6 +169,13 @@ export class AuthService {
       // JWT 토큰 쌍 생성
       const tokens = await this.tokenService.generateTokenPair(user.id, user.email);
 
+      // 이벤트 로그: LOGIN (best-effort)
+      try {
+        await (this.prismaService as any).userLifecycleEvent.create({
+          data: { userId: user.id, type: 'LOGIN', actorType: 'USER', actorId: user.id, source: 'email' },
+        });
+      } catch {}
+
       return {
         message: '로그인 성공',
         ...tokens,
@@ -130,6 +205,7 @@ export class AuthService {
   async signOut(refreshToken: string) {
     try {
       await this.tokenService.revokeRefreshToken(refreshToken);
+      // 이벤트 로그: LOGOUT (best-effort) - 토큰에서 유저를 구하기 어렵다면 생략 가능
       return { message: '로그아웃 되었습니다.' };
     } catch (error) {
       return { message: '로그아웃 처리 중 오류가 발생했습니다.' };
@@ -168,6 +244,13 @@ export class AuthService {
           // Google OAuth 사용자는 supabaseId 없이 생성
         },
       });
+
+      // 이벤트 로그: SIGN_UP(OAuth)
+      try {
+        await (this.prismaService as any).userLifecycleEvent.create({
+          data: { userId: user.id, type: 'SIGN_UP', actorType: 'USER', actorId: user.id, nextStatus: 'ACTIVE', source: 'google-oauth' },
+        });
+      } catch {}
     }
 
     // JWT 토큰 쌍 생성

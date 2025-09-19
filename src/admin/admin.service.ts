@@ -44,9 +44,21 @@ export class AdminService {
   }
 
   async blockUser(userId: string, adminId: string, reason?: string) {
-    await this.prismaService.user.update({
-      where: { id: userId },
-      data: { status: 'SUSPENDED' },
+    const prev = await this.prismaService.user.findUnique({ where: { id: userId }, select: { status: true } });
+    await this.prismaService.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: userId }, data: { status: 'SUSPENDED' as any } });
+      await (tx as any).userLifecycleEvent.create({
+        data: {
+          userId,
+          type: 'SUSPEND',
+          actorType: 'ADMIN',
+          actorId: adminId,
+          prevStatus: (prev as any)?.status,
+          nextStatus: 'SUSPENDED',
+          reason,
+          source: 'admin',
+        },
+      });
     });
 
     await this.prismaService.adminAction.create({

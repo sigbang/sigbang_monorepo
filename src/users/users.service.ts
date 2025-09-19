@@ -161,15 +161,24 @@ export class UsersService {
 
   async deleteAccount(userId: string) {
     try {
+      const prev = await this.prismaService.user.findUnique({ where: { id: userId }, select: { status: true } });
       // Soft delete - status=DELETED, deletedAt
-      await this.prismaService.user.update({
-        where: { id: userId },
-        data: { status: 'DELETED', deletedAt: new Date() } as any,
+      await this.prismaService.$transaction(async (tx) => {
+        await tx.user.update({ where: { id: userId }, data: { status: 'DELETED' as any, deletedAt: new Date() } });
+        await tx.recipe.updateMany({ where: { authorId: userId }, data: { authorId: null } });
+        await tx.comment.updateMany({ where: { authorId: userId }, data: { authorId: null } });
+        await (tx as any).userLifecycleEvent.create({
+          data: {
+            userId,
+            type: 'DELETE',
+            actorType: 'USER',
+            actorId: userId,
+            prevStatus: (prev as any)?.status,
+            nextStatus: 'DELETED',
+            source: 'email',
+          },
+        });
       });
-
-      // 연결된 레시피/댓글 authorId NULL 처리
-      await this.prismaService.recipe.updateMany({ where: { authorId: userId }, data: { authorId: null } });
-      await this.prismaService.comment.updateMany({ where: { authorId: userId }, data: { authorId: null } });
 
       return { message: '계정이 성공적으로 탈퇴되었습니다.' };
     } catch (error) {
@@ -334,5 +343,39 @@ export class UsersService {
     ]);
 
     return { followerCount, followingCount };
+  }
+
+  // 히스토리 조회 (selfView: IP/UA 마스킹)
+  async getUserHistory(userId: string, opts?: { limit?: number; cursor?: string }, selfView?: boolean) {
+    const limit = Math.max(1, Math.min(100, Number(opts?.limit ?? 20)));
+    let decoded: { id: string; createdAt?: string } | null = null;
+    if (opts?.cursor) {
+      try { decoded = JSON.parse(Buffer.from(opts.cursor, 'base64').toString('utf-8')); } catch {}
+    }
+    const rows = await (this.prismaService as any).userLifecycleEvent.findMany({
+      where: { userId },
+      take: limit + 1,
+      ...(decoded && { cursor: { id: decoded.id }, skip: 1 }),
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    });
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, limit) : rows;
+    const last = items[items.length - 1];
+    const nextCursor = last ? Buffer.from(JSON.stringify({ id: last.id, createdAt: last.createdAt })).toString('base64') : null;
+    const masked = items.map((e: any) => ({
+      id: e.id,
+      userId: e.userId,
+      type: e.type,
+      actorType: e.actorType,
+      actorId: e.actorId,
+      prevStatus: e.prevStatus,
+      nextStatus: e.nextStatus,
+      reason: e.reason,
+      ip: selfView ? (e.ip ? e.ip.replace(/(\d+\.\d+\.)(\d+\.\d+)/, '$1xx.xx') : null) : e.ip,
+      userAgent: selfView ? undefined : e.userAgent,
+      source: e.source,
+      createdAt: e.createdAt,
+    }));
+    return { items: masked, pageInfo: { limit, nextCursor, hasMore } };
   }
 }

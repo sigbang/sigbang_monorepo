@@ -44,6 +44,13 @@ export class UsersController {
     return this.usersService.findMe(user.id);
   }
 
+  @Get('me/history')
+  @ApiOperation({ summary: '내 계정 히스토리 조회' })
+  @ApiResponse({ status: 200, description: '히스토리 조회 성공' })
+  async getMyHistory(@CurrentUser() user: any, @Query('limit') limit?: number, @Query('cursor') cursor?: string) {
+    return (this.usersService as any).getUserHistory(user.id, { limit, cursor }, true);
+  }
+
   @Patch('me')
   @ApiOperation({ summary: '내 정보 수정' })
   @ApiResponse({
@@ -146,6 +153,15 @@ export class UsersController {
   @ApiResponse({ status: 404, description: '사용자를 찾을 수 없음' })
   async getUserById(@Param('id') userId: string) {
     return this.usersService.findUserById(userId);
+  }
+
+  @Get(':id/history')
+  @ApiOperation({ summary: '사용자 히스토리 조회(운영자용)' })
+  @ApiParam({ name: 'id', description: '사용자 ID' })
+  @ApiResponse({ status: 200, description: '히스토리 조회 성공' })
+  async getUserHistory(@Param('id') userId: string, @CurrentUser() currentUser: any, @Query('limit') limit?: number, @Query('cursor') cursor?: string) {
+    // 운영자 권한 가드에서 검증됨
+    return (this.usersService as any).getUserHistory(userId, { limit, cursor }, false);
   }
 
   @Get(':id/recipes')
