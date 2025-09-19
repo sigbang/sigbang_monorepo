@@ -31,19 +31,29 @@ export class AuthService {
       // 탈퇴 계정 → 재활성화 플로우
       if ((existingByEmail as any).status === 'DELETED') {
         // Supabase 계정 동기화(비밀번호 갱신 또는 신규 생성)
-        if (existingByEmail.supabaseId) {
-          await this.supabaseService.getServiceClient().auth.admin.updateUserById(
-            existingByEmail.supabaseId,
-            { password },
-          );
-        } else {
-          const { data, error } = await this.supabaseService.getServiceClient().auth.admin.createUser({
-            email,
-            password,
-            email_confirm: true,
-          });
-          if (error) throw new ConflictException('재활성화 중 오류가 발생했습니다: ' + error.message);
-          await this.prismaService.user.update({ where: { id: existingByEmail.id }, data: { supabaseId: (data as any).user.id } });
+        try {
+          if (existingByEmail.supabaseId) {
+            const { error } = await this.supabaseService.getServiceClient().auth.admin.updateUserById(
+              existingByEmail.supabaseId,
+              { password },
+            );
+            if (error) {
+              console.warn('Supabase 비밀번호 갱신 실패, 계속 진행:', error.message);
+            }
+          } else {
+            const { data, error } = await this.supabaseService.getServiceClient().auth.admin.createUser({
+              email,
+              password,
+              email_confirm: true,
+            });
+            if (error) {
+              console.warn('Supabase 계정 생성 실패, 계속 진행:', error.message);
+            } else {
+              await this.prismaService.user.update({ where: { id: existingByEmail.id }, data: { supabaseId: (data as any).user.id } });
+            }
+          }
+        } catch (error) {
+          console.warn('Supabase 동기화 오류, 계속 진행:', error);
         }
 
         // 닉네임 변경 요청 시 중복 체크 후 반영
@@ -158,12 +168,40 @@ export class AuthService {
       }
 
       // 데이터베이스에서 사용자 정보 조회
-      const user = await this.prismaService.user.findUnique({
+      let user = await this.prismaService.user.findUnique({
         where: { supabaseId: data.user.id },
       });
 
-      if (!user || (user as any).status !== 'ACTIVE') {
-        throw new NotFoundException('사용자를 찾을 수 없거나 비활성화된 계정입니다.');
+      if (!user) {
+        throw new NotFoundException('사용자를 찾을 수 없습니다.');
+      }
+
+      // DELETED 계정 자동 재활성화
+      if ((user as any).status === 'DELETED') {
+        user = await this.prismaService.user.update({
+          where: { id: user.id },
+          data: { status: 'ACTIVE' as any, deletedAt: null },
+        });
+
+        // 이벤트 로그: REACTIVATE
+        try {
+          await (this.prismaService as any).userLifecycleEvent.create({
+            data: {
+              userId: user.id,
+              type: 'REACTIVATE',
+              actorType: 'USER',
+              actorId: user.id,
+              prevStatus: 'DELETED',
+              nextStatus: 'ACTIVE',
+              source: 'email',
+            },
+          });
+        } catch {}
+      }
+
+      // SUSPENDED 계정은 여전히 거절
+      if ((user as any).status !== 'ACTIVE') {
+        throw new NotFoundException('비활성화된 계정입니다.');
       }
 
       // JWT 토큰 쌍 생성
@@ -251,6 +289,32 @@ export class AuthService {
           data: { userId: user.id, type: 'SIGN_UP', actorType: 'USER', actorId: user.id, nextStatus: 'ACTIVE', source: 'google-oauth' },
         });
       } catch {}
+    } else if ((user as any).status === 'DELETED') {
+      // 기존 DELETED 계정 재활성화
+      user = await this.prismaService.user.update({
+        where: { id: user.id },
+        data: { status: 'ACTIVE' as any, deletedAt: null },
+      });
+
+      // 이벤트 로그: REACTIVATE(OAuth)
+      try {
+        await (this.prismaService as any).userLifecycleEvent.create({
+          data: {
+            userId: user.id,
+            type: 'REACTIVATE',
+            actorType: 'USER',
+            actorId: user.id,
+            prevStatus: 'DELETED',
+            nextStatus: 'ACTIVE',
+            source: 'google-oauth',
+          },
+        });
+      } catch {}
+    }
+
+    // SUSPENDED 계정은 OAuth 로그인 거절
+    if ((user as any).status !== 'ACTIVE') {
+      throw new UnauthorizedException('비활성화된 계정입니다.');
     }
 
     // JWT 토큰 쌍 생성
