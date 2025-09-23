@@ -11,6 +11,7 @@ import '../../presentation/search/pages/search_page.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../presentation/home/cubits/home_cubit.dart';
 import '../../presentation/home/cubits/home_state.dart';
+import '../../presentation/settings/pages/delete_account_page.dart';
 import '../../injection/injection.dart';
 import '../../presentation/session/session_cubit.dart';
 import '../../domain/entities/user.dart' show UserStatus;
@@ -19,6 +20,7 @@ class AppRouter {
   static const String login = '/login';
   static const String main = '/';
   static const String settings = '/settings';
+  static const String deleteAccount = '/settings/delete-account';
   static const String recipeDetail = '/recipe';
   static const String recipeCreate = '/create-recipe';
   static const String recipeEdit = '/edit-recipe';
@@ -72,6 +74,21 @@ class AppRouter {
         path: settings,
         name: 'settings',
         builder: (context, state) => const SettingsPage(),
+      ),
+      GoRoute(
+        path: '$settings/delete-account',
+        name: 'delete_account',
+        builder: (context, state) => const DeleteAccountPage(),
+      ),
+      GoRoute(
+        path: '$settings/delete-account/success',
+        name: 'delete_account_success',
+        builder: (context, state) => const DeleteAccountResultPage.success(),
+      ),
+      GoRoute(
+        path: '$settings/delete-account/error',
+        name: 'delete_account_error',
+        builder: (context, state) => const DeleteAccountResultPage.error(),
       ),
       GoRoute(
         path: profile,

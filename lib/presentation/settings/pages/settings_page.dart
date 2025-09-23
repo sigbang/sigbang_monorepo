@@ -134,6 +134,18 @@ class SettingsView extends StatelessWidget {
                   },
                 ),
 
+                // 회원 탈퇴 (정보 섹션 내 노출)
+                ListTile(
+                  leading: const Icon(Icons.delete_forever, color: Colors.red),
+                  title:
+                      const Text('회원 탈퇴', style: TextStyle(color: Colors.red)),
+                  trailing:
+                      const Icon(Icons.arrow_forward_ios, color: Colors.red),
+                  onTap: () {
+                    context.push('/settings/delete-account');
+                  },
+                ),
+
                 const Divider(),
 
                 // 로그아웃 버튼
