@@ -8,6 +8,7 @@ import '../../common/widgets/app_logo.dart';
 import '../../login/cubits/login_cubit.dart';
 import '../../login/cubits/login_state.dart';
 import '../../../data/datasources/auth_service_new.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -117,21 +118,13 @@ class SettingsView extends StatelessWidget {
                   leading: const Icon(Icons.privacy_tip),
                   title: const Text('개인정보처리방침'),
                   trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('개인정보처리방침 페이지 준비 중입니다')),
-                    );
-                  },
+                  onTap: () => _openLink(context, AppStrings.privacyPolicyUrl),
                 ),
                 ListTile(
                   leading: const Icon(Icons.description),
                   title: const Text('서비스 이용약관'),
                   trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('서비스 이용약관 페이지 준비 중입니다')),
-                    );
-                  },
+                  onTap: () => _openLink(context, AppStrings.termsUrl),
                 ),
 
                 // 회원 탈퇴 (정보 섹션 내 노출)
@@ -206,6 +199,27 @@ class SettingsView extends StatelessWidget {
             ),
       ),
     );
+  }
+
+  Future<void> _openLink(BuildContext context, String url) async {
+    try {
+      final uri = Uri.parse(url);
+      final ok = await launchUrl(
+        uri,
+        mode: LaunchMode.inAppBrowserView, // iOS/Android는 인앱 브라우저, 나머지는 적절히 처리
+      );
+      if (!ok && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('링크를 열 수 없습니다')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('링크 열기 실패: $e')),
+        );
+      }
+    }
   }
 
   void _showLogoutDialog(BuildContext context) {
