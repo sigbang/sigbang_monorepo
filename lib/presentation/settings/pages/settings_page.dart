@@ -179,23 +179,6 @@ class SettingsView extends StatelessWidget {
                     },
                   ),
                 ),
-
-                // 회원 탈퇴
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                  child: OutlinedButton.icon(
-                    onPressed: () => _showDeleteAccountDialog(context),
-                    icon: const Icon(Icons.delete_forever, color: Colors.red),
-                    label: const Text(
-                      '회원 탈퇴',
-                      style: TextStyle(color: Colors.red),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.red),
-                      minimumSize: const Size(double.infinity, 48),
-                    ),
-                  ),
-                ),
               ],
             ),
             BlocBuilder<LoginCubit, LoginState>(

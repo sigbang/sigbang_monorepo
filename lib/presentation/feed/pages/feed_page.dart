@@ -136,46 +136,6 @@ class _FeedViewState extends State<FeedView> {
           builder: (context, state) {
             return Column(
               children: [
-                // 검색바
-                FeedSearchBar(
-                  initialQuery: state is FeedLoaded ? state.searchQuery : null,
-                  onSearch: (query) =>
-                      context.read<FeedCubit>().searchRecipes(query),
-                  onFilterTap: _showFilterModal,
-                ),
-
-                // 활성 필터 표시
-                if (state is FeedLoaded && state.selectedTags.isNotEmpty)
-                  Container(
-                    width: double.infinity,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: state.selectedTags.map((tag) {
-                        return Chip(
-                          label: Text(tag),
-                          onDeleted: () {
-                            final newTags =
-                                List<String>.from(state.selectedTags)
-                                  ..remove(tag);
-                            context.read<FeedCubit>().filterByTags(newTags);
-                          },
-                          deleteIcon: const Icon(Icons.close, size: 16),
-                          backgroundColor:
-                              Theme.of(context).colorScheme.primaryContainer,
-                          labelStyle: TextStyle(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onPrimaryContainer,
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-
-                // 메인 콘텐츠
                 Expanded(
                   child: _buildContent(context, state),
                 ),
