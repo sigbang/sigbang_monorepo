@@ -139,23 +139,36 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
         }
       },
       builder: (context, state) {
-        return Scaffold(
-          body: Stack(
-            children: [
-              _buildBody(context, state),
-              if (state is RecipeCreateUploading)
-                _FullScreenLoader(
-                  message: state.currentStep.isNotEmpty
-                      ? state.currentStep
-                      : 'AI로 레시피 생성 중...',
-                  onCancel: state.canCancel
-                      ? () =>
-                          context.read<RecipeCreateCubit>().cancelAiGeneration()
-                      : null,
-                ),
-            ],
+        final bool isEditingOnly =
+            state is RecipeCreateEditing && state is! RecipeCreateUploading;
+
+        return PopScope(
+          canPop: !isEditingOnly,
+          onPopInvoked: (didPop) {
+            if (didPop) return;
+            if (isEditingOnly) {
+              _showExitDialog(context, state);
+            }
+          },
+          child: Scaffold(
+            body: Stack(
+              children: [
+                _buildBody(context, state),
+                if (state is RecipeCreateUploading)
+                  _FullScreenLoader(
+                    message: state.currentStep.isNotEmpty
+                        ? state.currentStep
+                        : 'AI로 레시피 생성 중...',
+                    onCancel: state.canCancel
+                        ? () => context
+                            .read<RecipeCreateCubit>()
+                            .cancelAiGeneration()
+                        : null,
+                  ),
+              ],
+            ),
+            bottomNavigationBar: _buildBottomBar(context, state),
           ),
-          bottomNavigationBar: _buildBottomBar(context, state),
         );
       },
     );
