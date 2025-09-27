@@ -1,12 +1,14 @@
+"use client";
 import Sidebar from '@/components/Sidebar';
 import Topbar from '@/components/Topbar';
 import Section from '@/components/Section';
 import MobileNav from '@/components/MobileNav';
-import { t } from '@/i18n';
+import { useT } from '@/i18n/I18nProvider';
 import { useEffect, useRef, useState } from 'react';
 import { useHotkeys } from '@/hooks/useHotkeys';
 
 export default function Home() {
+  const t = useT();
   const nowItems: any[] = [];
   const recommendItems: any[] = [];
   const mainRef = useRef<HTMLElement>(null);

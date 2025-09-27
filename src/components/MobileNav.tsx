@@ -1,8 +1,9 @@
 'use client';
 import { IconHome, IconSearch, IconCompass, IconPlus } from './icons';
-import { t } from '@/i18n';
+import { useT } from '@/i18n/I18nProvider';
 
 export default function MobileNav() {
+  const t = useT();
   return (
     <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#eee]">
       <ul className="grid grid-cols-4 text-[12px] text-[#444]">

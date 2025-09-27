@@ -1,8 +1,9 @@
 'use client';
 import { IconHome, IconSearch, IconCompass, IconPlus } from './icons';
-import { t } from '@/i18n';
+import { useT } from '@/i18n/I18nProvider';
 
 export default function Sidebar() {
+  const t = useT();
   return (
     <aside className="hidden sm:flex sm:flex-col sm:w-[200px] border-r border-[#eee] px-4 pt-6 gap-6" aria-label="사이드바 내비게이션">
       <div className="flex items-center gap-2 text-[18px] font-semibold">

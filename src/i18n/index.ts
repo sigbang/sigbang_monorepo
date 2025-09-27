@@ -14,4 +14,12 @@ export function t(path: string, locale: Locale = 'ko'): string {
   return typeof cur === 'string' ? cur : path;
 }
 
+export async function loadDictionary(locale: Locale) {
+  switch (locale) {
+    case 'ko':
+    default:
+      return dictionaries.ko;
+  }
+}
+
 
