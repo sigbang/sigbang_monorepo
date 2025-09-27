@@ -4,20 +4,25 @@ import Topbar from '@/components/Topbar';
 import Section from '@/components/Section';
 import MobileNav from '@/components/MobileNav';
 import { useT } from '@/i18n/I18nProvider';
-import { useEffect, useRef, useState } from 'react';
+import { useRef } from 'react';
 import { useHotkeys } from '@/hooks/useHotkeys';
+import { usePopularFeed, useRecommendedFeed } from '@/lib/hooks/feed';
 
 export default function Home() {
   const t = useT();
-  const nowItems: any[] = [];
-  const recommendItems: any[] = [];
+  const popular = usePopularFeed(6);
+  const recommended = useRecommendedFeed(6);
+  const getImageUrl = (recipe: { thumbnailImage?: string; thumbnailUrl?: string; thumbnailPath?: string }) => {
+    const thumb = recipe.thumbnailImage || recipe.thumbnailUrl || recipe.thumbnailPath;
+    if (!thumb) return '';
+    return /^https?:/.test(thumb) ? thumb : `${process.env.NEXT_PUBLIC_API_BASE_URL}/${thumb}`;
+  };
+  const nowItems = (popular.data?.pages.flatMap((p) => p.recipes) ?? []).map((r) => ({ id: r.id, title: r.title, image: getImageUrl(r) }));
+  const recommendItems = (recommended.data?.pages.flatMap((p) => p.recipes) ?? []).map((r) => ({ id: r.id, title: r.title, image: getImageUrl(r) }));
   const mainRef = useRef<HTMLElement>(null);
-  const [focusIndex, setFocusIndex] = useState(0);
 
   useHotkeys({
     'g': () => mainRef.current?.focus(),
-    'Ctrl+ArrowRight': (e) => { e.preventDefault(); setFocusIndex((i) => i + 1); },
-    'Ctrl+ArrowLeft': (e) => { e.preventDefault(); setFocusIndex((i) => Math.max(0, i - 1)); },
   });
 
   return (
@@ -33,6 +38,10 @@ export default function Home() {
           <Section title={t('sections.now')} items={nowItems} />
           <div className="h-[24px]" />
           <Section title={t('sections.recommend')} items={recommendItems} highlightFirst />
+          <div className="mt-4 flex gap-3">
+            <a className="text-sm text-sky-600 hover:underline" href="/feed/popular">인기 더 보기</a>
+            <a className="text-sm text-sky-600 hover:underline" href="/feed/recommended">추천 더 보기</a>
+          </div>
         </main>
       </div>
       <MobileNav />
