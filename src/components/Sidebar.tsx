@@ -1,5 +1,6 @@
 'use client';
 import { IconHome, IconSearch, IconCompass, IconPlus } from './icons';
+import { t } from '@/i18n';
 
 export default function Sidebar() {
   return (
@@ -9,10 +10,10 @@ export default function Sidebar() {
         <span>식방</span>
       </div>
       <nav className="flex flex-col gap-3 text-[14px] text-[#333]">
-        <a className="flex items-center gap-2 hover:text-black focus:outline-none focus:ring-2 focus:ring-sky-500 rounded" href="/" aria-current="page"><IconHome />홈</a>
-        <a className="flex items-center gap-2 hover:text-black focus:outline-none focus:ring-2 focus:ring-sky-500 rounded" href="#"><IconSearch />검색</a>
-        <a className="flex items-center gap-2 hover:text-black focus:outline-none focus:ring-2 focus:ring-sky-500 rounded" href="#"><IconCompass />탐색</a>
-        <a className="flex items-center gap-2 hover:text-black focus:outline-none focus:ring-2 focus:ring-sky-500 rounded" href="/recipes/new"><IconPlus />생성</a>
+        <a className="flex items-center gap-2 hover:text-black focus:outline-none focus:ring-2 focus:ring-sky-500 rounded" href="/" aria-current="page"><IconHome />{t('nav.home')}</a>
+        <a className="flex items-center gap-2 hover:text-black focus:outline-none focus:ring-2 focus:ring-sky-500 rounded" href="#"><IconSearch />{t('nav.search')}</a>
+        <a className="flex items-center gap-2 hover:text-black focus:outline-none focus:ring-2 focus:ring-sky-500 rounded" href="#"><IconCompass />{t('nav.explore')}</a>
+        <a className="flex items-center gap-2 hover:text-black focus:outline-none focus:ring-2 focus:ring-sky-500 rounded" href="/recipes/new"><IconPlus />{t('nav.create')}</a>
       </nav>
     </aside>
   );

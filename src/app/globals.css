@@ -15,8 +15,15 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
-    --foreground: #ededed;
+    --foreground: #e6e6e6;
   }
+  .border-\[\#eee\] { border-color: #2a2a2a !important; }
+  .bg-white { background-color: #0f0f10 !important; }
+}
+
+@media (forced-colors: active) {
+  * { forced-color-adjust: auto; }
+  a:focus, button:focus { outline: 2px solid Highlight; }
 }
 
 body {
