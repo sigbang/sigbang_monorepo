@@ -7,9 +7,12 @@ import { useT } from '@/i18n/I18nProvider';
 import { useRef } from 'react';
 import { useHotkeys } from '@/hooks/useHotkeys';
 import { usePopularFeed, useRecommendedFeed } from '@/lib/hooks/feed';
+import { useSession } from 'next-auth/react';
+import AuthButtons from '@/components/AuthButtons';
 
 export default function Home() {
   const t = useT();
+  const { data: session, status } = useSession();
   const popular = usePopularFeed(6);
   const recommended = useRecommendedFeed(6);
   const getImageUrl = (recipe: { thumbnailImage?: string; thumbnailUrl?: string; thumbnailPath?: string }) => {
@@ -34,6 +37,18 @@ export default function Home() {
           <div className="text-center mb-6">
             <div className="text-[14px] text-[#111] font-semibold">{t('welcome.title')}</div>
             <div className="text-[12px] text-[#777] mt-1">{t('welcome.subtitle')}</div>
+            {status !== 'loading' && (
+              <div className="mt-3 text-[12px] text-[#555]">
+                {session ? (
+                  <span>{session.user?.name}님 환영합니다</span>
+                ) : (
+                  <span>로그인이 필요합니다</span>
+                )}
+              </div>
+            )}
+            <div className="mt-2">
+              <AuthButtons />
+            </div>
           </div>
           <Section title={t('sections.now')} items={nowItems} />
           <div className="h-[24px]" />
