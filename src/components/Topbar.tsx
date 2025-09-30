@@ -73,8 +73,11 @@ export default function Topbar() {
                 프로필
               </Link>
               <div className="my-3 h-px bg-[#eee]" />
-              <button
-                onClick={() => signOut({ callbackUrl: '/' })}
+          <button
+            onClick={async () => {
+              try { await fetch('/api/auth/logout', { method: 'POST' }); } catch {}
+              await signOut({ callbackUrl: '/' });
+            }}
                 className="w-full flex items-center justify-between text-[14px] text-[#111] hover:text-sky-600"
                 role="menuitem"
               >
