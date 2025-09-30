@@ -20,7 +20,7 @@ export default function AuthButtons() {
     );
   }
 
-  return <button onClick={() => signIn("google")}>Google로 로그인</button>;
+  return <button onClick={() => signIn("google", { callbackUrl: "/auth/finalize" })}>Google로 로그인</button>;
 }
 
 

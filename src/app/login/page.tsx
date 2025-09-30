@@ -8,7 +8,7 @@ export default function LoginPage() {
   const router = useRouter();
 
   const handleGoogle = async () => {
-    await signIn("google", { callbackUrl: "/" });
+    await signIn("google", { callbackUrl: "/auth/finalize" });
   };
 
   return (
