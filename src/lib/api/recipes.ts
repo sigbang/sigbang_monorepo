@@ -17,13 +17,21 @@ export type CreateRecipeDto = {
   tags?: TagDto[];
 };
 
+function toServerDto(dto: CreateRecipeDto) {
+  const { difficulty, ...rest } = dto;
+  return {
+    ...rest,
+    ...(difficulty ? { difficulty: difficulty.toUpperCase() } : {}),
+  } as Record<string, unknown>;
+}
+
 export async function createRecipe(dto: CreateRecipeDto) {
-  const { data } = await api.post('/recipes', dto, { timeout: 120000 });
+  const { data } = await api.post('/recipes', toServerDto(dto), { timeout: 120000 });
   return data.id as string;
 }
 
 export async function updateRecipe(id: string, dto: CreateRecipeDto) {
-  await api.put(`/recipes/${id}`, dto);
+  await api.put(`/recipes/${id}`, toServerDto(dto));
 }
 
 export async function aiGenerate(params: { imagePath?: string; title?: string }) {
