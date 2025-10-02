@@ -8,6 +8,7 @@ import '../cubits/login_state.dart';
 import '../../common/widgets/app_logo.dart';
 import '../../main/widgets/bottom_navigation_bar.dart';
 import '../../home/cubits/home_cubit.dart';
+import '../../session/session_cubit.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
@@ -65,6 +66,8 @@ class _LoginViewState extends State<LoginView> {
           if (state is LoginSuccess) {
             debugPrint('Login success');
             // 먼저 홈 상태 갱신 후 화면 전환 (깜빡임 줄임)
+            // 세션 갱신 (SessionCubit.user 설정)
+            getIt<SessionCubit>().setUser(state.user);
             getIt<HomeCubit>().refreshHome().whenComplete(() {
               context.go(AppRouter.main);
             });
