@@ -1,6 +1,6 @@
 'use client';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { getPopular, getRecommended } from '../api/feed';
+import { getPopular, getRecommended, getExplore } from '../api/feed';
 
 export function useRecommendedFeed(limit = 10) {
   return useInfiniteQuery({
@@ -15,6 +15,15 @@ export function usePopularFeed(limit = 10) {
   return useInfiniteQuery({
     queryKey: ['feed', 'popular', limit],
     queryFn: ({ pageParam }) => getPopular({ limit, cursor: pageParam as string | undefined }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+  });
+}
+
+export function useExploreFeed(limit = 10) {
+  return useInfiniteQuery({
+    queryKey: ['feed', 'explore', limit],
+    queryFn: ({ pageParam }) => getExplore({ limit, cursor: pageParam as string | undefined }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
