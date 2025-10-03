@@ -187,7 +187,17 @@ export class AuthController {
       },
     },
   })
-  async googleLogin(@Body() googleOAuthDto: GoogleOAuthDto) {
-    return this.authService.validateGoogleUser(googleOAuthDto.idToken);
+  async googleLogin(
+    @Body() googleOAuthDto: GoogleOAuthDto,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-forwarded-for') xff?: string,
+  ) {
+    const ip = typeof xff === 'string' ? xff.split(',')[0]?.trim() : undefined;
+    return this.authService.validateGoogleUser(googleOAuthDto.idToken, {
+      deviceId: googleOAuthDto.deviceId,
+      deviceName: googleOAuthDto.deviceName,
+      userAgent,
+      ip,
+    });
   }
 } 

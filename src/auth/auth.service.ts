@@ -294,7 +294,7 @@ export class AuthService {
     return { message: '세션이 무효화되었습니다.' };
   }
 
-  async validateGoogleUser(idToken: string) {
+  async validateGoogleUser(idToken: string, device?: DeviceContext) {
     const ticket = await this.client.verifyIdToken({
       idToken,
       audience: GOOGLE_CLIENT_ID,
@@ -353,7 +353,7 @@ export class AuthService {
     }
 
     // JWT 토큰 쌍 생성
-    const tokens = await this.tokenService.generateTokenPair(user.id, user.email);
+    const tokens = await this.tokenService.generateTokenPair(user.id, user.email, device);
 
     return { 
       ...tokens,

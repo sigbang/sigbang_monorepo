@@ -83,6 +83,16 @@ export class GoogleOAuthDto {
   })
   @IsString()
   idToken: string;
+
+  @ApiPropertyOptional({ description: '클라이언트 단말 식별자 (선택)' })
+  @IsOptional()
+  @IsString()
+  deviceId?: string;
+
+  @ApiPropertyOptional({ description: '클라이언트 표시명 (선택, 예: iPhone 15, Chrome on Mac)' })
+  @IsOptional()
+  @IsString()
+  deviceName?: string;
 }
 
 export class SignOutDto {
