@@ -16,6 +16,13 @@ export interface TokenPair {
   expiresIn: number;
 }
 
+export interface DeviceContext {
+  deviceId?: string;
+  deviceName?: string;
+  userAgent?: string;
+  ip?: string;
+}
+
 @Injectable()
 export class TokenService {
   private readonly ACCESS_TOKEN_EXPIRES_IN = '15m'; // 15분
@@ -29,7 +36,7 @@ export class TokenService {
   /**
    * Access Token과 Refresh Token 쌍 생성
    */
-  async generateTokenPair(userId: string, email: string): Promise<TokenPair> {
+  async generateTokenPair(userId: string, email: string, device?: DeviceContext): Promise<TokenPair> {
     const payload: TokenPayload = { sub: userId, email };
     
     // Access Token 생성 (짧은 만료시간)
@@ -42,15 +49,17 @@ export class TokenService {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + this.REFRESH_TOKEN_EXPIRES_IN_DAYS);
 
-    // 기존 리프레시 토큰들 무효화 (보안 강화)
-    await this.revokeUserRefreshTokens(userId);
-
     // 새 리프레시 토큰 저장
     await this.prismaService.refreshToken.create({
       data: {
         token: refreshToken,
         userId,
         expiresAt,
+        deviceId: device?.deviceId,
+        deviceName: device?.deviceName,
+        userAgent: device?.userAgent,
+        ip: device?.ip,
+        lastUsedAt: new Date(),
       },
     });
 
@@ -82,11 +91,20 @@ export class TokenService {
     // 사용된 리프레시 토큰 무효화 (Token Rotation)
     await this.prismaService.refreshToken.update({
       where: { id: storedToken.id },
-      data: { isRevoked: true },
+      data: { isRevoked: true, lastUsedAt: new Date() },
     });
 
-    // 새 토큰 쌍 생성
-    return this.generateTokenPair(storedToken.user.id, storedToken.user.email);
+    // 기존 토큰의 디바이스 컨텍스트를 이어받아 새 토큰 쌍 생성
+    return this.generateTokenPair(
+      storedToken.user.id,
+      storedToken.user.email,
+      {
+        deviceId: (storedToken as any).deviceId,
+        deviceName: (storedToken as any).deviceName,
+        userAgent: (storedToken as any).userAgent,
+        ip: (storedToken as any).ip,
+      }
+    );
   }
 
   /**

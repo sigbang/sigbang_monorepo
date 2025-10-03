@@ -51,6 +51,12 @@ model RefreshToken {
   expiresAt DateTime
   isRevoked Boolean  @default(false)
   createdAt DateTime @default(now())
+  // Device metadata
+  deviceId   String?
+  deviceName String?
+  userAgent  String?
+  ip         String?
+  lastUsedAt DateTime?
   
   // 관계
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)

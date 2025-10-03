@@ -108,6 +108,28 @@ PATCH  /admin/users/:id/block    # 사용자 차단
 
 🔒 인증 필요 | 👑 관리자 권한 필요
 
+## 🔄 다중 기기 세션 정책
+
+- **정책 변경(2025-10)**: 여러 기기(웹/안드로이드/iOS)에서 동시 세션을 허용합니다. 로그인/갱신 시 기존 기기의 리프레시 토큰(RT)을 일괄 무효화하지 않습니다.
+- **토큰 만료**:
+  - Access Token: 15분 만료
+  - Refresh Token: 30일 만료
+- **RT 전달 방식**: `POST /auth/refresh` 호출 시 Body JSON `{ "refreshToken": "<RT>" }`로 전달합니다. 헤더/쿠키를 요구하지 않습니다.
+- **토큰 로테이션**: `/auth/refresh` 성공 시 새 토큰 쌍이 발급되며, 사용된 RT는 즉시 `isRevoked: true`로 무효화됩니다. 성공 응답의 새 RT로 반드시 교체 저장하세요.
+- **에러 처리**: 무효/만료/이전 RT 사용 시 `401 Unauthorized`가 반환됩니다. 클라이언트는 재로그인 화면으로 이동하도록 처리하세요.
+- **로그아웃 동작**:
+  - `/auth/signout`: 전달된 RT만 무효화(해당 기기만 로그아웃)
+  - `/auth/signout-all`: 해당 사용자의 모든 RT 무효화(모든 기기 로그아웃)
+- **세션 관리**:
+  - `POST /auth/sessions` 🔒: 현재 계정의 기기 세션 목록 조회
+    - 응답 필드: `id, deviceId, deviceName, userAgent, ip, isRevoked, createdAt, expiresAt, lastUsedAt`
+  - `POST /auth/sessions/revoke` 🔒: 특정 기기 세션 무효화
+    - 요청 Body: `{ tokenId?: string, deviceId?: string }` (둘 중 하나 필요)
+- **클라이언트 가이드**:
+  - 웹: RT는 가능한 한 안전한 저장소에 보관하고 XSS에 대비하세요. (현재 스펙상 Body RT 전달)
+  - 모바일: Keychain(iOS)/Keystore(Android) 등 보안 저장소에 보관하세요.
+  - 401 발생 시 재로그인 유도, 성공 시에는 15분 주기(또는 만료 임박 시)로 갱신하여 세션 유지.
+
 ## 🛠️ 설치 및 실행
 
 ### 사전 요구사항

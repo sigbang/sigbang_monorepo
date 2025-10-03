@@ -16,7 +16,7 @@ import {
 } from '@nestjs/swagger';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
-import { SignUpDto, SignInDto, RefreshTokenDto, GoogleOAuthDto, SignOutDto } from './dto/auth.dto';
+import { SignUpDto, SignInDto, RefreshTokenDto, GoogleOAuthDto, SignOutDto, RevokeSessionDto } from './dto/auth.dto';
 import { JwtAuthGuard } from '../common/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
 
@@ -47,8 +47,13 @@ export class AuthController {
     },
   })
   @ApiResponse({ status: 409, description: '이미 존재하는 사용자' })
-  async signUp(@Body() signUpDto: SignUpDto) {
-    return this.authService.signUp(signUpDto);
+  async signUp(
+    @Body() signUpDto: SignUpDto,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-forwarded-for') xff?: string,
+  ) {
+    const ip = typeof xff === 'string' ? xff.split(',')[0]?.trim() : undefined;
+    return this.authService.signUp(signUpDto, { userAgent, ip });
   }
 
   @Post('signin')
@@ -73,8 +78,18 @@ export class AuthController {
     },
   })
   @ApiResponse({ status: 404, description: '이메일 또는 비밀번호가 잘못됨' })
-  async signIn(@Body() signInDto: SignInDto) {
-    return this.authService.signIn(signInDto);
+  async signIn(
+    @Body() signInDto: SignInDto,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-forwarded-for') xff?: string,
+  ) {
+    const ip = typeof xff === 'string' ? xff.split(',')[0]?.trim() : undefined;
+    return this.authService.signIn(signInDto, {
+      deviceId: signInDto.deviceId,
+      deviceName: signInDto.deviceName,
+      userAgent,
+      ip,
+    });
   }
 
   @Post('refresh')
@@ -92,7 +107,9 @@ export class AuthController {
     },
   })
   @ApiResponse({ status: 401, description: '토큰 갱신 실패' })
-  async refresh(@Body() refreshTokenDto: RefreshTokenDto) {
+  async refresh(
+    @Body() refreshTokenDto: RefreshTokenDto,
+  ) {
     return this.authService.refreshToken(refreshTokenDto.refreshToken);
   }
 
@@ -128,6 +145,26 @@ export class AuthController {
   })
   async signOutAll(@CurrentUser() user: any) {
     return this.authService.signOutAll(user.id);
+  }
+
+  @Post('sessions/revoke')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: '특정 기기 세션 로그아웃' })
+  @ApiResponse({ status: 200, description: '세션이 무효화되었습니다.' })
+  async revokeSession(@CurrentUser() user: any, @Body() dto: RevokeSessionDto) {
+    return this.authService.revokeSession(user.id, dto);
+  }
+
+  @Post('sessions')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: '내 기기 세션 목록 조회' })
+  @ApiResponse({ status: 200, description: '세션 목록' })
+  async listSessions(@CurrentUser() user: any) {
+    return this.authService.listSessions(user.id);
   }
 
   @Post('google')

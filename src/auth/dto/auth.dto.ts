@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, MinLength, MaxLength, Matches } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEmail, IsOptional, IsString, MinLength, MaxLength, Matches } from 'class-validator';
 
 export class SignUpDto {
   @ApiProperty({
@@ -45,6 +45,16 @@ export class SignInDto {
   })
   @IsString()
   password: string;
+
+  @ApiPropertyOptional({ description: '클라이언트 단말 식별자 (선택)' })
+  @IsOptional()
+  @IsString()
+  deviceId?: string;
+
+  @ApiPropertyOptional({ description: '클라이언트 표시명 (선택, 예: iPhone 15, Chrome on Mac)' })
+  @IsOptional()
+  @IsString()
+  deviceName?: string;
 }
 
 export class RefreshTokenDto {
@@ -54,6 +64,16 @@ export class RefreshTokenDto {
   })
   @IsString()
   refreshToken: string;
+
+  @ApiPropertyOptional({ description: '클라이언트 단말 식별자 (선택)' })
+  @IsOptional()
+  @IsString()
+  deviceId?: string;
+
+  @ApiPropertyOptional({ description: '클라이언트 표시명 (선택)' })
+  @IsOptional()
+  @IsString()
+  deviceName?: string;
 }
 
 export class GoogleOAuthDto {
@@ -72,4 +92,21 @@ export class SignOutDto {
   })
   @IsString()
   refreshToken: string;
+
+  @ApiPropertyOptional({ description: '클라이언트 단말 식별자 (선택)' })
+  @IsOptional()
+  @IsString()
+  deviceId?: string;
 } 
+
+export class RevokeSessionDto {
+  @ApiPropertyOptional({ description: '세션 토큰 ID (선택)' })
+  @IsOptional()
+  @IsString()
+  tokenId?: string;
+
+  @ApiPropertyOptional({ description: '디바이스 ID (선택)' })
+  @IsOptional()
+  @IsString()
+  deviceId?: string;
+}

@@ -1,9 +1,9 @@
 import { Injectable, ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { SupabaseService } from '../database/supabase.service';
-import { SignUpDto, SignInDto } from './dto/auth.dto';
+import { SignUpDto, SignInDto, RevokeSessionDto } from './dto/auth.dto';
 import { OAuth2Client } from 'google-auth-library';
-import { TokenService, TokenPair } from './token.service';
+import { TokenService, TokenPair, DeviceContext } from './token.service';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 
@@ -18,7 +18,7 @@ export class AuthService {
     private tokenService: TokenService,
   ) {}
 
-  async signUp(signUpDto: SignUpDto) {
+  async signUp(signUpDto: SignUpDto, device?: DeviceContext) {
     const { email, password, nickname } = signUpDto;
 
     // 이메일 기준 기존 계정 조회 (재활성화 허용)
@@ -80,7 +80,7 @@ export class AuthService {
           },
         });
 
-        const tokens = await this.tokenService.generateTokenPair(reactivated.id, email);
+        const tokens = await this.tokenService.generateTokenPair(reactivated.id, email, device);
         return {
           message: '계정이 재활성화되었습니다.',
           ...tokens,
@@ -132,7 +132,7 @@ export class AuthService {
       });
 
       // JWT 토큰 쌍 생성
-      const tokens = await this.tokenService.generateTokenPair(user.id, user.email);
+      const tokens = await this.tokenService.generateTokenPair(user.id, user.email, device);
 
       return {
         message: '회원가입이 완료되었습니다.',
@@ -151,7 +151,7 @@ export class AuthService {
     }
   }
 
-  async signIn(signInDto: SignInDto) {
+  async signIn(signInDto: SignInDto, device?: DeviceContext) {
     const { email, password } = signInDto;
 
     try {
@@ -205,7 +205,7 @@ export class AuthService {
       }
 
       // JWT 토큰 쌍 생성
-      const tokens = await this.tokenService.generateTokenPair(user.id, user.email);
+      const tokens = await this.tokenService.generateTokenPair(user.id, user.email, device);
 
       // 이벤트 로그: LOGIN (best-effort)
       try {
@@ -257,6 +257,41 @@ export class AuthService {
     } catch (error) {
       return { message: '로그아웃 처리 중 오류가 발생했습니다.' };
     }
+  }
+
+  async listSessions(userId: string) {
+    return this.prismaService.refreshToken.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        deviceId: true,
+        deviceName: true,
+        userAgent: true,
+        ip: true,
+        isRevoked: true,
+        createdAt: true,
+        expiresAt: true,
+        lastUsedAt: true,
+      },
+    });
+  }
+
+  async revokeSession(userId: string, dto: RevokeSessionDto) {
+    const { tokenId, deviceId } = dto;
+    if (!tokenId && !deviceId) {
+      throw new UnauthorizedException('무효화할 세션 식별자가 필요합니다.');
+    }
+    await this.prismaService.refreshToken.updateMany({
+      where: {
+        userId,
+        ...(tokenId ? { id: tokenId } : {}),
+        ...(deviceId ? { deviceId } : {}),
+        isRevoked: false,
+      },
+      data: { isRevoked: true },
+    });
+    return { message: '세션이 무효화되었습니다.' };
   }
 
   async validateGoogleUser(idToken: string) {
