@@ -65,4 +65,13 @@ class SecureStorageService {
   static Future<void> clearAll() async {
     await _storage.deleteAll();
   }
+
+  // deviceId 저장/조회
+  static Future<String?> getDeviceId() async {
+    return await _storage.read(key: 'device_id');
+  }
+
+  static Future<void> saveDeviceId(String deviceId) async {
+    await _storage.write(key: 'device_id', value: deviceId);
+  }
 }

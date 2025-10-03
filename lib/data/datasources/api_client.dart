@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../../core/config/env_config.dart';
 import '../../core/utils/jwt_utils.dart';
+import '../../core/utils/device_utils.dart';
 import 'secure_storage_service.dart';
 
 class ApiClient {
@@ -44,7 +45,7 @@ class ApiClient {
             // 토큰이 있고 만료 임박/만료 시 사전 갱신 시도
             if (accessToken != null &&
                 JwtUtils.isExpired(accessToken,
-                    leewaySeconds: EnvConfig.accessLeewaySeconds)) {
+                    leewaySeconds: EnvConfig.proactiveRefreshWindowSeconds)) {
               final refreshed = await _refreshToken();
               if (!refreshed) {
                 // 갱신 실패 시 로그아웃 처리
@@ -149,6 +150,11 @@ class ApiClient {
         return false;
       }
 
+      // ensure deviceId
+      String? deviceId = await SecureStorageService.getDeviceId();
+      deviceId ??= DeviceUtils.generateUuidV4();
+      await SecureStorageService.saveDeviceId(deviceId);
+
       // 인터셉터가 없는 별도 Dio 인스턴스로 갱신 요청
       final response = await Dio(
         BaseOptions(
@@ -159,7 +165,11 @@ class ApiClient {
         ),
       ).post(
         '${EnvConfig.baseUrl}/auth/refresh',
-        data: {'refreshToken': refreshToken},
+        data: {
+          'refreshToken': refreshToken,
+          'deviceId': deviceId,
+          'deviceName': DeviceUtils.getDeviceName(),
+        },
       );
 
       if (response.statusCode == 200) {

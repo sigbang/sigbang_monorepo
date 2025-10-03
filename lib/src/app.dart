@@ -24,31 +24,40 @@ class MyApp extends StatelessWidget {
           value: getIt<SessionCubit>(),
         ),
       ],
-      child: MaterialApp.router(
-        // Provide the generated AppLocalizations to the MaterialApp.
-        localizationsDelegates: const [
-          AppLocalizations.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: const [
-          Locale('en', ''), // English, no country code
-        ],
+      child: BlocListener<SessionCubit, SessionState>(
+        listener: (context, state) {
+          if (!state.isLoggedIn) {
+            // 세션 종료/401 후 로그인 화면으로 이동
+            // ignore: use_build_context_synchronously
+            AppRouter.router.go(AppRouter.login);
+          }
+        },
+        child: MaterialApp.router(
+          // Provide the generated AppLocalizations to the MaterialApp.
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('en', ''), // English, no country code
+          ],
 
-        // App title
-        title: AppStrings.appName,
+          // App title
+          title: AppStrings.appName,
 
-        // Theme configuration
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.system,
+          // Theme configuration
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: ThemeMode.system,
 
-        // Router configuration
-        routerConfig: AppRouter.router,
+          // Router configuration
+          routerConfig: AppRouter.router,
 
-        // Debug banner
-        debugShowCheckedModeBanner: false,
+          // Debug banner
+          debugShowCheckedModeBanner: false,
+        ),
       ),
     );
   }

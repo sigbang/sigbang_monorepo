@@ -8,6 +8,7 @@ import '../models/user_model.dart';
 import '../models/login_response_model.dart';
 import 'api_client.dart';
 import '../../core/utils/jwt_utils.dart';
+import '../../core/utils/device_utils.dart';
 import 'secure_storage_service.dart';
 
 class AuthService {
@@ -94,9 +95,18 @@ class AuthService {
       }
 
       // 4. 서버에 ID Token 전송하여 JWT 받기
+      // ensure deviceId
+      String? deviceId = await SecureStorageService.getDeviceId();
+      deviceId ??= DeviceUtils.generateUuidV4();
+      await SecureStorageService.saveDeviceId(deviceId);
+
       final response = await _apiClient.dio.post(
         '/auth/google',
-        data: {'idToken': idToken},
+        data: {
+          'idToken': idToken,
+          'deviceId': deviceId,
+          'deviceName': DeviceUtils.getDeviceName(),
+        },
       );
 
       if (response.statusCode == 200) {
