@@ -20,12 +20,12 @@ const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
   ref
 ) {
   return (
-    <div ref={ref} tabIndex={tabIndex} style={{ width: 320 }} className={(active ? 'ring-2 ring-sky-500 ' : '') + 'rounded-[12px] focus:outline-none focus:ring-2 focus:ring-sky-500'}>
-      <div style={{ width: 320, height: 180, borderRadius: 12, overflow: 'hidden', background: '#eee' }}>
+    <div ref={ref} tabIndex={tabIndex} style={{ width: '100%' }} className={(active ? 'ring-2 ring-sky-500 ' : '') + 'rounded-[12px] focus:outline-none focus:ring-2 focus:ring-sky-500'}>
+      <div style={{ width: '100%', aspectRatio: '16 / 9', borderRadius: 12, overflow: 'hidden', background: '#eee', position: 'relative' }}>
         {image ? (
-          <Image src={image} alt={title} priority sizes="(max-width: 768px) 100vw, 320px" width={320} height={180} placeholder="blur" blurDataURL={BLUR_PLACEHOLDER} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <Image src={image} alt={title} priority sizes="(max-width: 1024px) 50vw, 520px" fill placeholder="blur" blurDataURL={BLUR_PLACEHOLDER} style={{ objectFit: 'cover' }} />
         ) : (
-          <div style={{ width: '100%', height: '100%', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: 14 }}>
+          <div style={{ position: 'absolute', inset: 0, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: 14 }}>
             이미지 없음
           </div>
         )}

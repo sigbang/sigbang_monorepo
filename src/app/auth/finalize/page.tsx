@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { getOrCreateDeviceId, getDeviceName } from '@/lib/auth/device';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
@@ -21,7 +22,7 @@ export default function FinalizeAuthPage() {
         const res = await fetch('/api/auth/google', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ idToken }),
+          body: JSON.stringify({ idToken, deviceId: getOrCreateDeviceId(), deviceName: getDeviceName() }),
         });
         if (!res.ok) {
           const text = await res.text().catch(() => '');

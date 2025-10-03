@@ -3,6 +3,8 @@ import { ENV } from '@/lib/env';
 import { setTokens } from '@/lib/auth/cookies';
 import { getExp } from '@/lib/auth/jwt';
 
+const toObj = (v: unknown): Record<string, unknown> => (typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : {});
+
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const idToken = (body?.idToken || body?.credential || body?.id_token) as string | undefined;
@@ -12,7 +14,11 @@ export async function POST(req: Request) {
 
   let upstream: Response;
   try {
-    const payload = { idToken } as const;
+    const toObj = (v: unknown): Record<string, unknown> => (typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : {});
+    const bodyObj = toObj(body);
+    const deviceId = (bodyObj.deviceId as string | undefined) || undefined;
+    const deviceName = (bodyObj.deviceName as string | undefined) || undefined;
+    const payload = { idToken, ...(deviceId ? { deviceId } : {}), ...(deviceName ? { deviceName } : {}) } as const;
     const target = `${ENV.API_BASE_URL}/auth/google`;
     upstream = await fetch(target, {
       method: 'POST',
@@ -20,7 +26,8 @@ export async function POST(req: Request) {
       body: JSON.stringify(payload),
       cache: 'no-store',
     });
-  } catch {
+  } catch (e) {
+    console.error('[auth/google] upstream fetch failed', e);
     return NextResponse.json({ message: 'upstream fetch failed' }, { status: 502 });
   }
 
@@ -34,7 +41,6 @@ export async function POST(req: Request) {
     raw = await upstream.json();
   } catch {}
 
-  const toObj = (v: unknown): Record<string, unknown> => (typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : {});
   const r = toObj(raw);
   const tokensObj = toObj(r.tokens ?? toObj(toObj(r.data).tokens));
   const accessCandidate = (tokensObj.accessToken ?? r.accessToken) as string | undefined;
