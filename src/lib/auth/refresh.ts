@@ -2,8 +2,8 @@
 
 import { ENV } from '@/lib/env';
 import { getAccessToken, getRefreshToken, setTokens } from './cookies';
-import { getOrCreateDeviceId, getDeviceName } from './device';
 import { getExp } from './jwt';
+import { cookies } from 'next/headers';
 
 let refreshPromise: Promise<boolean> | null = null;
 const DEBUG = process.env.NODE_ENV !== 'production';
@@ -23,12 +23,14 @@ export async function refreshTokens(): Promise<boolean> {
   refreshPromise = (async () => {
     try {
       const endpoint = `${ENV.API_BASE_URL}/auth/refresh`;
-      const payload = { refreshToken: rt, deviceId: getOrCreateDeviceId(), deviceName: getDeviceName() } as const;
+      // Read optional device identifier from cookie set on the client
+      const did = (await cookies()).get('sb_did')?.value;
+      const payload = { refreshToken: rt, ...(did ? { deviceId: did } : {}) } as const;
       if (DEBUG) {
         console.log('[auth] refreshing tokens', {
           endpoint,
           rtLen: rt?.length ?? 0,
-          deviceId: payload.deviceId,
+          deviceId: (payload as { deviceId?: string }).deviceId,
         });
       }
       const res = await fetch(endpoint, {
