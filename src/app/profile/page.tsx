@@ -30,7 +30,9 @@ export default function ProfilePage() {
   const getImageUrl = (recipe: { thumbnailImage?: string; thumbnailUrl?: string; thumbnailPath?: string }) => {
     const thumb = recipe.thumbnailImage || recipe.thumbnailUrl || recipe.thumbnailPath;
     if (!thumb) return '';
-    return /^https?:/.test(thumb) ? thumb : `${process.env.NEXT_PUBLIC_API_BASE_URL}/${thumb}`;
+    if (/^https?:/i.test(thumb)) return thumb;
+    const clean = thumb.startsWith('/') ? thumb.slice(1) : thumb;
+    return `/media/${clean.startsWith('media/') ? clean.slice('media/'.length) : clean}`;
   };
 
   const items = useMemo(() => {
@@ -108,7 +110,7 @@ export default function ProfilePage() {
 
                 <div className="mt-6 grid grid-cols-2 gap-6 max-w-[900px] mx-auto">
                   {items.map((it) => (
-                    <RecipeCard key={it.id} title={it.title} image={it.image} />
+                    <RecipeCard key={it.id} title={it.title} image={it.image} href={`/recipes/${it.id}`} />
                   ))}
                 </div>
 

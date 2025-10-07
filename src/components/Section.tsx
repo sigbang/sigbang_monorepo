@@ -44,6 +44,7 @@ export default function Section({
               image={it.image}
               minutes={it.minutes}
               active={highlightFirst && idx === 0}
+              href={`/recipes/${it.id}`}
             />
           ))}
         </div>

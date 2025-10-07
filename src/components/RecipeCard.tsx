@@ -1,5 +1,6 @@
 'use client';
 import Image from 'next/image';
+import Link from 'next/link';
 import { forwardRef } from 'react';
 import { IconClock } from './icons';
 
@@ -9,6 +10,7 @@ type Props = {
   image: string;
   active?: boolean;
   tabIndex?: number;
+  href?: string;
 };
 
 const BLUR_PLACEHOLDER =
@@ -16,10 +18,10 @@ const BLUR_PLACEHOLDER =
   encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 9" width="320" height="180"><rect width="100%" height="100%" fill="#e5e7eb"/></svg>');
 
 const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
-  { title, minutes, image, active, tabIndex },
+  { title, minutes, image, active, tabIndex, href },
   ref
 ) {
-  return (
+  const content = (
     <div ref={ref} tabIndex={tabIndex} style={{ width: '100%' }} className={(active ? 'ring-2 ring-sky-500 ' : '') + 'rounded-[12px] focus:outline-none focus:ring-2 focus:ring-sky-500'}>
       <div style={{ width: '100%', aspectRatio: '16 / 9', borderRadius: 12, overflow: 'hidden', background: '#eee', position: 'relative' }}>
         {image ? (
@@ -36,6 +38,13 @@ const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
         <span>{minutes ?? 60} mins</span>
       </div>
     </div>
+  );
+  return href ? (
+    <Link href={href} className="block" aria-label={`${title} 상세 보기`}>
+      {content}
+    </Link>
+  ) : (
+    content
   );
 });
 

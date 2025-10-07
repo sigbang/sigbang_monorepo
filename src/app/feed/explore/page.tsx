@@ -4,6 +4,7 @@ import Sidebar from '@/components/Sidebar';
 import MobileNav from '@/components/MobileNav';
 import { useExploreFeed } from '@/lib/hooks/feed';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useEffect, useMemo, useRef } from 'react';
 
 export default function ExplorePage() {
@@ -14,7 +15,9 @@ export default function ExplorePage() {
   const getImageUrl = (recipe: any) => {
     const thumb = recipe.thumbnailImage || recipe.thumbnailUrl || recipe.thumbnailPath;
     if (!thumb) return '';
-    return /^https?:/.test(thumb) ? thumb : `${process.env.NEXT_PUBLIC_API_BASE_URL}/${thumb}`;
+    if (/^https?:/i.test(thumb)) return thumb;
+    const clean = thumb.startsWith('/') ? thumb.slice(1) : thumb;
+    return `/media/${clean.startsWith('media/') ? clean.slice('media/'.length) : clean}`;
   };
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -50,7 +53,7 @@ export default function ExplorePage() {
                   const imageUrl = getImageUrl(r);
                   return (
                     <li key={r.id} className="max-w-[480px] mx-auto w-full">
-                      <div className="border border-[#eee] rounded-xl overflow-hidden">
+                      <Link href={`/recipes/${r.id}`} className="border border-[#eee] rounded-xl overflow-hidden block" aria-label={`${r.title} 상세 보기`}>
                         {imageUrl ? (
                           <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9' }}>
                             <Image
@@ -68,7 +71,7 @@ export default function ExplorePage() {
                           <div className="text-[16px] font-semibold text-[#111]">{r.title}</div>
                           {r.description && <div className="mt-1 text-[13px] text-[#666]">{r.description}</div>}
                         </div>
-                      </div>
+                      </Link>
                     </li>
                   );
                 })}
