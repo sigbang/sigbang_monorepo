@@ -73,7 +73,7 @@ export default function StepsEditor({
         <button
           type="button"
           onClick={add}
-          className="px-3 py-1 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600"
+          className="px-3 py-1 text-sm bg-amber-400 text-black rounded-md hover:bg-amber-500"
         >
           + 단계 추가
         </button>

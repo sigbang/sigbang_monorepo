@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export default function ImageUploader({
   value,
@@ -15,15 +15,19 @@ export default function ImageUploader({
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const previewUrl = useMemo(() => {
-    return file ? URL.createObjectURL(file) : undefined;
-  }, [file]);
+  const [previewUrl, setPreviewUrl] = useState<string | undefined>(undefined);
 
   useEffect(() => {
+    if (!file) {
+      setPreviewUrl(undefined);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
     return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      URL.revokeObjectURL(url);
     };
-  }, [previewUrl]);
+  }, [file]);
 
   const handleFiles = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -71,61 +75,46 @@ export default function ImageUploader({
       <div className="text-sm font-medium mb-3">
         {label} <span className="text-red-500">*</span>
       </div>
-      {file || value ? (
-        <div className="space-y-3">
+      {/* Fixed 16:7 preview box to prevent layout shift and crop inside */}
+      <div className="w-full aspect-[16/7] rounded-md bg-neutral-50 dark:bg-neutral-800 relative overflow-hidden mb-3">
+        {file || value ? (
           <img
-            src={file ? (previewUrl as string) : value?.startsWith('http') ? (value as string) : `/media/${value}`}
+            src={
+              file
+                ? (previewUrl as string)
+                : value && (value.startsWith('http') || value.startsWith('blob:') || value.startsWith('data:'))
+                ? (value as string)
+                : `/media/${value}`
+            }
             alt="thumbnail"
-            className="w-full aspect-square object-cover rounded-md"
+            className="absolute inset-0 w-full h-full object-cover"
           />
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => onFileChange(undefined)}
-              className="flex-1 px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-700 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800"
-            >
-              제거
-            </button>
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              className="flex-1 px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-700 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800"
-            >
-              변경
-            </button>
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-neutral-400 text-sm">
+            이미지를 선택하거나 드래그 앤 드롭 / 붙여넣기
           </div>
-        </div>
-      ) : (
-        <div className="text-center py-8">
-          <div className="mb-4">
-            <svg
-              className="mx-auto h-12 w-12 text-neutral-400"
-              stroke="currentColor"
-              fill="none"
-              viewBox="0 0 48 48"
-              aria-hidden="true"
-            >
-              <path
-                d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+        )}
+      </div>
+
+      {/* Actions keep the upload UI visible regardless of selection */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="flex-1 px-3 py-2 bg-amber-400 text-black text-sm border border-neutral-300 dark:border-neutral-700 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800"
+        >
+          이미지 선택
+        </button>
+        {(file || value) && (
           <button
             type="button"
-            onClick={() => inputRef.current?.click()}
-            
-            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed mb-2"
+            onClick={() => onFileChange(undefined)}
+            className="px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-700 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800"
           >
-            이미지 선택
+            제거
           </button>
-          <p className="text-xs text-neutral-500">
-            또는 파일을 드래그 앤 드롭 / 붙여넣기
-          </p>
-        </div>
-      )}
+        )}
+      </div>      
       <input
         ref={inputRef}
         type="file"

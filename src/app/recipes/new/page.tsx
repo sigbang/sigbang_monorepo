@@ -4,12 +4,14 @@ import { useRouter } from 'next/navigation';
 import { useHotkeys } from '@/hooks/useHotkeys';
 import ImageUploader from '@/components/ImageUploader';
 import StepsEditor from '@/components/StepsEditor';
-import RecipeBasics from '@/components/RecipeBasics';
 import IngredientsEditor from '@/components/IngredientsEditor';
-import TagsInput from '@/components/TagsInput';
-import { aiGenerate, createRecipe, CreateRecipeDto } from '@/lib/api/recipes';
+import DiscreteSlider from '@/components/DiscreteSlider';
+import { createRecipe, CreateRecipeDto } from '@/lib/api/recipes';
 
 type Tag = { name: string; emoji?: string };
+
+type ValidationError = { field: string; message: string };
+type StepDraft = { order: number; description: string; imagePath?: string | null; imageFile?: File };
 
 const DRAFT_KEY = 'recipe:new:draft';
 
@@ -26,6 +28,8 @@ export default function NewRecipePage() {
   const [cookingTime, setCookingTime] = useState<number | undefined>(30);
   const [steps, setSteps] = useState<{ order: number; description: string; imagePath?: string | null }[]>([
     { order: 1, description: '' },
+    { order: 2, description: '' },
+    { order: 3, description: '' },
   ]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [linkTitle, setLinkTitle] = useState('');
@@ -77,15 +81,15 @@ export default function NewRecipePage() {
   }, [title, description, ingredients, thumbnailPath, difficulty, servings, cookingTime, steps, tags, linkTitle, linkUrl]);
 
   // 단계별 검증
-  const stage1Errors = [];
+  const stage1Errors: ValidationError[] = [];
   if (!title || title.trim().length < 3) stage1Errors.push({ field: 'title', message: '제목 3자 이상 필요' });
-  if (!thumbnailPath) stage1Errors.push({ field: 'thumbnail', message: '대표 이미지 필요' });
+  if (!thumbnailPath && !thumbnailFile) stage1Errors.push({ field: 'thumbnail', message: '대표 이미지 필요' });
 
-  const stage2Errors = [];
+  const stage2Errors: ValidationError[] = [];
   if (linkUrl && !/^https?:\/\/.+/.test(linkUrl))
     stage2Errors.push({ field: 'linkUrl', message: '링크 URL 형식 오류' });
 
-  const stage3Errors = [];
+  const stage3Errors: ValidationError[] = [];
   if (steps.length === 0 || !steps[0].description.trim())
     stage3Errors.push({ field: 'steps', message: '첫 단계 설명 필요' });
 
@@ -98,19 +102,36 @@ export default function NewRecipePage() {
     return true;
   };
 
+  const ensureMinSteps = (min: number) => {
+    setSteps((prev) => {
+      if (!prev || prev.length >= min) return prev;
+      const toAdd = Array.from({ length: min - prev.length }, (_v, i) => ({
+        order: prev.length + i + 1,
+        description: '',
+      }));
+      return [...prev, ...toAdd];
+    });
+  };
+
   const handleNext = () => {
     if (!canProceed(stage)) {
       const errors = stage === 1 ? stage1Errors : stage === 2 ? stage2Errors : stage3Errors;
       alert(`필수 항목을 완료해주세요:\n${errors.map((e) => `- ${e.message}`).join('\n')}`);
       return;
     }
-    if (stage < 3) setStage(stage + 1);
+    if (stage < 3) {
+      const nextStage = stage + 1;
+      if (nextStage === 3) ensureMinSteps(3);
+      setStage(nextStage);
+    }
   };
 
   const handlePrev = () => {
     if (stage > 1) setStage(stage - 1);
     else router.back();
   };
+
+  const getErrorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
   const publish = async () => {
     if (allErrors.length > 0) {
@@ -130,7 +151,7 @@ export default function NewRecipePage() {
       const stepsWithUploaded: { order: number; description: string; imagePath?: string | null }[] = [];
       if (steps && steps.length) {
         const { uploadFile } = await import('@/lib/api/media');
-        for (const s of steps as any[]) {
+        for (const s of steps as StepDraft[]) {
           let imagePath = s.imagePath ?? undefined;
           if (s.imageFile) {
             imagePath = await uploadFile(s.imageFile as File);
@@ -156,8 +177,8 @@ export default function NewRecipePage() {
       localStorage.removeItem(DRAFT_KEY);
       alert(`레시피 업로드 완료: ${id}`);
       router.push('/');
-    } catch (e: any) {
-      alert(`업로드 실패: ${e?.message ?? e}`);
+    } catch (e: unknown) {
+      alert(`업로드 실패: ${getErrorMessage(e)}`);
     } finally {
       setBusy(false);
     }
@@ -181,24 +202,7 @@ export default function NewRecipePage() {
     alert('임시 저장되었습니다.');
   };
 
-  const generateAI = async () => {
-    if (!thumbnailPath) return alert('대표 이미지를 먼저 등록해주세요');
-    setBusy(true);
-    try {
-      const res = await aiGenerate({ imagePath: thumbnailPath, title: title || undefined });
-      // 서버 응답 형식에 맞춰 필드 병합
-      if (res.title && !title) setTitle(res.title);
-      if (res.description) setDesc(res.description);
-      if (res.ingredients) setIngr(res.ingredients);
-      if (res.cookingTime) setCookingTime(res.cookingTime);
-      if (res.steps && res.steps.length > 0) setSteps(res.steps);
-      alert('AI 생성 완료! 내용을 확인하세요.');
-    } catch (e: any) {
-      alert(`AI 생성 실패: ${e?.message ?? e}`);
-    } finally {
-      setBusy(false);
-    }
-  };
+  // AI 생성 기능 제거됨
 
   // 키보드 단축키
   useHotkeys({
@@ -227,73 +231,31 @@ export default function NewRecipePage() {
         aria-labelledby="recipe-wizard-title"
       >
         {/* 모달 카드 */}
-        <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-[28vw] max-h-[90vh] overflow-hidden flex flex-col">
           {/* 헤더 */}
-          <div className="border-b border-neutral-200 dark:border-neutral-800 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h1 id="recipe-wizard-title" className="text-2xl font-semibold">
+          <div className="border-b border-neutral-200 dark:border-neutral-800 p-2">
+            <div className="relative mb-2">
+              <h1 id="recipe-wizard-title" className="text-xl font-semibold text-center">
                 레시피 등록
               </h1>
               <button
                 type="button"
                 onClick={handlePrev}
-                className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full transition-colors"
+                className="absolute right-1 top-1/2 -translate-y-1/2 p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full transition-colors"
                 aria-label="닫기"
               >
                 ✕
-          </button>
-        </div>
-
-            {/* 단계 표시 */}
-            <div className="flex items-center gap-2">
-              {[1, 2, 3].map((s) => (
-                <div key={s} className="flex items-center flex-1">
-                  <div
-                    className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium transition-colors ${
-                      s === stage
-                        ? 'bg-blue-600 text-white'
-                        : s < stage
-                        ? 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300'
-                        : 'bg-neutral-200 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400'
-                    }`}
-                  >
-                    {s < stage ? '✓' : s}
-                  </div>
-                  {s < 3 && (
-                    <div
-                      className={`flex-1 h-1 mx-2 rounded transition-colors ${
-                        s < stage
-                          ? 'bg-blue-600'
-                          : 'bg-neutral-200 dark:bg-neutral-800'
-                      }`}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-            <div className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-              {stage === 1 && '기본 정보'}
-              {stage === 2 && '재료 & 조리 시간'}
-              {stage === 3 && '조리 순서'}
+              </button>
             </div>
           </div>
 
-          {/* 본문 */}
+          {/* 본문: 스크롤 가능 */}
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {/* Stage 1: 기본 정보 */}
             {stage === 1 && (
               <>
                 <ImageUploader value={thumbnailPath} file={thumbnailFile} onFileChange={setThumbFile} />
-                {(thumbnailFile || thumbnailPath) && (
-                  <button
-                    type="button"
-                    onClick={generateAI}
-                    disabled={busy}
-                    className="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    🪄 AI로 레시피 생성
-                  </button>
-                )}
+                {/* AI 생성 버튼 제거 */}
                 <div>
                   <label htmlFor="recipe-title" className="block text-sm font-medium mb-1">
                     제목 <span className="text-red-500">*</span>
@@ -304,10 +266,10 @@ export default function NewRecipePage() {
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="예: 간장 계란밥"
-                    className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md"
                     maxLength={60}
                   />
-                  <div className="text-xs text-neutral-500 mt-1">{title.length}/60자</div>
+                  
                 </div>
                 <div>
                   <label htmlFor="recipe-description" className="block text-sm font-medium mb-1">
@@ -317,12 +279,12 @@ export default function NewRecipePage() {
                     id="recipe-description"
                     value={description}
                     onChange={(e) => setDesc(e.target.value)}
-                    rows={5}
+                    rows={3}
                     placeholder="레시피에 대한 간단한 설명을 입력하세요"
                     maxLength={500}
-                    className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md focus:ring-2 focus:ring-blue-500 resize-none"
+                    className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md resize-none"
                   />
-                  <div className="text-xs text-neutral-500 mt-1">{description.length}/500자</div>
+                  
                 </div>
               </>
             )}
@@ -331,88 +293,14 @@ export default function NewRecipePage() {
             {stage === 2 && (
               <>
                 <IngredientsEditor value={ingredients} onChange={setIngr} />
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div>
-                    <label htmlFor="servings" className="block text-sm font-medium mb-1">
-                      인분
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setServings(Math.max(1, (servings ?? 1) - 1))}
-                        className="px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                      >
-                        −
-                      </button>
-                      <input
-                        id="servings"
-                        type="number"
-                        min={1}
-                        max={99}
-                        value={servings ?? ''}
-                        onChange={(e) => setServings(e.target.value ? +e.target.value : undefined)}
-                        className="w-20 text-center px-2 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md focus:ring-2 focus:ring-blue-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setServings((servings ?? 1) + 1)}
-                        className="px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                      >
-                        +
-                      </button>
-                      <span className="text-sm text-neutral-600 dark:text-neutral-400">인분</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="cooking-time" className="block text-sm font-medium mb-1">
-                      조리시간
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        id="cooking-time"
-                        type="range"
-                        min={0}
-                        max={180}
-                        step={5}
-                        value={cookingTime ?? 0}
-                        onChange={(e) => setCookingTime(+e.target.value || undefined)}
-                        className="flex-1"
-                      />
-                      <input
-                        type="number"
-                        min={0}
-                        max={180}
-                        value={cookingTime ?? ''}
-                        onChange={(e) => setCookingTime(e.target.value ? +e.target.value : undefined)}
-                        className="w-16 text-right px-2 py-1 border border-neutral-300 dark:border-neutral-700 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-neutral-600 dark:text-neutral-400">분</span>
-                    </div>
+                    <label className="block text-sm font-medium mb-2">조리시간</label>
+                    <DiscreteSlider marks={[10, 30, 60]} value={cookingTime ?? 30} onChange={setCookingTime} />
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">난이도</label>
-                  <div className="inline-flex rounded-md bg-neutral-100 dark:bg-neutral-900 p-1">
-                    {(['easy', 'medium', 'hard'] as const).map((d) => (
-                      <button
-                        key={d}
-                        type="button"
-                        className={`px-4 py-1.5 rounded text-sm transition-all ${
-                          difficulty === d
-                            ? 'bg-white dark:bg-neutral-800 shadow'
-                            : 'opacity-70 hover:opacity-100'
-                        }`}
-                        onClick={() => setDifficulty(d)}
-                      >
-                        {d === 'easy' ? '쉬움' : d === 'medium' ? '보통' : '어려움'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <TagsInput tags={tags} onChange={setTags} />
+                {/* 난이도, 태그 입력 제거 */}
 
                 <div>
                   <h3 className="text-sm font-medium mb-3">외부 링크 (선택)</h3>
@@ -421,13 +309,13 @@ export default function NewRecipePage() {
                       value={linkTitle}
                       onChange={(e) => setLinkTitle(e.target.value)}
                       placeholder="링크 제목"
-                      className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md text-sm"
                     />
                     <input
                       value={linkUrl}
                       onChange={(e) => setLinkUrl(e.target.value)}
                       placeholder="https://..."
-                      className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md text-sm"
                     />
                   </div>
                 </div>
@@ -443,7 +331,7 @@ export default function NewRecipePage() {
           </div>
 
           {/* 푸터 */}
-          <div className="border-t border-neutral-200 dark:border-neutral-800 p-6">
+          <div className="border-t border-neutral-200 dark:border-neutral-800 p-4">
             <div className="flex gap-3">
               <button
                 type="button"
@@ -458,7 +346,7 @@ export default function NewRecipePage() {
                   type="button"
                   onClick={handleNext}
                   disabled={!canProceed(stage)}
-                  className="flex-1 px-6 py-2.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex-1 px-6 py-2.5 bg-black text-white rounded-md hover:bg-black/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   다음
                 </button>
@@ -467,22 +355,12 @@ export default function NewRecipePage() {
                   type="button"
                   onClick={publish}
                   disabled={allErrors.length > 0 || busy}
-                  className="flex-1 px-6 py-2.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex-1 px-6 py-2.5 bg-black text-white rounded-md hover:bg-black/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {busy ? '업로드 중...' : '레시피 업로드'}
                 </button>
               )}
-            </div>
-            <div className="text-xs text-neutral-500 text-center mt-3">
-              <kbd className="px-1.5 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded border border-neutral-300 dark:border-neutral-700">
-                Ctrl+Enter
-              </kbd>{' '}
-              {stage === 3 ? '발행' : '다음'} ·{' '}
-              <kbd className="px-1.5 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded border border-neutral-300 dark:border-neutral-700">
-                Esc
-              </kbd>{' '}
-              {stage === 1 ? '취소' : '이전'}
-            </div>
+            </div>            
           </div>
         </div>
       </div>

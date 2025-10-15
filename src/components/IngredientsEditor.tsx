@@ -20,7 +20,7 @@ export default function IngredientsEditor({ value, onChange }: IngredientsEditor
         onChange={(e) => onChange(e.target.value)}
         placeholder="한 줄에 하나씩 입력하세요&#10;예:&#10;- 계란 2개&#10;- 간장 1큰술&#10;- 참기름 약간"
         rows={8}
-        className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+        className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md font-mono text-sm"
       />
       <div className="text-xs text-neutral-500 mt-1">{lineCount}개 재료</div>
     </div>
