@@ -1,6 +1,8 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
 export default function ImageUploader({
   value,
   file,
@@ -31,7 +33,12 @@ export default function ImageUploader({
 
   const handleFiles = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    onFileChange(files[0]);
+    const file = files[0];
+    if (!ALLOWED_TYPES.has(file.type)) {
+      alert('지원하지 않는 이미지 형식입니다. jpg, jpeg, png, webp만 가능합니다.');
+      return;
+    }
+    onFileChange(file);
   }, [onFileChange]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -44,7 +51,7 @@ export default function ImageUploader({
     const items = e.clipboardData?.items;
     if (!items) return;
     for (let i = 0; i < items.length; i++) {
-      if (items[i].type.startsWith('image/')) {
+      if (ALLOWED_TYPES.has(items[i].type)) {
         const file = items[i].getAsFile();
         if (file) {
           e.preventDefault();
@@ -118,7 +125,7 @@ export default function ImageUploader({
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept=".jpg,.jpeg,.png,.webp"
         className="hidden"
         onChange={(e) => handleFiles(e.target.files)}
       />

@@ -13,72 +13,35 @@ type Tag = { name: string; emoji?: string };
 type ValidationError = { field: string; message: string };
 type StepDraft = { order: number; description: string; imagePath?: string | null; imageFile?: File };
 
-const DRAFT_KEY = 'recipe:new:draft';
-
 export default function NewRecipePage() {
   const router = useRouter();
   const [stage, setStage] = useState(1); // 1: 기본정보, 2: 재료/시간, 3: 조리순서
   const [title, setTitle] = useState('');
   const [description, setDesc] = useState('');
   const [ingredients, setIngr] = useState('');
-  const [thumbnailPath, setThumb] = useState<string | undefined>(undefined);
+  const [thumbnailPath] = useState<string | undefined>(undefined);
   const [thumbnailFile, setThumbFile] = useState<File | undefined>(undefined);
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
-  const [servings, setServings] = useState<number | undefined>(2);
+  const difficulty: 'easy' | 'medium' | 'hard' = 'medium';
+  const servings: number | undefined = 2;
   const [cookingTime, setCookingTime] = useState<number | undefined>(30);
   const [steps, setSteps] = useState<{ order: number; description: string; imagePath?: string | null }[]>([
     { order: 1, description: '' },
     { order: 2, description: '' },
     { order: 3, description: '' },
   ]);
-  const [tags, setTags] = useState<Tag[]>([]);
+  const tags: Tag[] = [];
   const [linkTitle, setLinkTitle] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
   const [busy, setBusy] = useState(false);
 
-  // 로컬 draft 불러오기
-  useEffect(() => {
-    const saved = localStorage.getItem(DRAFT_KEY);
-    if (saved) {
-      try {
-        const draft = JSON.parse(saved);
-        if (draft.title) setTitle(draft.title);
-        if (draft.description) setDesc(draft.description);
-        if (draft.ingredients) setIngr(draft.ingredients);
-        if (draft.thumbnailPath) setThumb(draft.thumbnailPath);
-        if (draft.difficulty) setDifficulty(draft.difficulty);
-        if (draft.servings) setServings(draft.servings);
-        if (draft.cookingTime) setCookingTime(draft.cookingTime);
-        if (draft.steps) setSteps(draft.steps);
-        if (draft.tags) setTags(draft.tags);
-        if (draft.linkTitle) setLinkTitle(draft.linkTitle);
-        if (draft.linkUrl) setLinkUrl(draft.linkUrl);
-      } catch (e) {
-        console.error('Failed to load draft:', e);
-      }
-    }
-  }, []);
+  // 로컬 draft 기능 제거됨
 
-  // 자동저장 (1.5초 디바운스)
+  // 과거에 저장된 임시 레시피 제거 (잔여 데이터 청소)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const draft = {
-        title,
-        description,
-        ingredients,
-        thumbnailPath,
-        difficulty,
-        servings,
-        cookingTime,
-        steps,
-        tags,
-        linkTitle,
-        linkUrl,
-      };
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, [title, description, ingredients, thumbnailPath, difficulty, servings, cookingTime, steps, tags, linkTitle, linkUrl]);
+    try {
+      localStorage.removeItem('recipe:new:draft');
+    } catch {}
+  }, []);
 
   // 단계별 검증
   const stage1Errors: ValidationError[] = [];
@@ -131,6 +94,11 @@ export default function NewRecipePage() {
     else router.back();
   };
 
+  const handleClose = () => {
+    const ok = window.confirm('작성 중인 내용이 저장되지 않고 닫힙니다. 계속하시겠습니까?');
+    if (ok) router.back();
+  };
+
   const getErrorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
   const publish = async () => {
@@ -174,7 +142,6 @@ export default function NewRecipePage() {
         ...(linkUrl ? { linkUrl } : {}),
       };
       const id = await createRecipe(dto);
-      localStorage.removeItem(DRAFT_KEY);
       alert(`레시피 업로드 완료: ${id}`);
       router.push('/');
     } catch (e: unknown) {
@@ -184,32 +151,12 @@ export default function NewRecipePage() {
     }
   };
 
-  const saveDraft = () => {
-    const draft = {
-      title,
-      description,
-      ingredients,
-      thumbnailPath,
-      difficulty,
-      servings,
-      cookingTime,
-      steps,
-      tags,
-      linkTitle,
-      linkUrl,
-    };
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-    alert('임시 저장되었습니다.');
-  };
+  // 임시 저장 기능 제거됨
 
   // AI 생성 기능 제거됨
 
   // 키보드 단축키
   useHotkeys({
-    'Ctrl+s': (e) => {
-      e.preventDefault();
-      saveDraft();
-    },
     'Ctrl+Enter': (e) => {
       e.preventDefault();
       if (stage === 3) publish();
@@ -240,7 +187,7 @@ export default function NewRecipePage() {
               </h1>
               <button
                 type="button"
-                onClick={handlePrev}
+                onClick={handleClose}
                 className="absolute right-1 top-1/2 -translate-y-1/2 p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full transition-colors"
                 aria-label="닫기"
               >

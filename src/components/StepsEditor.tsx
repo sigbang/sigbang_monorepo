@@ -1,6 +1,5 @@
 'use client';
 import { useState } from 'react';
-import { uploadFile } from '@/lib/api/media';
 
 type Step = { order: number; description: string; imagePath?: string | null; imageFile?: File | null };
 
@@ -14,6 +13,7 @@ export default function StepsEditor({
   const [steps, setSteps] = useState<Step[]>(initial ?? [{ order: 1, description: '' }]);
   const [uploading, setUploading] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
+  const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
   const sync = (next: Step[]) => {
     setSteps(next);
@@ -38,7 +38,7 @@ export default function StepsEditor({
     const items = e.clipboardData?.items;
     if (!items) return;
     for (let i = 0; i < items.length; i++) {
-      if (items[i].type.startsWith('image/')) {
+      if (ALLOWED_TYPES.has(items[i].type)) {
         const file = items[i].getAsFile();
         if (file) {
           e.preventDefault();
@@ -53,9 +53,12 @@ export default function StepsEditor({
     e.preventDefault();
     setDragOver(null);
     const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      await setImg(idx, file);
+    if (!file) return;
+    if (!ALLOWED_TYPES.has(file.type)) {
+      alert('지원하지 않는 이미지 형식입니다. jpg, jpeg, png, webp만 가능합니다.');
+      return;
     }
+    await setImg(idx, file);
   };
 
   const moveStep = (from: number, to: number) => {
@@ -151,7 +154,7 @@ export default function StepsEditor({
             <label className="cursor-pointer">
               <input
                 type="file"
-                accept="image/*"
+                accept=".jpg,.jpeg,.png,.webp"
                 onChange={(e) => e.target.files?.[0] && setImg(i, e.target.files[0])}
                 className="hidden"
               />
