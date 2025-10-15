@@ -45,6 +45,8 @@ export class MediaService {
   private extFromContentType(ct: string) {
     if (ct === 'image/png') return '.png';
     if (ct === 'image/webp') return '.webp';
+    if (ct === 'image/heic') return '.heic';
+    if (ct === 'image/heif') return '.heif';
     return '.jpg';
   }
 

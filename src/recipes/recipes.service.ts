@@ -1468,9 +1468,29 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
   async uploadImages(files: Express.Multer.File[], userId: string) {
     try {
       const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
-      const uploadPromises = files.map(async (file) => {
-        const path = `recipes/${userId}/steps/${Date.now()}_${file.originalname}`;
-        const data = await this.supabaseService.uploadFile(bucketName, path, file.buffer, file.mimetype);
+      const sharp = await getSharp();
+      const now = Date.now();
+      const cacheSeconds = 60 * 60 * 24 * 365; // 1년
+
+      const uploadPromises = files.map(async (file, index) => {
+        // 이미지 타입 검증
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+        if (!allowedTypes.includes(file.mimetype.toLowerCase())) {
+          throw new BadRequestException(`지원하지 않는 이미지 형식입니다: ${file.mimetype}. JPG, PNG, WebP, HEIC만 업로드 가능합니다.`);
+        }
+
+        // Sharp로 이미지 처리: 회전, 리사이즈, WebP 변환
+        const processed = await sharp(file.buffer)
+          .rotate()
+          .resize({ width: 1600, withoutEnlargement: true })
+          .webp({ quality: 82 })
+          .toBuffer();
+
+        // 파일명에서 확장자 제거 후 .webp 추가
+        const originalName = file.originalname.replace(/\.[^.]+$/, '');
+        const path = `recipes/${userId}/steps/${now}_${index}_${originalName}.webp`;
+        
+        const data = await this.supabaseService.uploadFile(bucketName, path, processed, 'image/webp', cacheSeconds);
         const publicUrl = this.supabaseService.getPublicUrl(bucketName, data.path);
         return publicUrl;
       });
@@ -1478,7 +1498,8 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
       const imageUrls = await Promise.all(uploadPromises);
       return { imageUrls };
     } catch (error) {
-      throw new BadRequestException('이미지 업로드에 실패했습니다.');
+      this.logger.error(`이미지 업로드 실패: ${String((error as any)?.message || error)}`);
+      throw new BadRequestException((error as any)?.message || '이미지 업로드에 실패했습니다.');
     }
   }
 
@@ -1497,9 +1518,29 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
     }
 
     try {
+      // 이미지 타입 검증
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+      if (!allowedTypes.includes(file.mimetype.toLowerCase())) {
+        throw new BadRequestException(`지원하지 않는 이미지 형식입니다: ${file.mimetype}. JPG, PNG, WebP, HEIC만 업로드 가능합니다.`);
+      }
+
       const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
-      const path = `recipes/${userId}/thumbnails/${Date.now()}_${file.originalname}`;
-      const data = await this.supabaseService.uploadFile(bucketName, path, file.buffer, file.mimetype);
+      const sharp = await getSharp();
+      const now = Date.now();
+      const cacheSeconds = 60 * 60 * 24 * 365; // 1년
+
+      // Sharp로 이미지 처리: 회전, 리사이즈, WebP 변환
+      const processed = await sharp(file.buffer)
+        .rotate()
+        .resize({ width: 1280, withoutEnlargement: true })
+        .webp({ quality: 82 })
+        .toBuffer();
+
+      // 파일명에서 확장자 제거 후 .webp 추가
+      const originalName = file.originalname.replace(/\.[^.]+$/, '');
+      const path = `recipes/${userId}/thumbnails/${now}_${originalName}.webp`;
+      
+      const data = await this.supabaseService.uploadFile(bucketName, path, processed, 'image/webp', cacheSeconds);
       const publicUrl = this.supabaseService.getPublicUrl(bucketName, data.path);
 
       // 기존 대표 이미지가 있으면 삭제 (URL에서 스토리지 경로 추출)
@@ -1522,20 +1563,42 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
         thumbnailUrl: publicUrl,
       };
     } catch (error) {
-      throw new BadRequestException('대표 이미지 업로드에 실패했습니다.');
+      this.logger.error(`대표 이미지 업로드 실패: ${String((error as any)?.message || error)}`);
+      throw new BadRequestException((error as any)?.message || '대표 이미지 업로드에 실패했습니다.');
     }
   }
 
   // 단일 스텝 이미지 업로드 (Flutter 편의용)
   async uploadStepImage(file: Express.Multer.File, userId: string) {
     try {
+      // 이미지 타입 검증
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+      if (!allowedTypes.includes(file.mimetype.toLowerCase())) {
+        throw new BadRequestException(`지원하지 않는 이미지 형식입니다: ${file.mimetype}. JPG, PNG, WebP, HEIC만 업로드 가능합니다.`);
+      }
+
       const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
-      const path = `recipes/${userId}/steps/${Date.now()}_${file.originalname}`;
-      const data = await this.supabaseService.uploadFile(bucketName, path, file.buffer, file.mimetype);
+      const sharp = await getSharp();
+      const now = Date.now();
+      const cacheSeconds = 60 * 60 * 24 * 365; // 1년
+
+      // Sharp로 이미지 처리: 회전, 리사이즈, WebP 변환
+      const processed = await sharp(file.buffer)
+        .rotate()
+        .resize({ width: 1600, withoutEnlargement: true })
+        .webp({ quality: 82 })
+        .toBuffer();
+
+      // 파일명에서 확장자 제거 후 .webp 추가
+      const originalName = file.originalname.replace(/\.[^.]+$/, '');
+      const path = `recipes/${userId}/steps/${now}_${originalName}.webp`;
+      
+      const data = await this.supabaseService.uploadFile(bucketName, path, processed, 'image/webp', cacheSeconds);
       const publicUrl = this.supabaseService.getPublicUrl(bucketName, data.path);
       return { imageUrl: publicUrl };
     } catch (error) {
-      throw new BadRequestException('스텝 이미지 업로드에 실패했습니다.');
+      this.logger.error(`스텝 이미지 업로드 실패: ${String((error as any)?.message || error)}`);
+      throw new BadRequestException((error as any)?.message || '스텝 이미지 업로드에 실패했습니다.');
     }
   }
 

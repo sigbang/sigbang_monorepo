@@ -10,10 +10,10 @@ export class PresignDto {
   @ApiProperty({
     example: 'image/jpeg',
     description: '업로드할 파일의 MIME 타입',
-    enum: ['image/jpeg', 'image/png', 'image/webp'],
+    enum: ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'],
   })
   @IsString()
-  @Matches(/^(image\/(jpeg|png|webp))$/)
+  @Matches(/^(image\/(jpeg|png|webp|heic|heif))$/)
   contentType: string;
 
   @ApiProperty({

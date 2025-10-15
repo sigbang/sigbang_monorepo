@@ -98,9 +98,9 @@ export class UsersService {
     }
 
     // 파일 타입 검증
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!allowedTypes.includes(file.mimetype)) {
-      throw new BadRequestException('JPG, PNG, WebP 파일만 업로드 가능합니다.');
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+    if (!allowedTypes.includes(file.mimetype.toLowerCase())) {
+      throw new BadRequestException('JPG, PNG, WebP, HEIC 파일만 업로드 가능합니다.');
     }
 
     // 파일 크기 검증 (5MB)
@@ -110,8 +110,19 @@ export class UsersService {
     }
 
     try {
-      const fileName = `profiles/${userId}/${Date.now()}-${file.originalname}`;
       const bucketName = 'recipe-images';
+      const cacheSeconds = 60 * 60 * 24 * 365; // 1년
+      
+      // Sharp로 이미지 처리: 회전, 리사이즈, WebP 변환
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const sharp = require('sharp');
+      const processed = await sharp(file.buffer)
+        .rotate()
+        .resize({ width: 800, height: 800, fit: 'cover', withoutEnlargement: true })
+        .webp({ quality: 85 })
+        .toBuffer();
+
+      const fileName = `profiles/${userId}/${Date.now()}.webp`;
 
       // 기존 프로필 이미지 삭제
       const user = await this.prismaService.user.findUnique({
@@ -130,8 +141,9 @@ export class UsersService {
       await this.supabaseService.uploadFile(
         bucketName,
         fileName,
-        file.buffer,
-        file.mimetype,
+        processed,
+        'image/webp',
+        cacheSeconds,
       );
 
       const imageUrl = this.supabaseService.getPublicUrl(bucketName, fileName);
