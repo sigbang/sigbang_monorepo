@@ -18,7 +18,10 @@ export default function IngredientsEditor({ value, onChange }: IngredientsEditor
         id="ingredients"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="한 줄에 하나씩 입력하세요&#10;예:&#10;- 계란 2개&#10;- 간장 1큰술&#10;- 참기름 약간"
+        placeholder={`예:
+계란 2개
+간장 1큰술
+참기름 약간`}
         rows={8}
         className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md font-mono text-sm"
       />

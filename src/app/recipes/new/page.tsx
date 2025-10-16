@@ -250,12 +250,12 @@ export default function NewRecipePage() {
                 {/* 난이도, 태그 입력 제거 */}
 
                 <div>
-                  <h3 className="text-sm font-medium mb-3">외부 링크 (선택)</h3>
+                  <h3 className="text-sm font-medium mb-3">재료 링크 (선택) </h3>
                   <div className="space-y-2">
                     <input
                       value={linkTitle}
                       onChange={(e) => setLinkTitle(e.target.value)}
-                      placeholder="링크 제목"
+                      placeholder="재료 구매하러 가기"
                       className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md text-sm"
                     />
                     <input

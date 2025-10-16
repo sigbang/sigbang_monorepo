@@ -71,15 +71,8 @@ export default function StepsEditor({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between mb-2">
+      <div className="mb-2">
         <label className="block text-sm font-medium">조리 순서</label>
-        <button
-          type="button"
-          onClick={add}
-          className="px-3 py-1 text-sm bg-amber-400 text-black rounded-md hover:bg-amber-500"
-        >
-          + 단계 추가
-        </button>
       </div>
       {steps.map((s, i) => (
         <div
@@ -131,8 +124,8 @@ export default function StepsEditor({
             onChange={(e) => updateDesc(i, e.target.value)}
             onPaste={(e) => handlePaste(i, e)}
             rows={3}
-            placeholder="조리 과정을 입력하세요 (이미지 붙여넣기 가능)"
-            className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md focus:ring-2 focus:ring-blue-500 resize-none"
+            placeholder="조리 과정 입력"
+            className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md resize-none"
           />
           <div className="mt-3 flex gap-3 items-center">
             {(s.imageFile || s.imagePath) && (
@@ -166,6 +159,15 @@ export default function StepsEditor({
           </div>
         </div>
       ))}
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={add}
+          className="px-4 py-2 text-sm bg-amber-400 text-black rounded-md hover:bg-amber-500"
+        >
+          + 단계 추가
+        </button>
+      </div>
     </div>
   );
 }
