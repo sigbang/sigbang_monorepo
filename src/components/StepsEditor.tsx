@@ -131,7 +131,7 @@ export default function StepsEditor({
             {(s.imageFile || s.imagePath) && (
               <div className="relative">
                 <img
-                  src={s.imageFile ? URL.createObjectURL(s.imageFile) : `/media/${s.imagePath}`}
+                  src={s.imageFile ? URL.createObjectURL(s.imageFile) : (s.imagePath?.startsWith('http') ? s.imagePath : `/media/${s.imagePath}`)}
                   alt=""
                   className="w-24 h-24 object-cover rounded-md"
                 />

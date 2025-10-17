@@ -51,6 +51,8 @@ export type RecipeDetail = {
   thumbnailImage?: string | null;
   thumbnailUrl?: string | null;
   thumbnailPath?: string | null;
+  linkTitle?: string | null;
+  linkUrl?: string | null;
   steps?: { order: number; description: string; imagePath?: string | null }[];
   author?: { id: string; name?: string | null; image?: string | null } | null;
   likesCount?: number | null;
@@ -71,6 +73,8 @@ export async function getRecipe(id: string): Promise<RecipeDetail> {
     thumbnailImage: raw.thumbnailImage ?? undefined,
     thumbnailUrl: raw.thumbnailUrl ?? undefined,
     thumbnailPath: raw.thumbnailPath ?? undefined,
+    linkTitle: raw.linkTitle ?? undefined,
+    linkUrl: raw.linkUrl ?? undefined,
     steps: Array.isArray(raw.steps)
       ? raw.steps.map((s: any) => ({
           order: s.order,
