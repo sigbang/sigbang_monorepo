@@ -1,4 +1,5 @@
-import { api } from './client';
+import { api, unwrap } from './client';
+import { SearchResponse } from '../types/recipe';
 
 export type StepDto = { order: number; description: string; imagePath?: string | null };
 export type TagDto = { name: string; emoji?: string };
@@ -128,6 +129,29 @@ export async function deleteRecipe(id: string) {
 
 export async function reportRecipe(id: string, reason?: string) {
   await api.post(`/recipes/${id}/reports`, { reason });
+}
+
+// Search API
+export type SearchParams = {
+  q: string;
+  limit?: number;
+  cursor?: string;
+};
+
+export async function searchRecipes(params: SearchParams): Promise<SearchResponse> {
+  const { q, limit = 20, cursor } = params;
+  
+  const queryParams: Record<string, string> = {
+    q,
+    limit: limit.toString(),
+  };
+  
+  if (cursor && cursor.trim() !== '') {
+    queryParams.cursor = cursor;
+  }
+  
+  const { data } = await api.get('/recipes/search', { params: queryParams });
+  return unwrap<SearchResponse>(data);
 }
 
 
