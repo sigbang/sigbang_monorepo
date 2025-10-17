@@ -1,6 +1,4 @@
 import axios from 'axios';
-import { isExpired } from '../auth/jwt';
-import { ensureValidAccessToken, refreshTokens } from '../auth/refresh';
 
 export const api = axios.create({
   baseURL: '/api/proxy',
@@ -9,15 +7,15 @@ export const api = axios.create({
   timeout: 30000,
 });
 
-// Proactive refresh: if AT is expiring within 60s, attempt a single refresh
+// Proactive refresh: validate and refresh tokens if needed
 api.interceptors.request.use(async (config) => {
   try {
-    // We do not carry AT on the client; proxy adds it from cookies.
-    // But we can still trigger refresh to keep cookies fresh.
-    const at = await ensureValidAccessToken();
-    if (!at || isExpired(at, 60)) {
-      await refreshTokens();
-    }
+    // Call API route to validate and refresh tokens if needed
+    // The server will handle the timing logic based on ENV.PROACTIVE_REFRESH_WINDOW_SECONDS
+    await fetch('/api/auth/validate', { 
+      method: 'POST',
+      cache: 'no-store' 
+    });
   } catch {}
   return config;
 });
@@ -28,12 +26,41 @@ api.interceptors.response.use(
     try {
       const status: number | undefined = error?.response?.status;
       const authHeader: string | undefined = error?.response?.headers?.['x-auth-status'];
+      const data: unknown = error?.response?.data;
+      
+      // Handle various authentication errors
       if (status === 401 || authHeader === 'invalid') {
+        console.warn('[auth] Unauthorized - redirecting to login');
         if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
           window.location.href = '/login';
         }
+      } else if (status === 403) {
+        console.warn('[auth] Forbidden - insufficient permissions');
+        // Could show a toast notification or modal for 403 errors
+        if (typeof window !== 'undefined') {
+          const message = (data && typeof data === 'object' && 'message' in data) 
+            ? String(data.message) 
+            : 'Insufficient permissions';
+          // Dispatch custom event for UI to handle
+          window.dispatchEvent(new CustomEvent('auth-error', { 
+            detail: { type: 'forbidden', message }
+          }));
+        }
+      } else if (status === 422 || status === 400) {
+        // Token format or validation errors
+        const errorMessage = (data && typeof data === 'object' && 'message' in data) 
+          ? String(data.message) 
+          : 'Authentication token error';
+        if (errorMessage.toLowerCase().includes('token') || errorMessage.toLowerCase().includes('jwt')) {
+          console.warn('[auth] Token format error - redirecting to login');
+          if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
+        }
       }
-    } catch {}
+    } catch (err) {
+      console.error('[auth] Error handling response:', err);
+    }
     return Promise.reject(error);
   }
 );

@@ -39,8 +39,8 @@ export default function RecipeDetailPage() {
           {status === 'error' && <div>오류가 발생했습니다</div>}
           {status === 'success' && recipe && (
             <article aria-labelledby="recipe-title" className="max-w-[720px] mx-auto">
-              <button onClick={() => router.back()} aria-label="뒤로가기" className="text-[14px] text-[#666] hover:text-[#111] flex items-center gap-1">
-                <IconArrowLeft aria-hidden="true" />
+              <button onClick={() => router.back()} aria-label="뒤로가기" className="text-[20px] text-[#666] hover:text-[#111] flex items-center gap-1">
+                <IconArrowLeft aria-hidden="true" className="w-6 h-6" />
               </button>
               <header className="mt-3">
                 <div className="flex items-center justify-between">

@@ -70,13 +70,31 @@ async function handle(req: NextRequest) {
     }
   }
 
-  // If still unauthorized after refresh attempt, clear tokens so client can sign out
+  // Handle various error scenarios
+  const headers = new Headers(res.headers);
+  
   if (res.status === 401) {
+    // Clear tokens on authentication failure
     await clearTokens();
+    headers.set('x-auth-status', 'invalid');
+  } else if (res.status === 403) {
+    // Mark as authorization error (permissions issue)
+    headers.set('x-auth-status', 'forbidden');
+  } else if (res.status === 422 || res.status === 400) {
+    // Check if it's a token format error
+    try {
+      const bodyText = await res.text();
+      if (bodyText.toLowerCase().includes('token') || bodyText.toLowerCase().includes('jwt')) {
+        await clearTokens();
+        headers.set('x-auth-status', 'invalid');
+        const newRes = new NextResponse(bodyText, { status: 401, headers });
+        return newRes;
+      }
+    } catch {
+      // If we can't read the body, just pass through the original response
+    }
   }
 
-  const headers = new Headers(res.headers);
-  if (res.status === 401) headers.set('x-auth-status', 'invalid');
   const body = res.body ? res.body : null;
   const out = new NextResponse(body, { status: res.status, headers });
   return out;
