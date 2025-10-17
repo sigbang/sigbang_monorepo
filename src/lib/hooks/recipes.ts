@@ -23,10 +23,12 @@ export function useToggleLike(id: string | undefined) {
       await qc.cancelQueries({ queryKey: ['recipe', id] });
       const prev = qc.getQueryData<RecipeDetail>(['recipe', id]);
       if (prev) {
+        const before = !!(prev as any).isLiked;
+        const delta = (next ? 1 : 0) - (before ? 1 : 0);
         qc.setQueryData<RecipeDetail>(['recipe', id], {
           ...prev,
-          likesCount: (prev.likesCount ?? 0) + (next ? 1 : -1),
-          // isLiked 필드가 있다면 여기서 같이 관리 가능
+          likesCount: Math.max(0, (prev.likesCount ?? 0) + delta),
+          isLiked: next,
         });
       }
       return { prev };

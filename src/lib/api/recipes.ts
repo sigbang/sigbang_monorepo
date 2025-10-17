@@ -57,6 +57,7 @@ export type RecipeDetail = {
   author?: { id: string; name?: string | null; image?: string | null } | null;
   likesCount?: number | null;
   isBookmarked?: boolean | null;
+  isLiked?: boolean | null;
 };
 
 export async function getRecipe(id: string): Promise<RecipeDetail> {
@@ -91,6 +92,14 @@ export async function getRecipe(id: string): Promise<RecipeDetail> {
       : null,
     likesCount: typeof raw.likesCount === 'number' ? raw.likesCount : undefined,
     isBookmarked: typeof raw.isBookmarked === 'boolean' ? raw.isBookmarked : (typeof raw.isSaved === 'boolean' ? raw.isSaved : null),
+    isLiked:
+      typeof raw.isLiked === 'boolean'
+        ? raw.isLiked
+        : typeof raw.liked === 'boolean'
+        ? raw.liked
+        : typeof raw.isLikedByMe === 'boolean'
+        ? raw.isLikedByMe
+        : null,
   };
   return mapped;
 }

@@ -8,7 +8,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMyProfile } from '@/lib/hooks/users';
 import { useRecipe, useToggleLike, useToggleSave } from '@/lib/hooks/recipes';
-import { IconBookmark, IconHeart } from '@/components/icons';
+import { IconArrowLeft, IconBookmark, IconClock, IconHeart } from '@/components/icons';
 import { deleteRecipe, reportRecipe } from '@/lib/api/recipes';
 
 export default function RecipeDetailPage() {
@@ -39,12 +39,12 @@ export default function RecipeDetailPage() {
           {status === 'error' && <div>오류가 발생했습니다</div>}
           {status === 'success' && recipe && (
             <article aria-labelledby="recipe-title" className="max-w-[720px] mx-auto">
-              <button onClick={() => router.back()} className="text-[14px] text-[#666] hover:text-[#111] flex items-center gap-1">
-                <span aria-hidden>←</span> 뒤로가기
+              <button onClick={() => router.back()} aria-label="뒤로가기" className="text-[14px] text-[#666] hover:text-[#111] flex items-center gap-1">
+                <IconArrowLeft aria-hidden="true" />
               </button>
               <header className="mt-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-[13px] text-[#666]">
+                  <div className="flex items-center gap-2 text-[16px] text-[#666]">
                     {recipe.author?.image ? (
                       <Image src={recipe.author.image} alt="작성자" width={24} height={24} className="rounded-full object-cover" />
                     ) : (
@@ -80,7 +80,7 @@ export default function RecipeDetailPage() {
                     )}
                   </div>
                 </div>
-                <h1 id="recipe-title" className="mt-2 text-[22px] font-bold text-[#111]">{recipe.title}</h1>
+                <h1 id="recipe-title" className="mt-2 text-[26px] font-bold text-[#111]">{recipe.title}</h1>
               </header>
 
               <div className="mt-4 rounded-xl overflow-hidden border border-[#eee] bg-white">
@@ -93,41 +93,44 @@ export default function RecipeDetailPage() {
                 )}
                 <div className="p-4">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4 text-[13px] text-[#666]">
-                    {recipe.cookingTime != null && <div>⏱ {recipe.cookingTime}분</div>}
-                    {recipe.servings != null && <div>🍽 {recipe.servings}인분</div>}
-                    {recipe.difficulty && <div>⚙ {recipe.difficulty}</div>}
+                    <div className="flex items-center gap-4 text-[16px] text-[#666]">
+                    {recipe.cookingTime != null && (
+                      <div className="flex items-center gap-1">
+                        <IconClock aria-hidden="true" />
+                        <span>{recipe.cookingTime}분</span>
+                      </div>
+                    )}                    
                     </div>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => likeMut.mutate(true)}
+                        onClick={() => likeMut.mutate(!(recipe.isLiked ?? false))}
                         disabled={likeMut.isPending}
                         className="flex items-center gap-1 px-3 py-2 rounded-full border border-[#eee] hover:bg-amber-50"
-                        aria-label="좋아요"
-                        title="좋아요"
+                        aria-label={recipe.isLiked ? '좋아요 취소' : '좋아요'}
+                        title={recipe.isLiked ? '좋아요 취소' : '좋아요'}
                       >
-                        <IconHeart className="text-rose-500" />
+                        <IconHeart filled={!!recipe.isLiked} className="text-rose-500" />
                         <span className="text-[13px] text-[#333]">{recipe.likesCount ?? 0}</span>
                       </button>
                       <button
                         onClick={() => saveMut.mutate(!(recipe.isBookmarked ?? false))}
                         disabled={saveMut.isPending}
                         className={(recipe.isBookmarked ? 'bg-amber-400 text-white ' : 'border border-[#eee] hover:bg-amber-50 ') + 'px-3 py-2 rounded-full flex items-center gap-1'}
-                        aria-label="북마크"
-                        title="북마크"
+                        aria-label={recipe.isBookmarked ? '저장 취소' : '저장'}
+                        title={recipe.isBookmarked ? '저장 취소' : '저장'}
                       >
-                        <IconBookmark />
+                        <IconBookmark filled={!!recipe.isBookmarked} />
                         <span className="text-[13px]">저장</span>
                       </button>
                     </div>
                   </div>
-                  {recipe.description && <p className="mt-3 text-[14px] text-[#333] whitespace-pre-wrap">{recipe.description}</p>}
+                  {recipe.description && <p className="mt-3 text-[18px] text-[#333] whitespace-pre-wrap">{recipe.description}</p>}
                 </div>
               </div>
 
               {recipe.linkUrl && (
                 <div className="mt-6 border-t border-[#eee] pt-4">
-                  <Link href={recipe.linkUrl} target="_blank" className="text-[14px] text-sky-700 underline">
+                  <Link href={recipe.linkUrl} target="_blank" className="text-[18px] text-sky-700 underline">
                     재료 구매 하러 가기{recipe.linkTitle ? ` - ${recipe.linkTitle}` : ''}
                   </Link>
                 </div>
@@ -135,15 +138,15 @@ export default function RecipeDetailPage() {
 
               {recipe.ingredients && (
                 <section className="mt-6">
-                  <h2 className="text-[16px] font-semibold">재료</h2>
-                  <div className="mt-2 text-[14px] text-[#333] whitespace-pre-wrap">{recipe.ingredients}</div>
+                  <h2 className="text-[22px] font-semibold">재료</h2>
+                  <div className="mt-2 text-[18px] text-[#333] whitespace-pre-wrap">{recipe.ingredients}</div>
                 </section>
               )}
 
               {recipe.steps && recipe.steps.length > 0 && (
                 <section className="mt-8">
-                  <h2 className="text-[16px] font-semibold">요리 순서</h2>
-                  <ol className="mt-3 flex flex-col gap-6">
+                  <h2 className="text-[22px] font-semibold">요리 순서</h2>
+                  <ol className="mt-3 flex flex-col gap-12">
                     {recipe.steps.map((s) => {
                       const stepImage = (() => {
                         const p = s.imagePath;
@@ -154,9 +157,9 @@ export default function RecipeDetailPage() {
                       })();
                       return (
                         <li key={s.order} className="flex gap-3">
-                          <div className="w-6 h-6 rounded-full bg-amber-400 text-white flex items-center justify-center text-[12px] font-bold shrink-0">{s.order}</div>
+                          <div className="w-6 h-6 rounded-full bg-amber-400 text-white flex items-center justify-center text-[18px] font-bold shrink-0">{s.order}</div>
                           <div className="flex-1">
-                            <div className="text-[14px] text-[#333] whitespace-pre-wrap">{s.description}</div>
+                            <div className="text-[18px] text-[#333] whitespace-pre-wrap">{s.description}</div>
                             {stepImage && (
                               <div className="mt-2 relative w-full" style={{ aspectRatio: '16 / 9' }}>
                                 <Image src={stepImage} alt="조리 이미지" fill sizes="(max-width: 1024px) 100vw, 720px" style={{ objectFit: 'cover', borderRadius: 12 }} />
