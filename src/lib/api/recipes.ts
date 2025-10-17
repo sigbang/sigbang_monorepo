@@ -112,4 +112,13 @@ export async function unsaveRecipe(id: string) {
   await api.delete(`/recipes/${id}/bookmarks`);
 }
 
+// Delete / Report APIs
+export async function deleteRecipe(id: string) {
+  await api.delete(`/recipes/${id}`);
+}
+
+export async function reportRecipe(id: string, reason?: string) {
+  await api.post(`/recipes/${id}/reports`, { reason });
+}
+
 

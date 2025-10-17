@@ -5,10 +5,11 @@ import MobileNav from '@/components/MobileNav';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMyProfile } from '@/lib/hooks/users';
 import { useRecipe, useToggleLike, useToggleSave } from '@/lib/hooks/recipes';
 import { IconBookmark, IconHeart } from '@/components/icons';
+import { deleteRecipe, reportRecipe } from '@/lib/api/recipes';
 
 export default function RecipeDetailPage() {
   const params = useParams<{ id: string }>();
@@ -42,13 +43,42 @@ export default function RecipeDetailPage() {
                 <span aria-hidden>←</span> 뒤로가기
               </button>
               <header className="mt-3">
-                <div className="flex items-center gap-2 text-[13px] text-[#666]">
-                  {recipe.author?.image ? (
-                    <img src={recipe.author.image} alt="작성자" className="w-6 h-6 rounded-full object-cover" />
-                  ) : (
-                    <div className="w-6 h-6 rounded-full bg-[#ddd]" />
-                  )}
-                  <span>{recipe.author?.name ?? '작성자'}</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-[13px] text-[#666]">
+                    {recipe.author?.image ? (
+                      <Image src={recipe.author.image} alt="작성자" width={24} height={24} className="rounded-full object-cover" />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-[#ddd]" />
+                    )}
+                    <span>{recipe.author?.name ?? '작성자'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {me.data?.id && (
+                      <RecipeActionsMenu
+                        isOwner={!!(recipe.author?.id && me.data?.id === recipe.author.id)}
+                        onEdit={() => router.push(`/recipes/${recipe.id}/edit`)}
+                        onDelete={async () => {
+                          if (!confirm('정말 삭제하시겠어요? 되돌릴 수 없습니다.')) return;
+                          try {
+                            await deleteRecipe(recipe.id);
+                            alert('레시피가 삭제되었습니다.');
+                            router.push('/profile');
+                          } catch {
+                            alert('삭제 중 오류가 발생했습니다.');
+                          }
+                        }}
+                        onReport={async () => {
+                          const reason = prompt('신고 사유를 입력해 주세요 (선택)');
+                          try {
+                            await reportRecipe(recipe.id, reason ?? undefined);
+                            alert('신고가 접수되었습니다. 감사합니다.');
+                          } catch {
+                            alert('신고 중 오류가 발생했습니다.');
+                          }
+                        }}
+                      />
+                    )}
+                  </div>
                 </div>
                 <h1 id="recipe-title" className="mt-2 text-[22px] font-bold text-[#111]">{recipe.title}</h1>
               </header>
@@ -69,15 +99,6 @@ export default function RecipeDetailPage() {
                     {recipe.difficulty && <div>⚙ {recipe.difficulty}</div>}
                     </div>
                     <div className="flex items-center gap-2">
-                      {recipe.author?.id && me.data?.id === recipe.author.id && (
-                        <Link
-                          href={`/recipes/${recipe.id}/edit`}
-                          className="px-3 py-2 rounded-full border border-[#eee] hover:bg-neutral-50 text-[13px]"
-                          aria-label="레시피 수정"
-                        >
-                          수정
-                        </Link>
-                      )}
                       <button
                         onClick={() => likeMut.mutate(true)}
                         disabled={likeMut.isPending}
@@ -153,6 +174,102 @@ export default function RecipeDetailPage() {
         </main>
       </div>
       <MobileNav />
+    </div>
+  );
+}
+
+
+function RecipeActionsMenu({
+  isOwner,
+  onEdit,
+  onDelete,
+  onReport,
+}: {
+  isOwner: boolean;
+  onEdit: () => void;
+  onDelete: () => Promise<void>;
+  onReport: () => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      const t = e.target as Node | null;
+      if (!t) return;
+      if (btnRef.current && btnRef.current.contains(t)) return;
+      if (menuRef.current && menuRef.current.contains(t)) return;
+      setOpen(false);
+    }
+    if (open) {
+      document.addEventListener('mousedown', onDocClick);
+      return () => document.removeEventListener('mousedown', onDocClick);
+    }
+  }, [open]);
+
+  if (!isOwner && !onReport) return null;
+
+  return (
+    <div className="relative">
+      <button
+        ref={btnRef}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="h-8 w-8 flex items-center justify-center rounded-full border border-[#eee] hover:bg-neutral-50"
+        aria-label="메뉴"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="12" cy="5" r="2" />
+          <circle cx="12" cy="12" r="2" />
+          <circle cx="12" cy="19" r="2" />
+        </svg>
+      </button>
+      {open && (
+        <div
+          ref={menuRef}
+          role="menu"
+          aria-label="레시피 메뉴"
+          className="absolute right-0 mt-2 w-40 rounded-lg border border-[#eee] bg-white shadow-md py-1 z-10"
+        >
+          {isOwner ? (
+            <>
+              <button
+                role="menuitem"
+                className="w-full text-left px-3 py-2 text-[13px] hover:bg-neutral-50"
+                onClick={() => {
+                  setOpen(false);
+                  onEdit();
+                }}
+              >
+                수정하기
+              </button>
+              <button
+                role="menuitem"
+                className="w-full text-left px-3 py-2 text-[13px] text-red-600 hover:bg-red-50"
+                onClick={async () => {
+                  setOpen(false);
+                  await onDelete();
+                }}
+              >
+                삭제하기
+              </button>
+            </>
+          ) : (
+            <button
+              role="menuitem"
+              className="w-full text-left px-3 py-2 text-[13px] hover:bg-neutral-50"
+              onClick={async () => {
+                setOpen(false);
+                await onReport();
+              }}
+            >
+              신고하기
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
