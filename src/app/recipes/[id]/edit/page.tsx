@@ -30,7 +30,7 @@ export default function EditRecipePage() {
       onSubmit={async (dto) => {
         await updateRecipe(initial.id, dto);
         alert('수정 완료');
-        router.push(`/recipes/${initial.id}`);
+        router.replace(`/recipes/${initial.id}`);
       }}
     />
   );
