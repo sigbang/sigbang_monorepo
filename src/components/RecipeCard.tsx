@@ -2,7 +2,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { forwardRef } from 'react';
-import { IconClock } from './icons';
+import { IconClock, IconBookmark } from './icons';
 
 type Props = {
   title: string;
@@ -11,6 +11,7 @@ type Props = {
   active?: boolean;
   tabIndex?: number;
   href?: string;
+  saved?: boolean;
 };
 
 const BLUR_PLACEHOLDER =
@@ -18,7 +19,7 @@ const BLUR_PLACEHOLDER =
   encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 9" width="320" height="180"><rect width="100%" height="100%" fill="#e5e7eb"/></svg>');
 
 const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
-  { title, minutes, image, active, tabIndex, href },
+  { title, minutes, image, active, tabIndex, href, saved },
   ref
 ) {
   const content = (
@@ -31,6 +32,11 @@ const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
             이미지 없음
           </div>
         )}
+        <div style={{ position: 'absolute', top: 8, right: 8 }} aria-hidden="true">
+          <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-white/90 border border-[#eee]">
+            <IconBookmark filled={!!saved} className={saved ? 'text-amber-500' : 'text-[#999]'} />
+          </span>
+        </div>
       </div>
       <div style={{ marginTop: 8 }} className="text-[14px] text-[#222]">{title}</div>
       <div className="flex items-center gap-1 text-[12px] text-[#666]">

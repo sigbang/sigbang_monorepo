@@ -8,6 +8,7 @@ import Sidebar from '@/components/Sidebar';
 import Topbar from '@/components/Topbar';
 import MobileNav from '@/components/MobileNav';
 import Image from 'next/image';
+import { IconBookmark } from '@/components/icons';
 import Link from 'next/link';
 
 export default function SearchPage() {
@@ -35,7 +36,7 @@ export default function SearchPage() {
     },
   });
 
-  const getImageUrl = (recipe: any) => {
+  const getImageUrl = (recipe: { thumbnailImage?: string; thumbnailUrl?: string; thumbnailPath?: string }) => {
     const thumb = recipe.thumbnailImage || recipe.thumbnailUrl || recipe.thumbnailPath;
     if (!thumb) return '';
     if (/^https?:/i.test(thumb)) return thumb;
@@ -142,7 +143,7 @@ export default function SearchPage() {
               검색 결과가 없습니다
             </h2>
             <p className="text-gray-500 mb-4">
-              "{query}"에 대한 검색 결과를 찾을 수 없습니다
+              &quot;{query}&quot;에 대한 검색 결과를 찾을 수 없습니다
             </p>
             <button
               onClick={handleReset}
@@ -163,7 +164,7 @@ export default function SearchPage() {
             const imageUrl = getImageUrl(recipe);
             return (
               <li key={recipe.id} className="max-w-[480px] mx-auto w-full">
-                <Link href={`/recipes/${recipe.id}`} className="border border-[#eee] rounded-xl overflow-hidden block" aria-label={`${recipe.title} 상세 보기`}>
+                <Link href={`/recipes/${recipe.id}`} className="border border-[#eee] rounded-xl overflow-hidden block relative" aria-label={`${recipe.title} 상세 보기`}>
                   {imageUrl ? (
                     <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9' }}>
                       <Image
@@ -177,6 +178,14 @@ export default function SearchPage() {
                   ) : (
                     <div style={{ width: '100%', aspectRatio: '16 / 9' }} className="bg-[#f3f4f6]" />
                   )}
+                  <div className="absolute top-2 right-2" aria-hidden="true">
+                    <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-white/90 border border-[#eee]">
+                      <IconBookmark
+                        filled={Boolean((recipe as { isSaved?: boolean; isBookmarked?: boolean }).isSaved || (recipe as { isSaved?: boolean; isBookmarked?: boolean }).isBookmarked)}
+                        className={Boolean((recipe as { isSaved?: boolean; isBookmarked?: boolean }).isSaved || (recipe as { isSaved?: boolean; isBookmarked?: boolean }).isBookmarked) ? 'text-amber-500' : 'text-[#999]'}
+                      />
+                    </span>
+                  </div>
                   <div className="p-4">
                     <div className="text-[16px] font-semibold text-[#111]">{recipe.title}</div>
                     {recipe.description && <div className="mt-1 text-[13px] text-[#666]">{recipe.description}</div>}

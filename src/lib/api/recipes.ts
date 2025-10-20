@@ -57,13 +57,15 @@ export type RecipeDetail = {
   steps?: { order: number; description: string; imagePath?: string | null }[];
   author?: { id: string; name?: string | null; image?: string | null } | null;
   likesCount?: number | null;
-  isBookmarked?: boolean | null;
+  isBookmarked?: boolean | null; // backward compatibility
+  isSaved?: boolean | null;
   isLiked?: boolean | null;
+  viewCount?: number | null;
+  commentsCount?: number | null;
+  savesCount?: number | null;
 };
 
-export async function getRecipe(id: string): Promise<RecipeDetail> {
-  const { data } = await api.get(`/recipes/${id}`);
-  const raw: any = data?.data ?? data;
+export function mapRecipeDetail(raw: any): RecipeDetail {
   const mapped: RecipeDetail = {
     id: raw.id,
     title: raw.title,
@@ -91,7 +93,10 @@ export async function getRecipe(id: string): Promise<RecipeDetail> {
           image: (raw.author.profileImage ?? raw.author.image ?? null) as string | null,
         }
       : null,
-    likesCount: typeof raw.likesCount === 'number' ? raw.likesCount : undefined,
+    likesCount: typeof raw.likesCount === 'number' ? raw.likesCount : (typeof raw._counts?.likes === 'number' ? raw._counts.likes : undefined),
+    viewCount: typeof raw.viewCount === 'number' ? raw.viewCount : undefined,
+    commentsCount: typeof raw.commentsCount === 'number' ? raw.commentsCount : undefined,
+    isSaved: typeof raw.isSaved === 'boolean' ? raw.isSaved : (typeof raw.isBookmarked === 'boolean' ? raw.isBookmarked : null),
     isBookmarked: typeof raw.isBookmarked === 'boolean' ? raw.isBookmarked : (typeof raw.isSaved === 'boolean' ? raw.isSaved : null),
     isLiked:
       typeof raw.isLiked === 'boolean'
@@ -101,25 +106,29 @@ export async function getRecipe(id: string): Promise<RecipeDetail> {
         : typeof raw.isLikedByMe === 'boolean'
         ? raw.isLikedByMe
         : null,
+    savesCount: typeof raw.savesCount === 'number' ? raw.savesCount : undefined,
   };
   return mapped;
 }
 
-// Like / Save APIs
-export async function likeRecipe(id: string) {
-  await api.post(`/recipes/${id}/likes`);
+export async function getRecipe(id: string): Promise<RecipeDetail> {
+  const { data } = await api.get(`/recipes/${id}`);
+  const raw: any = (data && (data as any).data) ? (data as any).data : data;
+  return mapRecipeDetail(raw);
 }
 
-export async function unlikeRecipe(id: string) {
-  await api.delete(`/recipes/${id}/likes`);
+// Like / Save toggle APIs
+export type ToggleLikeResponse = { message?: string; isLiked: boolean; likesCount: number };
+export type ToggleSaveResponse = { message?: string; isSaved: boolean; savesCount: number };
+
+export async function toggleLike(id: string): Promise<ToggleLikeResponse> {
+  const { data } = await api.post(`/recipes/${id}/like`);
+  return unwrap<ToggleLikeResponse>(data);
 }
 
-export async function saveRecipe(id: string) {
-  await api.post(`/recipes/${id}/bookmarks`);
-}
-
-export async function unsaveRecipe(id: string) {
-  await api.delete(`/recipes/${id}/bookmarks`);
+export async function toggleSave(id: string): Promise<ToggleSaveResponse> {
+  const { data } = await api.post(`/recipes/${id}/save`);
+  return unwrap<ToggleSaveResponse>(data);
 }
 
 // Delete / Report APIs

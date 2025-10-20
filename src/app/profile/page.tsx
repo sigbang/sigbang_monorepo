@@ -109,9 +109,12 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="mt-6 grid grid-cols-2 gap-6 max-w-[900px] mx-auto">
-                  {items.map((it) => (
-                    <RecipeCard key={it.id} title={it.title} image={it.image} href={`/recipes/${it.id}`} />
-                  ))}
+                  {items.map((it) => {
+                    const inSaved = (saved.data?.pages?.flatMap((p) => p.recipes) ?? []).some((r) => r.id === it.id && (r.isSaved ?? (r as { isBookmarked?: boolean }).isBookmarked));
+                    return (
+                      <RecipeCard key={it.id} title={it.title} image={it.image} href={`/recipes/${it.id}`} saved={inSaved} />
+                    );
+                  })}
                 </div>
 
                 <div className="mt-6 text-center">
