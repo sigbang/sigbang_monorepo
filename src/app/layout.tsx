@@ -23,8 +23,10 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({
   children,
+  modal,
 }: Readonly<{
   children: React.ReactNode;
+  modal: React.ReactNode;
 }>) {
   const dict = await loadDictionary('ko');
   return (
@@ -36,6 +38,7 @@ export default async function RootLayout({
           <Providers>
             <SkipLink />
             {children}
+            {modal}
           </Providers>
         </I18nProvider>
       </body>
