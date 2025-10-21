@@ -11,7 +11,7 @@ export default function Section({
   focusIndex,
 }: {
   title: string;
-  items: Array<{ id: string; title: string; image: string; minutes?: number }>;
+  items: Array<{ id: string; title: string; image: string; minutes?: number; description?: string; likesCount?: number; authorAvatar?: string; liked?: boolean; saved?: boolean }>;
   highlightFirst?: boolean;
   startIndex?: number;
   focusIndex?: number;
@@ -40,9 +40,15 @@ export default function Section({
               key={it.id}
               ref={(el) => (cardRefs.current[idx] = el)}
               tabIndex={idx === 0 ? 0 : -1}
+              recipeId={it.id}
               title={it.title}
               image={it.image}
               minutes={it.minutes}
+              description={it.description}
+              likesCount={it.likesCount}
+              authorAvatar={it.authorAvatar}
+              liked={it.liked}
+              saved={it.saved}
               active={highlightFirst && idx === 0}
               href={`/recipes/${it.id}`}
             />

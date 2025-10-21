@@ -18,10 +18,32 @@ export default function Home() {
   const getImageUrl = (recipe: { thumbnailImage?: string; thumbnailUrl?: string; thumbnailPath?: string }) => {
     const thumb = recipe.thumbnailImage || recipe.thumbnailUrl || recipe.thumbnailPath;
     if (!thumb) return '';
-    return /^https?:/.test(thumb) ? thumb : `${process.env.NEXT_PUBLIC_API_BASE_URL}/${thumb}`;
+    if (/^https?:/i.test(thumb)) return thumb;
+    const clean = thumb.startsWith('/') ? thumb.slice(1) : thumb;
+    return `/media/${clean.startsWith('media/') ? clean.slice('media/'.length) : clean}`;
   };
-  const nowItems = (popular.data?.pages.flatMap((p) => p.recipes) ?? []).map((r) => ({ id: r.id, title: r.title, image: getImageUrl(r) }));
-  const recommendItems = (recommended.data?.pages.flatMap((p) => p.recipes) ?? []).map((r) => ({ id: r.id, title: r.title, image: getImageUrl(r) }));
+  const nowItems = (popular.data?.pages.flatMap((p) => p.recipes) ?? []).map((r) => ({
+    id: r.id,
+    title: r.title,
+    image: getImageUrl(r),
+    minutes: r.cookingTime,
+    description: r.description,
+    likesCount: r.likesCount,
+    liked: r.isLiked,
+    saved: r.isSaved,
+    authorAvatar: r.author?.profileImage ?? ''
+  }));
+  const recommendItems = (recommended.data?.pages.flatMap((p) => p.recipes) ?? []).map((r) => ({
+    id: r.id,
+    title: r.title,
+    image: getImageUrl(r),
+    minutes: r.cookingTime,
+    description: r.description,
+    likesCount: r.likesCount,
+    liked: r.isLiked,
+    saved: r.isSaved,
+    authorAvatar: r.author?.profileImage ?? ''
+  }));
   const mainRef = useRef<HTMLElement>(null);
 
   useHotkeys({

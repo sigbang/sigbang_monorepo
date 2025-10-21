@@ -1,15 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useSearch, useInfiniteScroll } from '@/lib/hooks/search';
+import { useSearchFeed } from '@/lib/hooks/search';
 import SearchIcon from '@/components/icons/SearchIcon';
 import Sidebar from '@/components/Sidebar';
 import Topbar from '@/components/Topbar';
 import MobileNav from '@/components/MobileNav';
-import Image from 'next/image';
-import { IconBookmark } from '@/components/icons';
-import Link from 'next/link';
+import RecipeCard from '@/components/RecipeCard';
 
 export default function SearchPage() {
   const router = useRouter();
@@ -18,23 +16,10 @@ export default function SearchPage() {
   
   const [searchInput, setSearchInput] = useState(initialQuery);
   const [hasSearched, setHasSearched] = useState(false);
-  
-  const {
-    query,
-    recipes,
-    loading,
-    loadingMore,
-    hasNextPage,
-    error,
-    total,
-    search,
-    loadMore,
-    reset,
-  } = useSearch({
-    onError: (error) => {
-      console.error('Search error:', error);
-    },
-  });
+
+  // React Query 기반 데이터
+  const rq = useSearchFeed(hasSearched ? searchInput : '', 20);
+  const rqItems = useMemo(() => rq.data?.pages.flatMap((p) => p.recipes) ?? [], [rq.data]);
 
   const getImageUrl = (recipe: { thumbnailImage?: string; thumbnailUrl?: string; thumbnailPath?: string }) => {
     const thumb = recipe.thumbnailImage || recipe.thumbnailUrl || recipe.thumbnailPath;
@@ -44,16 +29,27 @@ export default function SearchPage() {
     return `/media/${clean.startsWith('media/') ? clean.slice('media/'.length) : clean}`;
   };
   
-  // Initialize search with URL parameter
+  // Initialize from URL
   useEffect(() => {
     if (initialQuery && !hasSearched) {
       setHasSearched(true);
-      search(initialQuery);
+      setSearchInput(initialQuery);
     }
-  }, [initialQuery, hasSearched, search]);
+  }, [initialQuery, hasSearched]);
   
-  // Infinite scroll
-  useInfiniteScroll(loadMore, hasNextPage, loadingMore);
+  // Infinite scroll: React Query 기반 페이지네이션 사용
+  useEffect(() => {
+    if (!rq.hasNextPage || rq.isFetchingNextPage) return;
+    const onScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const clientHeight = window.innerHeight;
+      const ratio = (scrollTop + clientHeight) / scrollHeight;
+      if (ratio > 0.9 && rq.hasNextPage && !rq.isFetchingNextPage) rq.fetchNextPage();
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [rq]);
   
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,7 +60,6 @@ export default function SearchPage() {
     }
     
     setHasSearched(true);
-    search(trimmedQuery);
     
     // Update URL
     const params = new URLSearchParams();
@@ -79,7 +74,6 @@ export default function SearchPage() {
   const handleReset = () => {
     setSearchInput('');
     setHasSearched(false);
-    reset();
     router.push('/search');
   };
   
@@ -100,7 +94,7 @@ export default function SearchPage() {
       );
     }
     
-    if (loading && recipes.length === 0) {
+    if ((rq.status === 'pending' && rqItems.length === 0)) {
       return (
         <div className="flex justify-center items-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -108,7 +102,9 @@ export default function SearchPage() {
       );
     }
     
-    if (error) {
+    if (rq.status === 'error') {
+      const rqErr = rq.error as unknown as { message?: string } | undefined;
+      const errMsg = rqErr?.message ?? '검색 중 오류가 발생했습니다';
       return (
         <div className="flex flex-col items-center justify-center py-12 px-4">
           <div className="text-center">
@@ -121,10 +117,10 @@ export default function SearchPage() {
               검색 중 오류가 발생했습니다
             </h2>
             <p className="text-gray-500 mb-4">
-              {error.message}
+              {errMsg}
             </p>
             <button
-              onClick={() => search(query)}
+              onClick={() => rq.refetch()}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               다시 시도
@@ -134,7 +130,7 @@ export default function SearchPage() {
       );
     }
     
-    if (recipes.length === 0) {
+    if (rqItems.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-12 px-4">
           <div className="text-center">
@@ -143,7 +139,7 @@ export default function SearchPage() {
               검색 결과가 없습니다
             </h2>
             <p className="text-gray-500 mb-4">
-              &quot;{query}&quot;에 대한 검색 결과를 찾을 수 없습니다
+              &quot;{searchInput}&quot;에 대한 검색 결과를 찾을 수 없습니다
             </p>
             <button
               onClick={handleReset}
@@ -158,54 +154,36 @@ export default function SearchPage() {
     
     return (
       <div>
-        {/* Recipe Feed - Same as explore page */}
-        <ul className="flex flex-col gap-10">
-          {recipes.map((recipe) => {
-            const imageUrl = getImageUrl(recipe);
+        <ul className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
+          {rqItems.map((r) => {
+            const imageUrl = getImageUrl(r);
             return (
-              <li key={recipe.id} className="max-w-[480px] mx-auto w-full">
-                <Link href={`/recipes/${recipe.id}`} className="border border-[#eee] rounded-xl overflow-hidden block relative" aria-label={`${recipe.title} 상세 보기`}>
-                  {imageUrl ? (
-                    <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9' }}>
-                      <Image
-                        src={imageUrl}
-                        alt=""
-                        fill
-                        sizes="(max-width: 1024px) 100vw, 480px"
-                        style={{ objectFit: 'cover' }}
-                      />
-                    </div>
-                  ) : (
-                    <div style={{ width: '100%', aspectRatio: '16 / 9' }} className="bg-[#f3f4f6]" />
-                  )}
-                  <div className="absolute top-2 right-2" aria-hidden="true">
-                    <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-white/90 border border-[#eee]">
-                      <IconBookmark
-                        filled={Boolean((recipe as { isSaved?: boolean; isBookmarked?: boolean }).isSaved || (recipe as { isSaved?: boolean; isBookmarked?: boolean }).isBookmarked)}
-                        className={Boolean((recipe as { isSaved?: boolean; isBookmarked?: boolean }).isSaved || (recipe as { isSaved?: boolean; isBookmarked?: boolean }).isBookmarked) ? 'text-amber-500' : 'text-[#999]'}
-                      />
-                    </span>
-                  </div>
-                  <div className="p-4">
-                    <div className="text-[16px] font-semibold text-[#111]">{recipe.title}</div>
-                    {recipe.description && <div className="mt-1 text-[13px] text-[#666]">{recipe.description}</div>}
-                  </div>
-                </Link>
+              <li key={r.id}>
+                <RecipeCard
+                  recipeId={r.id}
+                  href={`/recipes/${r.id}`}
+                  title={r.title}
+                  image={imageUrl}
+                  minutes={r.cookingTime}
+                  description={r.description}
+                  likesCount={r.likesCount}
+                  liked={r.isLiked}
+                  saved={r.isSaved}
+                  authorAvatar={r.author?.profileImage}
+                />
               </li>
             );
           })}
         </ul>
         
-        {/* Loading More */}
-        {loadingMore && (
+        {(rq.isFetchingNextPage) && (
           <div className="text-center mt-4">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
             <span className="ml-2 text-gray-600">더 많은 레시피를 불러오는 중...</span>
           </div>
         )}
         
-        {/* No More Results */}
-        {!hasNextPage && recipes.length > 0 && (
+        {(!rq.hasNextPage && rqItems.length > 0) && (
           <div className="text-center py-8">
             <p className="text-gray-500">
               모든 검색 결과를 확인했습니다
