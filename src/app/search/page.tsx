@@ -154,11 +154,11 @@ export default function SearchPage() {
     
     return (
       <div>
-        <ul className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
+        <ul className="flex flex-col">
           {rqItems.map((r) => {
             const imageUrl = getImageUrl(r);
             return (
-              <li key={r.id}>
+              <li key={r.id} className="max-w-[520px] w-full mx-auto py-6 border-b border-[#e5e7eb] last:border-b-0">
                 <RecipeCard
                   recipeId={r.id}
                   href={`/recipes/${r.id}`}

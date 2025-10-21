@@ -3,9 +3,8 @@ import Topbar from '@/components/Topbar';
 import Sidebar from '@/components/Sidebar';
 import MobileNav from '@/components/MobileNav';
 import { useExploreFeed } from '@/lib/hooks/feed';
-import Image from 'next/image';
-import Link from 'next/link';
 import { useEffect, useMemo, useRef } from 'react';
+import RecipeCard from '@/components/RecipeCard';
 
 export default function ExplorePage() {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } = useExploreFeed(10);
@@ -46,32 +45,24 @@ export default function ExplorePage() {
           {status === 'pending' && <div>로딩...</div>}
           {status === 'error' && <div>오류가 발생했습니다</div>}
           {status === 'success' && (
-            <div>
-              <h2 className="text-center text-[22px] font-bold mb-6">탐색</h2>
-              <ul className="flex flex-col gap-10">
+            <div>              
+              <ul className="flex flex-col">
                 {items.map((r) => {
                   const imageUrl = getImageUrl(r);
                   return (
-                    <li key={r.id} className="max-w-[480px] mx-auto w-full">
-                      <Link href={`/recipes/${r.id}`} className="border border-[#eee] rounded-xl overflow-hidden block" aria-label={`${r.title} 상세 보기`}>
-                        {imageUrl ? (
-                          <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9' }}>
-                            <Image
-                              src={imageUrl}
-                              alt=""
-                              fill
-                              sizes="(max-width: 1024px) 100vw, 480px"
-                              style={{ objectFit: 'cover' }}
-                            />
-                          </div>
-                        ) : (
-                          <div style={{ width: '100%', aspectRatio: '16 / 9' }} className="bg-[#f3f4f6]" />
-                        )}
-                        <div className="p-4">
-                          <div className="text-[16px] font-semibold text-[#111]">{r.title}</div>
-                          {r.description && <div className="mt-1 text-[13px] text-[#666]">{r.description}</div>}
-                        </div>
-                      </Link>
+                    <li key={r.id} className="max-w-[520px] w-full mx-auto py-6 border-b border-[#e5e7eb] last:border-b-0">
+                      <RecipeCard
+                        recipeId={r.id}
+                        href={`/recipes/${r.id}`}
+                        title={r.title}
+                        image={imageUrl}
+                        minutes={r.cookingTime}
+                        description={r.description}
+                        likesCount={r.likesCount}
+                        liked={r.isLiked}
+                        saved={r.isSaved}
+                        authorAvatar={r.author?.profileImage}
+                      />
                     </li>
                   );
                 })}
