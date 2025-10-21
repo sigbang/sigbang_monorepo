@@ -160,7 +160,7 @@ const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
     }
   };
   const content = (
-    <div ref={ref} tabIndex={tabIndex} style={{ width: '100%' }} className={(active ? 'ring-2 ring-sky-500 ' : '') + 'rounded-[16px] focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white'}>
+    <div ref={ref} tabIndex={tabIndex} style={{ width: '100%' }} className={(active ? 'ring-6 ring-amber-200 ' : '') + 'rounded-[16px] focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white hover:ring-8 hover:ring-amber-200 hover:shadow-md transition-shadow'}>
       <div style={{ width: '100%', aspectRatio: '16 / 9', borderRadius: 12, overflow: 'hidden', background: '#eee', position: 'relative' }}>
         {image ? (
           <Image src={image} alt={title} priority sizes="(max-width: 1024px) 50vw, 520px" fill placeholder="blur" blurDataURL={BLUR_PLACEHOLDER} style={{ objectFit: 'cover' }} />
@@ -175,7 +175,7 @@ const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
         {description && (
           <div className="mt-1 text-[13px] text-[#6b7280] truncate">{description}</div>
         )}
-        <div className="mt-2 flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-1 text-[12px] text-[#666]">
             <IconClock />
             <span>{minutes ?? 60} mins</span>
@@ -190,7 +190,7 @@ const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
           </div>
         </div>
       </div>
-      <div className="px-1 pt-1 pb-2 flex items-center justify-between">
+      <div className="px-1 pb-2 flex items-center justify-between">
         <div className="flex items-center gap-2 text-[12px] text-[#6b7280]">
           <span>좋아요 {formatCountShort(likeCount)}</span>
         </div>
