@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import RecipeForm from '@/components/RecipeForm';
 import { createRecipe } from '@/lib/api/recipes';
@@ -7,6 +7,8 @@ import { createRecipe } from '@/lib/api/recipes';
 export default function NewRecipeModalPage() {
   const router = useRouter();
   const dialogRef = useRef<HTMLDivElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [completed, setCompleted] = useState(false);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -55,14 +57,46 @@ export default function NewRecipeModalPage() {
             embedded
             mode="create"
             onCancel={close}
+            onBusyChange={setBusy}
             onSubmit={async (dto) => {
-              const id = await createRecipe(dto);
-              alert(`레시피 업로드 완료: ${id}`);
-              router.push('/');
+              await createRecipe(dto);
+              setCompleted(true);
+              setTimeout(() => {
+                if (typeof window !== 'undefined' && window.history.length > 1) {
+                  router.back();
+                } else {
+                  router.replace('/');
+                }
+              }, 2000);
             }}
           />
         </div>
       </div>
+      {(busy || completed) && (
+        <div className="absolute inset-0 z-[110] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="relative z-[120] flex flex-col items-center gap-4 bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl px-8 py-10">
+            {completed ? (
+              <>
+                <svg className="h-16 w-16 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+                <div className="text-lg font-semibold">업로드가 완료되었습니다</div>
+                <div className="text-sm text-neutral-500">2초 후 창이 닫힙니다</div>
+              </>
+            ) : (
+              <>
+                <svg className="animate-spin h-14 w-14 text-black dark:text-white" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                </svg>
+                <div className="text-lg font-semibold">업로드 중...</div>
+                <div className="text-sm text-neutral-500">창을 닫지 마세요</div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

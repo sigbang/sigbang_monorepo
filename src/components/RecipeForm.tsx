@@ -16,9 +16,10 @@ type Props = {
   onSubmit: (dto: CreateRecipeDto) => Promise<void>;
   onCancel: () => void;
   embedded?: boolean;
+  onBusyChange?: (busy: boolean) => void;
 };
 
-export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded = false }: Props) {
+export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded = false, onBusyChange }: Props) {
   const [stage, setStage] = useState(1);
   const [title, setTitle] = useState(initial?.title ?? '');
   const [description, setDesc] = useState(initial?.description ?? '');
@@ -121,6 +122,7 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
       return;
     }
     setBusy(true);
+    if (onBusyChange) onBusyChange(true);
     try {
       // Thumbnail upload only when a new file is selected
       let finalThumbnailPath = thumbnailPath;
@@ -156,6 +158,7 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
       alert(`처리 실패: ${getErrorMessage(e)}`);
     } finally {
       setBusy(false);
+      if (onBusyChange) onBusyChange(false);
     }
   };
 
@@ -172,7 +175,7 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
   });
 
   const card = (
-    <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-[820px] max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-[820px] max-h-[90vh] overflow-hidden flex flex-col relative">
       <div className="border-b border-neutral-200 dark:border-neutral-800 p-2">
         <div className="relative mb-2">
           <h1 id="recipe-form-title" className="text-xl font-semibold text-center">
@@ -255,7 +258,19 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
 
         {stage === 3 && (
           <>
-            <StepsEditor initial={steps} onChange={setSteps} />
+            <StepsEditor
+              initial={steps}
+              onChange={(next) =>
+                setSteps(
+                  next.map((s) => ({
+                    order: s.order,
+                    description: s.description,
+                    imagePath: s.imagePath,
+                    imageFile: s.imageFile ?? undefined,
+                  }))
+                )
+              }
+            />
           </>
         )}
       </div>
@@ -291,6 +306,18 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
           )}
         </div>
       </div>
+
+      {busy && !embedded && (
+        <div className="absolute inset-0 bg-white/60 dark:bg-black/40 backdrop-blur-[1px] flex items-center justify-center">
+          <div className="flex items-center gap-3 text-sm text-neutral-700 dark:text-neutral-200">
+            <svg className="animate-spin h-5 w-5 text-black dark:text-white" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+            </svg>
+            <span>업로드 중...</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 
