@@ -1,16 +1,30 @@
 'use client';
 import { usePopularFeed } from '@/lib/hooks/feed';
 import RecipeCard from '@/components/RecipeCard';
+import RecipeCardSkeleton from '@/components/RecipeCardSkeleton';
 
 export default function PopularPage() {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } = usePopularFeed(10);
 
-  if (status === 'pending') return <main style={{ padding: 24 }}>로딩...</main>;
+  if (status === 'pending') {
+    return (
+      <main style={{ padding: 24 }}>
+        <h2>인기 레시피</h2>
+        <ul className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
+          {Array.from({ length: 12 }).map((_, idx) => (
+            <li key={idx}>
+              <RecipeCardSkeleton />
+            </li>
+          ))}
+        </ul>
+      </main>
+    );
+  }
   if (status === 'error') return <main style={{ padding: 24 }}>오류가 발생했습니다</main>;
 
   const items = data?.pages.flatMap((p) => p.recipes) ?? [];
   
-  const getImageUrl = (recipe: any) => {
+  const getImageUrl = (recipe: { thumbnailImage?: string; thumbnailUrl?: string; thumbnailPath?: string }) => {
     const thumb = recipe.thumbnailImage || recipe.thumbnailUrl || recipe.thumbnailPath;
     if (!thumb) return '';
     if (/^https?:/i.test(thumb)) return thumb;

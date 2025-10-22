@@ -72,9 +72,9 @@ export default function Home() {
               <AuthButtons />
             </div>
           </div>
-          <Section title={t('sections.now')} items={nowItems} />
+          <Section title={t('sections.now')} items={nowItems} loading={popular.status === 'pending'} />
           <div className="h-[24px]" />
-          <Section title={t('sections.recommend')} items={recommendItems} highlightFirst />
+          <Section title={t('sections.recommend')} items={recommendItems} highlightFirst loading={recommended.status === 'pending'} />
           <div className="mt-4 flex gap-3">
             <a className="text-sm text-sky-600 hover:underline" href="/feed/popular">인기 더 보기</a>
             <a className="text-sm text-sky-600 hover:underline" href="/feed/recommended">추천 더 보기</a>

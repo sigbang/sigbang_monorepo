@@ -5,13 +5,14 @@ import MobileNav from '@/components/MobileNav';
 import { useExploreFeed } from '@/lib/hooks/feed';
 import { useEffect, useMemo, useRef } from 'react';
 import RecipeCard from '@/components/RecipeCard';
+import RecipeCardSkeleton from '@/components/RecipeCardSkeleton';
 
 export default function ExplorePage() {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } = useExploreFeed(10);
 
   const items = useMemo(() => data?.pages.flatMap((p) => p.recipes) ?? [], [data]);
 
-  const getImageUrl = (recipe: any) => {
+  const getImageUrl = (recipe: { thumbnailImage?: string; thumbnailUrl?: string; thumbnailPath?: string }) => {
     const thumb = recipe.thumbnailImage || recipe.thumbnailUrl || recipe.thumbnailPath;
     if (!thumb) return '';
     if (/^https?:/i.test(thumb)) return thumb;
@@ -42,7 +43,15 @@ export default function ExplorePage() {
       <div className="mx-auto max-w-[1200px] flex">
         <Sidebar />
         <main id="main" className="flex-1 px-6 py-6" role="main">
-          {status === 'pending' && <div>로딩...</div>}
+          {status === 'pending' && (
+            <ul className="flex flex-col">
+              {Array.from({ length: 6 }).map((_, idx) => (
+                <li key={idx} className="max-w-[520px] w-full mx-auto py-6 border-b border-[#e5e7eb] last:border-b-0">
+                  <RecipeCardSkeleton />
+                </li>
+              ))}
+            </ul>
+          )}
           {status === 'error' && <div>오류가 발생했습니다</div>}
           {status === 'success' && (
             <div>              
@@ -68,7 +77,15 @@ export default function ExplorePage() {
                 })}
               </ul>
               <div ref={sentinelRef} className="h-10" />
-              {isFetchingNextPage && <div className="text-center mt-4">불러오는 중...</div>}
+              {isFetchingNextPage && (
+                <ul className="flex flex-col">
+                  {Array.from({ length: 3 }).map((_, idx) => (
+                    <li key={idx} className="max-w-[520px] w-full mx-auto py-6 border-b border-[#e5e7eb] last:border-b-0">
+                      <RecipeCardSkeleton />
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
         </main>
