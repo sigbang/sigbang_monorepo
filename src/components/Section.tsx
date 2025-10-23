@@ -13,7 +13,7 @@ export default function Section({
   loading,
 }: {
   title: string;
-  items: Array<{ id: string; title: string; image: string; minutes?: number; description?: string; likesCount?: number; authorAvatar?: string; liked?: boolean; saved?: boolean }>;
+  items: Array<{ id: string; title: string; image: string; minutes?: number; description?: string; likesCount?: number; authorAvatar?: string; authorId?: string; liked?: boolean; saved?: boolean }>;
   highlightFirst?: boolean;
   startIndex?: number;
   focusIndex?: number;
@@ -58,6 +58,7 @@ export default function Section({
               description={it.description}
               likesCount={it.likesCount}
               authorAvatar={it.authorAvatar}
+              authorId={it.authorId}
               liked={it.liked}
               saved={it.saved}
               active={highlightFirst && idx === 0}

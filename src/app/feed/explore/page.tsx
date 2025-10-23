@@ -71,6 +71,7 @@ export default function ExplorePage() {
                         liked={r.isLiked}
                         saved={r.isSaved}
                         authorAvatar={r.author?.profileImage}
+                        authorId={r.author?.id}
                       />
                     </li>
                   );

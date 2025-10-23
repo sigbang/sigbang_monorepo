@@ -44,14 +44,14 @@ export default function RecipeDetailClient({ id, initial }: { id: string; initia
               </button>
               <header className="mt-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-[16px] text-[#666]">
+                  <Link href={recipe.author?.id ? `/users/${recipe.author.id}` : '#'} className="flex items-center gap-2 text-[16px] text-[#666]">
                     {recipe.author?.image ? (
                       <Image src={recipe.author.image} alt="작성자" width={24} height={24} className="rounded-full object-cover" />
                     ) : (
                       <div className="w-6 h-6 rounded-full bg-[#ddd]" />
                     )}
                     <span>{recipe.author?.name ?? '작성자'}</span>
-                  </div>
+                  </Link>
                   <div className="flex items-center gap-2">
                     {me.data?.id && (
                       <RecipeActionsMenu

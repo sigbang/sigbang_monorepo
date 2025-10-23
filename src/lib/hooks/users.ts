@@ -1,7 +1,19 @@
 'use client';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
-import { getFollowCounts, getMe, getMyRecipes, getMySavedRecipes } from '../api/users';
+import {
+  followUser,
+  getFollowCounts,
+  getFollowers,
+  getFollowings,
+  getMe,
+  getMyRecipes,
+  getMySavedRecipes,
+  getUserProfile,
+  getUserRecipes,
+  unfollowUser,
+} from '../api/users';
+import type { PublicUser } from '../types/user';
 
 export function useMyProfile() {
   const { status } = useSession();
@@ -35,6 +47,115 @@ export function useMySavedRecipes(limit = 12) {
     queryFn: ({ pageParam }) => getMySavedRecipes({ limit, cursor: pageParam as string | undefined }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+  });
+}
+
+// Public user profile (auth-aware cache key)
+export function useUserProfile(userId: string | undefined) {
+  const { status } = useSession();
+  const authKey = status === 'authenticated' ? 'auth' : 'anon';
+  return useQuery<PublicUser>({
+    queryKey: ['user', userId, authKey],
+    enabled: !!userId,
+    queryFn: () => getUserProfile(userId as string),
+  });
+}
+
+export function useUserRecipes(userId: string | undefined, limit = 20) {
+  return useInfiniteQuery({
+    queryKey: ['userRecipes', userId, { limit }],
+    enabled: !!userId,
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) => getUserRecipes(userId as string, { limit, cursor: pageParam as string | undefined }),
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+  });
+}
+
+export function useFollowers(userId: string | undefined, limit = 20, enabled: boolean = true) {
+  return useInfiniteQuery({
+    queryKey: ['followers', userId, { limit }],
+    enabled: !!userId && enabled,
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) => getFollowers(userId as string, { limit, cursor: pageParam as string | undefined }),
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+  });
+}
+
+export function useFollowings(userId: string | undefined, limit = 20, enabled: boolean = true) {
+  return useInfiniteQuery({
+    queryKey: ['followings', userId, { limit }],
+    enabled: !!userId && enabled,
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) => getFollowings(userId as string, { limit, cursor: pageParam as string | undefined }),
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+  });
+}
+
+export function useToggleFollow(targetUserId: string | undefined) {
+  const { status } = useSession();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationKey: ['toggleFollow', targetUserId],
+    mutationFn: async (next: boolean) => {
+      if (status !== 'authenticated') {
+        if (typeof window !== 'undefined') window.dispatchEvent(new Event('open-login-modal'));
+        throw new Error('Unauthorized');
+      }
+      const res = next ? await followUser(targetUserId as string) : await unfollowUser(targetUserId as string);
+      return res.followed;
+    },
+    onMutate: async (nextFollowing) => {
+      await Promise.allSettled([
+        qc.cancelQueries({ queryKey: ['user', targetUserId] }),
+        qc.cancelQueries({ queryKey: ['users', targetUserId, 'follow-counts'] }),
+      ]);
+
+      // Snapshot previous values
+      const prevUserEntries = qc.getQueriesData<PublicUser>({ queryKey: ['user', targetUserId] });
+      const prevCounts = qc.getQueryData<{ followerCount: number; followingCount: number }>([
+        'users',
+        targetUserId,
+        'follow-counts',
+      ]);
+
+      // Optimistically update user relation.isFollowing
+      for (const [key, oldUser] of prevUserEntries) {
+        if (!oldUser) continue;
+        const updated: PublicUser = {
+          ...oldUser,
+          relation: { ...(oldUser.relation ?? {}), isFollowing: nextFollowing },
+        };
+        qc.setQueryData(key, updated);
+      }
+      // Optimistically bump followerCount on the target profile's counts
+      if (prevCounts) {
+        const delta = nextFollowing ? 1 : -1;
+        qc.setQueryData(['users', targetUserId, 'follow-counts'], {
+          ...prevCounts,
+          followerCount: Math.max(0, (prevCounts.followerCount ?? 0) + delta),
+        });
+      }
+
+      return { prevUserEntries, prevCounts } as const;
+    },
+    onError: (_err, _vars, ctx) => {
+      if (!ctx) return;
+      for (const [key, oldUser] of ctx.prevUserEntries) {
+        qc.setQueryData(key, oldUser);
+      }
+      if (ctx.prevCounts) {
+        qc.setQueryData(['users', targetUserId, 'follow-counts'], ctx.prevCounts);
+      }
+    },
+    onSuccess: async () => {
+      // Invalidate profile and counts for the target user and my lists
+      await Promise.allSettled([
+        qc.invalidateQueries({ queryKey: ['user', targetUserId] }),
+        qc.invalidateQueries({ queryKey: ['users', targetUserId, 'follow-counts'] }),
+        qc.invalidateQueries({ queryKey: ['followers'] }),
+        qc.invalidateQueries({ queryKey: ['followings'] }),
+      ]);
+    },
   });
 }
 

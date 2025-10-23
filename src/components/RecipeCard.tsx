@@ -15,6 +15,7 @@ type Props = {
   description?: string;
   likesCount?: number;
   authorAvatar?: string;
+  authorId?: string;
   liked?: boolean;
   active?: boolean;
   tabIndex?: number;
@@ -35,7 +36,7 @@ function formatCountShort(n?: number) {
 }
 
 const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
-  { recipeId, title, minutes, image, description, likesCount, authorAvatar, liked, active, tabIndex, href, saved },
+  { recipeId, title, minutes, image, description, likesCount, authorAvatar, authorId, liked, active, tabIndex, href, saved },
   ref
 ) {
   const [isLiked, setIsLiked] = useState<boolean>(!!liked);
@@ -206,10 +207,19 @@ const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
         </div>
         <div className="flex items-center gap-2">
           {authorAvatar ? (
-            <span className="inline-block h-7 w-7 rounded-full overflow-hidden border border-[#eee] bg-[#f5f5f5]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={authorAvatar} alt="작성자" className="h-full w-full object-cover" />
-            </span>
+            authorId ? (
+              <Link href={`/users/${authorId}`} aria-label="작성자 프로필로 이동" className="group">
+                <span className="inline-block h-7 w-7 rounded-full overflow-hidden border border-[#eee] bg-[#f5f5f5] transition-shadow hover:ring-2 hover:ring-amber-300 focus-visible:ring-2 focus-visible:ring-amber-500">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={authorAvatar} alt="작성자" className="h-full w-full object-cover" />
+                </span>
+              </Link>
+            ) : (
+              <span className="inline-block h-7 w-7 rounded-full overflow-hidden border border-[#eee] bg-[#f5f5f5] transition-shadow hover:ring-2 hover:ring-amber-300">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={authorAvatar} alt="작성자" className="h-full w-full object-cover" />
+              </span>
+            )
           ) : (
             <span className="inline-block h-7 w-7 rounded-full bg-[#e5e7eb]" aria-hidden="true" />
           )}

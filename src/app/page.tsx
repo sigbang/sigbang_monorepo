@@ -31,7 +31,8 @@ export default function Home() {
     likesCount: r.likesCount,
     liked: r.isLiked,
     saved: r.isSaved,
-    authorAvatar: r.author?.profileImage ?? ''
+    authorAvatar: r.author?.profileImage ?? '',
+    authorId: r.author?.id
   }));
   const recommendItems = (recommended.data?.pages.flatMap((p) => p.recipes) ?? []).map((r) => ({
     id: r.id,
@@ -42,7 +43,8 @@ export default function Home() {
     likesCount: r.likesCount,
     liked: r.isLiked,
     saved: r.isSaved,
-    authorAvatar: r.author?.profileImage ?? ''
+    authorAvatar: r.author?.profileImage ?? '',
+    authorId: r.author?.id
   }));
   const mainRef = useRef<HTMLElement>(null);
 
