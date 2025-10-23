@@ -4,6 +4,7 @@ import { ReactNode, useEffect, useState } from 'react';
 import { SessionProvider } from 'next-auth/react';
 import { ensureDeviceCookie } from '@/lib/auth/device';
 import { useSessionKeepAlive } from '@/hooks/useSessionKeepAlive';
+import LoginModalHost from '@/components/LoginModalHost';
 
 export default function Providers({ children }: { children: ReactNode }) {
   const [qc] = useState(() => new QueryClient());
@@ -13,7 +14,10 @@ export default function Providers({ children }: { children: ReactNode }) {
   useSessionKeepAlive();
   return (
     <SessionProvider>
-      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+      <QueryClientProvider client={qc}>
+        {children}
+        <LoginModalHost />
+      </QueryClientProvider>
     </SessionProvider>
   );
 }

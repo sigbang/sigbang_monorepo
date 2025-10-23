@@ -1,11 +1,14 @@
 'use client';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useSession } from 'next-auth/react';
 import { getFollowCounts, getMe, getMyRecipes, getMySavedRecipes } from '../api/users';
 
 export function useMyProfile() {
+  const { status } = useSession();
   return useQuery({
     queryKey: ['me'],
     queryFn: () => getMe(),
+    enabled: status === 'authenticated',
   });
 }
 

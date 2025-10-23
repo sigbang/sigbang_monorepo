@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMyProfile } from '@/lib/hooks/users';
 import { useRecipe, useToggleLike, useToggleSave } from '@/lib/hooks/recipes';
+import { useSession } from 'next-auth/react';
 import { IconArrowLeft, IconBookmark, IconClock, IconHeart } from '@/components/icons';
 import { deleteRecipe, reportRecipe, RecipeDetail } from '@/lib/api/recipes';
 
@@ -18,6 +19,7 @@ export default function RecipeDetailClient({ id, initial }: { id: string; initia
   const likeMut = useToggleLike(id);
   const saveMut = useToggleSave(id);
   const me = useMyProfile();
+  const session = useSession();
 
   const imageUrl = useMemo(() => {
     const thumb = recipe?.thumbnailImage || recipe?.thumbnailUrl || recipe?.thumbnailPath;
@@ -101,7 +103,13 @@ export default function RecipeDetailClient({ id, initial }: { id: string; initia
                     </div>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => likeMut.mutate()}
+                        onClick={() => {
+                          if (session.status !== 'authenticated') {
+                            if (typeof window !== 'undefined') window.dispatchEvent(new Event('open-login-modal'));
+                            return;
+                          }
+                          likeMut.mutate();
+                        }}
                         disabled={likeMut.isPending}
                         className="flex items-center gap-1 px-3 py-2 rounded-full border border-[#eee] hover:bg-amber-50"
                         aria-label={recipe.isLiked ? '좋아요 취소' : '좋아요'}
@@ -114,7 +122,13 @@ export default function RecipeDetailClient({ id, initial }: { id: string; initia
                         const saved = (recipe.isSaved ?? recipe.isBookmarked) ?? false;
                         return (
                           <button
-                            onClick={() => saveMut.mutate()}
+                            onClick={() => {
+                              if (session.status !== 'authenticated') {
+                                if (typeof window !== 'undefined') window.dispatchEvent(new Event('open-login-modal'));
+                                return;
+                              }
+                              saveMut.mutate();
+                            }}
                             disabled={saveMut.isPending}
                             className={'border border-[#eee] hover:bg-amber-50 px-3 py-2 rounded-full flex items-center gap-1'}
                             aria-label={saved ? '저장 취소' : '저장'}

@@ -2,6 +2,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { forwardRef, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { IconClock, IconBookmark, IconHeart } from './icons';
 import { toggleLike, toggleSave } from '@/lib/api/recipes';
 import { useQueryClient } from '@tanstack/react-query';
@@ -42,6 +43,7 @@ const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
   const [likeCount, setLikeCount] = useState<number>(likesCount ?? 0);
   const [busy, setBusy] = useState<{ like?: boolean; save?: boolean }>({});
   const qc = useQueryClient();
+  const { status } = useSession();
 
   const updateRecipeDetailCache = (updater: (r: Record<string, unknown>) => Record<string, unknown>) => {
     if (!recipeId) return;
@@ -87,6 +89,10 @@ const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
     e.preventDefault();
     e.stopPropagation();
     if (!recipeId || busy.like) return;
+    if (status !== 'authenticated') {
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('open-login-modal'));
+      return;
+    }
     setBusy((b) => ({ ...b, like: true }));
     const optimisticNext = !isLiked;
     setIsLiked(optimisticNext);
@@ -141,6 +147,10 @@ const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
     e.preventDefault();
     e.stopPropagation();
     if (!recipeId || busy.save) return;
+    if (status !== 'authenticated') {
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('open-login-modal'));
+      return;
+    }
     setBusy((b) => ({ ...b, save: true }));
     const optimisticNext = !isSaved;
     setIsSaved(optimisticNext);

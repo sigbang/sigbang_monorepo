@@ -30,9 +30,9 @@ api.interceptors.response.use(
       
       // Handle various authentication errors
       if (status === 401 || authHeader === 'invalid') {
-        console.warn('[auth] Unauthorized - redirecting to login');
-        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-          window.location.href = '/login';
+        console.warn('[auth] Unauthorized - prompting login');
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('open-login-modal'));
         }
       } else if (status === 403) {
         console.warn('[auth] Forbidden - insufficient permissions');
@@ -52,9 +52,9 @@ api.interceptors.response.use(
           ? String(data.message) 
           : 'Authentication token error';
         if (errorMessage.toLowerCase().includes('token') || errorMessage.toLowerCase().includes('jwt')) {
-          console.warn('[auth] Token format error - redirecting to login');
-          if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-            window.location.href = '/login';
+          console.warn('[auth] Token format error - prompting login');
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('open-login-modal'));
           }
         }
       }
