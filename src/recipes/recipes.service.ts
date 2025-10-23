@@ -1107,6 +1107,11 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
       throw new NotFoundException('레시피를 찾을 수 없습니다.');
     }
 
+    // 숨김 처리된 레시피는 누구에게도 노출되지 않음
+    if (recipe.isHidden) {
+      throw new NotFoundException('레시피를 찾을 수 없습니다.');
+    }
+
     // 공개되지 않은 레시피는 작성자만 조회 가능
     if (recipe.status !== RecipeStatus.PUBLISHED && recipe.authorId !== userId) {
       throw new ForbiddenException('레시피를 조회할 권한이 없습니다.');

@@ -30,6 +30,16 @@ export class AdminController {
     return this.adminService.hideRecipe(recipeId, user.id, reason);
   }
 
+  @Patch('recipes/:id/restore')
+  @ApiOperation({ summary: '레시피 숨김 해제(복구)' })
+  async restoreRecipe(
+    @Param('id') recipeId: string,
+    @Body('reason') reason: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.adminService.restoreRecipe(recipeId, user.id, reason);
+  }
+
   @Patch('comments/:id/hide')
   @ApiOperation({ summary: '댓글 숨김 처리' })
   async hideComment(

@@ -242,7 +242,8 @@ export class UsersService {
     const rows = await this.prismaService.recipe.findMany({
       where: {
         authorId: userId,
-        ...(isOwner ? {} : { status: 'PUBLISHED', isHidden: false }),
+        isHidden: false,
+        ...(isOwner ? {} : { status: 'PUBLISHED' }),
       },
       take: limit + 1,
       ...(decodedCursor && { cursor: { id: decodedCursor.id }, skip: 1 }),
@@ -306,7 +307,10 @@ export class UsersService {
     const orderBy: any = [{ createdAt: 'desc' }, { id: 'desc' }];
 
     const rows = await this.prismaService.save.findMany({
-      where: { userId },
+      where: {
+        userId,
+        recipe: { isHidden: false, status: 'PUBLISHED' as any },
+      },
       take: limit + 1,
       ...(decodedCursor && { cursor: { id: decodedCursor.id }, skip: 1 }),
       orderBy,
