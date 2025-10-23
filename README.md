@@ -50,6 +50,7 @@ SigBang API는 요리 레시피를 공유하고 소통할 수 있는 SNS 플랫�
 - [x] 댓글 시스템
 - [x] 레시피 저장(스크랩) 기능
 - [x] 사용자별 레시피 목록 조회
+- [x] 소셜 팔로우(Follow) 기능: 팔로우/언팔로우, 팔로워/팔로잉 목록, 카운트
 
 ### 🛡️ 관리자 기능
 - [x] 신고된 콘텐츠 관리
@@ -69,15 +70,23 @@ POST   /auth/signout    # 로그아웃
 
 ### 사용자 (/users)
 ```
-GET    /users/me                    # 내 정보 조회
-PATCH  /users/me                    # 내 정보 수정
-POST   /users/me/profile-image      # 프로필 이미지 업로드
-DELETE /users/me                    # 계정 탈퇴
-GET    /users/me/recipes            # 내 레시피 목록
-GET    /users/me/saved-recipes      # 저장한 레시피 목록
-GET    /users/:id                   # 다른 사용자 정보 조회
-GET    /users/:id/recipes           # 다른 사용자의 레시피 목록
+GET    /users/me                         # 내 정보 조회 🔒
+PATCH  /users/me                         # 내 정보 수정 🔒
+POST   /users/me/profile-image           # 프로필 이미지 업로드 🔒
+DELETE /users/me                         # 계정 탈퇴 🔒
+GET    /users/me/recipes                 # 내 레시피 목록 🔒
+GET    /users/me/saved-recipes           # 저장한 레시피 목록 🔒
+
+GET    /users/:id                        # 다른 사용자 정보 조회 (옵션 인증)
+GET    /users/:id/recipes                # 다른 사용자의 레시피 목록 (옵션 인증)
+GET    /users/:id/follow-counts          # 팔로워/팔로잉 카운트
+GET    /users/:id/followers              # 팔로워 목록 (옵션 인증)
+GET    /users/:id/followings             # 팔로잉 목록 (옵션 인증)
+POST   /users/:id/follow                 # 팔로우 🔒
+DELETE /users/:id/follow                 # 언팔로우 🔒
 ```
+
+- (옵션 인증): 토큰이 있으면 `relation.isFollowing/isFollowedBy` 등 뷰어 기준 관계 플래그가 포함됩니다.
 
 ### 레시피 (/recipes)
 ```
@@ -142,15 +151,10 @@ PATCH  /admin/users/:id/block    # 사용자 차단
 1. 저장소 클론
 ```bash
 git clone https://github.com/your-username/sigbang_api.git
-cd sigbang_api
+yarn || npm install
 ```
 
-2. 의존성 설치
-```bash
-npm install
-```
-
-3. 환경 변수 설정
+2. 환경 변수 설정
 ```bash
 cp .env.example .env
 ```
@@ -180,7 +184,7 @@ OPENAI_API_KEY="your_openai_api_key"
 OPENAI_RECIPE_MODEL="gpt-4o-mini"
 ```
 
-4. Prisma 설정
+3. Prisma 설정
 ```bash
 npx prisma generate
 npx prisma db push

@@ -198,7 +198,7 @@ export class UsersService {
     }
   }
 
-  async findUserById(userId: string) {
+  async findUserById(userId: string, viewerId?: string) {
     const user = await this.prismaService.user.findUnique({
       where: { id: userId },
       include: {
@@ -216,9 +216,21 @@ export class UsersService {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
 
+    let isFollowing: boolean | undefined;
+    let isFollowedBy: boolean | undefined;
+    if (viewerId && viewerId !== userId) {
+      const [a, b] = await Promise.all([
+        (this.prismaService as any).follow.count({ where: { followerId: viewerId, followingId: userId } }),
+        (this.prismaService as any).follow.count({ where: { followerId: userId, followingId: viewerId } }),
+      ]);
+      isFollowing = a > 0;
+      isFollowedBy = b > 0;
+    }
+
     return {
       ...user,
       recipesCount: user._count.recipes,
+      relation: viewerId ? { isFollowing: !!isFollowing, isFollowedBy: !!isFollowedBy } : undefined,
     };
   }
 
@@ -359,6 +371,137 @@ export class UsersService {
     ]);
 
     return { followerCount, followingCount };
+  }
+
+  async follow(userId: string, targetUserId: string) {
+    if (userId === targetUserId) {
+      throw new BadRequestException('자기 자신을 팔로우할 수 없습니다.');
+    }
+    const target = await this.prismaService.user.findUnique({ where: { id: targetUserId }, select: { status: true } });
+    if (!target || (target as any).status !== 'ACTIVE') {
+      throw new NotFoundException('대상 사용자를 찾을 수 없습니다.');
+    }
+    await (this.prismaService as any).follow.upsert({
+      where: { followerId_followingId: { followerId: userId, followingId: targetUserId } },
+      update: {},
+      create: { followerId: userId, followingId: targetUserId },
+    });
+    return { followed: true };
+  }
+
+  async unfollow(userId: string, targetUserId: string) {
+    await (this.prismaService as any).follow.deleteMany({
+      where: { followerId: userId, followingId: targetUserId },
+    });
+    return { followed: false };
+  }
+
+  async getFollowers(userId: string, viewerId?: string, query?: { cursor?: string; limit?: number }) {
+    const { cursor, limit = 20 } = (query ?? {}) as any;
+    let decoded: { id: string; createdAt?: string } | null = null;
+    if (cursor) {
+      try { decoded = JSON.parse(Buffer.from(cursor, 'base64').toString('utf-8')); } catch {}
+    }
+
+    const rows = await (this.prismaService as any).follow.findMany({
+      where: { followingId: userId, follower: { status: 'ACTIVE' } },
+      take: limit + 1,
+      ...(decoded && { cursor: { id: decoded.id }, skip: 1 }),
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      include: {
+        follower: { select: { id: true, nickname: true, profileImage: true } },
+      },
+    });
+
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, limit) : rows;
+    const last = items[items.length - 1];
+    const nextCursor = last ? Buffer.from(JSON.stringify({ id: last.id, createdAt: last.createdAt })).toString('base64') : null;
+
+    let viewerFollowing = new Set<string>();
+    let viewerFollowers = new Set<string>();
+    if (viewerId) {
+      const peerIds = items.map((r: any) => r.follower.id);
+      const [vf, vb] = await Promise.all([
+        (this.prismaService as any).follow.findMany({
+          where: { followerId: viewerId, followingId: { in: peerIds } },
+          select: { followingId: true },
+        }),
+        (this.prismaService as any).follow.findMany({
+          where: { followerId: { in: peerIds }, followingId: viewerId },
+          select: { followerId: true },
+        }),
+      ]);
+      viewerFollowing = new Set(vf.map((x: any) => x.followingId));
+      viewerFollowers = new Set(vb.map((x: any) => x.followerId));
+    }
+
+    const users = items.map((r: any) => ({
+      id: r.follower.id,
+      nickname: r.follower.nickname,
+      profileImage: r.follower.profileImage,
+      followedAt: r.createdAt,
+      ...(viewerId ? {
+        isFollowing: viewerFollowing.has(r.follower.id),
+        isFollowedBy: viewerFollowers.has(r.follower.id),
+      } : {}),
+    }));
+
+    return { users, pageInfo: { limit, nextCursor, hasMore } };
+  }
+
+  async getFollowings(userId: string, viewerId?: string, query?: { cursor?: string; limit?: number }) {
+    const { cursor, limit = 20 } = (query ?? {}) as any;
+    let decoded: { id: string; createdAt?: string } | null = null;
+    if (cursor) {
+      try { decoded = JSON.parse(Buffer.from(cursor, 'base64').toString('utf-8')); } catch {}
+    }
+
+    const rows = await (this.prismaService as any).follow.findMany({
+      where: { followerId: userId, following: { status: 'ACTIVE' } },
+      take: limit + 1,
+      ...(decoded && { cursor: { id: decoded.id }, skip: 1 }),
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      include: {
+        following: { select: { id: true, nickname: true, profileImage: true } },
+      },
+    });
+
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, limit) : rows;
+    const last = items[items.length - 1];
+    const nextCursor = last ? Buffer.from(JSON.stringify({ id: last.id, createdAt: last.createdAt })).toString('base64') : null;
+
+    let viewerFollowing = new Set<string>();
+    let viewerFollowers = new Set<string>();
+    if (viewerId) {
+      const peerIds = items.map((r: any) => r.following.id);
+      const [vf, vb] = await Promise.all([
+        (this.prismaService as any).follow.findMany({
+          where: { followerId: viewerId, followingId: { in: peerIds } },
+          select: { followingId: true },
+        }),
+        (this.prismaService as any).follow.findMany({
+          where: { followerId: { in: peerIds }, followingId: viewerId },
+          select: { followerId: true },
+        }),
+      ]);
+      viewerFollowing = new Set(vf.map((x: any) => x.followingId));
+      viewerFollowers = new Set(vb.map((x: any) => x.followerId));
+    }
+
+    const users = items.map((r: any) => ({
+      id: r.following.id,
+      nickname: r.following.nickname,
+      profileImage: r.following.profileImage,
+      followedAt: r.createdAt,
+      ...(viewerId ? {
+        isFollowing: viewerFollowing.has(r.following.id),
+        isFollowedBy: viewerFollowers.has(r.following.id),
+      } : {}),
+    }));
+
+    return { users, pageInfo: { limit, nextCursor, hasMore } };
   }
 
   // 히스토리 조회 (selfView: IP/UA 마스킹)
