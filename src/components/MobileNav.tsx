@@ -11,7 +11,7 @@ export default function MobileNav() {
   const t = useT();
   return (
     <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#eee]">
-      <ul className="grid grid-cols-4 text-[12px] text-[#444]">
+      <ul className="grid grid-cols-5 text-[12px] text-[#444]">
         <li>
           <Link href="/" className="flex flex-col items-center py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" aria-current="page">
             <HomeIcon size={20} />
@@ -29,6 +29,12 @@ export default function MobileNav() {
             <CompassIcon size={20} />
             <span>{t('nav.explore')}</span>
           </a>
+        </li>
+        <li>
+          <Link href="/recipes/import" className="flex flex-col items-center py-2 focus:outline-none focus:ring-2 focus:ring-sky-500">
+            <PlusIcon size={20} />
+            <span>가져오기</span>
+          </Link>
         </li>
         <li>
           <Link href="/recipes/new" className="flex flex-col items-center py-2 focus:outline-none focus:ring-2 focus:ring-sky-500">
