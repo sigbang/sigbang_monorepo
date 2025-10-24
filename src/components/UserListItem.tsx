@@ -1,5 +1,6 @@
 'use client';
 import { useMemo, useState } from 'react';
+import Image from 'next/image';
 import { useToggleFollow } from '@/lib/hooks/users';
 import type { PublicUser } from '@/lib/types/user';
 
@@ -49,10 +50,9 @@ export default function UserListItem({ user, currentUserId }: Props) {
   return (
     <div className="flex items-center justify-between py-2">
       <div className="flex items-center gap-3 min-w-0">
-        <span className="inline-block h-10 w-10 rounded-full overflow-hidden border border-[#eee] bg-[#f5f5f5]">
+        <span className="inline-block h-10 w-10 rounded-full overflow-hidden border border-[#eee] bg-[#f5f5f5] relative">
           {imgUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={imgUrl} alt={user.nickname ?? user.name ?? '사용자'} className="h-full w-full object-cover" />
+            <Image src={imgUrl} alt={user.nickname ?? user.name ?? '사용자'} fill sizes="40px" style={{ objectFit: 'cover' }} />
           ) : (
             <span className="inline-block h-full w-full bg-[#e5e7eb]" aria-hidden="true" />
           )}

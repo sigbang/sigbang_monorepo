@@ -62,6 +62,8 @@ export default function Section({
               liked={it.liked}
               saved={it.saved}
               active={highlightFirst && idx === 0}
+              priority={idx < 6}
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 45vw, 360px"
               href={`/recipes/${it.id}`}
             />
           ))}

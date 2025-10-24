@@ -1,5 +1,6 @@
 'use client';
 import { useMemo, useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import RecipeForm from '@/components/RecipeForm';
 import { createRecipe } from '@/lib/api/recipes';
@@ -97,9 +98,11 @@ export default function ImportFoodsafetyPage() {
               <li key={String(it.RCP_SEQ ?? Math.random())}
                   className="border border-neutral-200 dark:border-neutral-800 rounded-md p-3 flex gap-3 hover:bg-neutral-50 dark:hover:bg-neutral-800/40 cursor-pointer"
                   onClick={() => setSelected(it)}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={(it.ATT_FILE_NO_MK || it.ATT_FILE_NO_MAIN) as string}
-                     alt="" className="w-24 h-24 object-cover rounded-md" />
+                <div className="relative w-24 h-24 rounded-md overflow-hidden bg-neutral-200">
+                  <Image src={(it.ATT_FILE_NO_MK || it.ATT_FILE_NO_MAIN) as string}
+                         alt=""
+                         fill sizes="96px" style={{ objectFit: 'cover' }} />
+                </div>
                 <div className="flex-1">
                   <div className="font-semibold">{it.RCP_NM}</div>
                   <div className="text-xs text-neutral-500 mt-1">

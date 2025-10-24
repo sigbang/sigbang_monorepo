@@ -21,6 +21,8 @@ type Props = {
   tabIndex?: number;
   href?: string;
   saved?: boolean;
+  priority?: boolean;
+  sizes?: string;
 };
 
 const BLUR_PLACEHOLDER =
@@ -36,7 +38,7 @@ function formatCountShort(n?: number) {
 }
 
 const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
-  { recipeId, title, minutes, image, description, likesCount, authorAvatar, authorId, liked, active, tabIndex, href, saved },
+  { recipeId, title, minutes, image, description, likesCount, authorAvatar, authorId, liked, active, tabIndex, href, saved, priority, sizes },
   ref
 ) {
   const [isLiked, setIsLiked] = useState<boolean>(!!liked);
@@ -174,7 +176,7 @@ const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
     <div ref={ref} tabIndex={tabIndex} style={{ width: '100%' }} className={(active ? 'ring-6 ring-amber-200 ' : '') + 'rounded-[16px] focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white hover:ring-8 hover:ring-amber-200 hover:shadow-md transition-shadow'}>
       <div style={{ width: '100%', aspectRatio: '16 / 9', borderRadius: 12, overflow: 'hidden', background: '#eee', position: 'relative' }}>
         {image ? (
-          <Image src={image} alt={title} priority sizes="(max-width: 1024px) 50vw, 520px" fill placeholder="blur" blurDataURL={BLUR_PLACEHOLDER} style={{ objectFit: 'cover' }} />
+          <Image src={image} alt={title} priority={!!priority} sizes={sizes || "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 520px"} fill placeholder="blur" blurDataURL={BLUR_PLACEHOLDER} style={{ objectFit: 'cover' }} />
         ) : (
           <div style={{ position: 'absolute', inset: 0, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: 14 }}>
             이미지 없음
@@ -209,15 +211,13 @@ const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
           {authorAvatar ? (
             authorId ? (
               <Link href={`/users/${authorId}`} aria-label="작성자 프로필로 이동" className="group">
-                <span className="inline-block h-7 w-7 rounded-full overflow-hidden border border-[#eee] bg-[#f5f5f5] transition-shadow hover:ring-2 hover:ring-amber-300 focus-visible:ring-2 focus-visible:ring-amber-500">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={authorAvatar} alt="작성자" className="h-full w-full object-cover" />
+                <span className="inline-block h-7 w-7 rounded-full overflow-hidden border border-[#eee] bg-[#f5f5f5] transition-shadow hover:ring-2 hover:ring-amber-300 focus-visible:ring-2 focus-visible:ring-amber-500 relative">
+                  <Image src={authorAvatar} alt="작성자" fill sizes="28px" style={{ objectFit: 'cover' }} />
                 </span>
               </Link>
             ) : (
-              <span className="inline-block h-7 w-7 rounded-full overflow-hidden border border-[#eee] bg-[#f5f5f5] transition-shadow hover:ring-2 hover:ring-amber-300">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={authorAvatar} alt="작성자" className="h-full w-full object-cover" />
+              <span className="inline-block h-7 w-7 rounded-full overflow-hidden border border-[#eee] bg-[#f5f5f5] transition-shadow hover:ring-2 hover:ring-amber-300 relative">
+                <Image src={authorAvatar} alt="작성자" fill sizes="28px" style={{ objectFit: 'cover' }} />
               </span>
             )
           ) : (

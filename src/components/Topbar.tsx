@@ -1,6 +1,7 @@
 "use client";
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -47,8 +48,9 @@ export default function Topbar() {
               title={userEmail || '프로필'}
             >
               {userImageUrl ? (
-                // Use img to avoid next/image remote domain config
-                <img src={userImageUrl} alt="프로필" className="w-full h-full object-cover" />
+                <span className="relative block w-full h-full">
+                  <Image src={userImageUrl} alt="프로필" fill sizes="32px" style={{ objectFit: 'cover' }} />
+                </span>
               ) : (
                 <div className="w-full h-full bg-[#ddd]" />
               )}

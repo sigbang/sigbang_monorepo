@@ -3,11 +3,14 @@
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useMyFollowCounts, useMyProfile, useMyRecipes, useMySavedRecipes } from "@/lib/hooks/users";
+import { useFollowers, useFollowings, useMyFollowCounts, useMyProfile, useMyRecipes, useMySavedRecipes } from "@/lib/hooks/users";
 import RecipeCard from "@/components/RecipeCard";
 import Topbar from "@/components/Topbar";
 import Sidebar from "@/components/Sidebar";
 import MobileNav from "@/components/MobileNav";
+import Image from "next/image";
+import UserListItem from "@/components/UserListItem";
+import type { PublicUser } from "@/lib/types/user";
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
@@ -25,7 +28,8 @@ export default function ProfilePage() {
   const recipes = useMyRecipes(12);
   const saved = useMySavedRecipes(12);
 
-  const [tab, setTab] = useState<'recipes' | 'saved'>("recipes");
+  const [tab, setTab] = useState<'recipes' | 'saved' | 'followers' | 'followings'>("recipes");
+  const [group, setGroup] = useState<'recipes' | 'follows'>('recipes');
 
   const getImageUrl = (recipe: { thumbnailImage?: string; thumbnailUrl?: string; thumbnailPath?: string }) => {
     const thumb = recipe.thumbnailImage || recipe.thumbnailUrl || recipe.thumbnailPath;
@@ -40,9 +44,24 @@ export default function ProfilePage() {
     return (pages?.flatMap((p) => p.recipes) ?? []).map((r) => ({ id: r.id, title: r.title, image: getImageUrl(r) }));
   }, [recipes.data, saved.data, tab]);
 
-  const hasNextPage = tab === 'recipes' ? recipes.hasNextPage : saved.hasNextPage;
-  const isFetchingNext = tab === 'recipes' ? recipes.isFetchingNextPage : saved.isFetchingNextPage;
-  const fetchMore = tab === 'recipes' ? recipes.fetchNextPage : saved.fetchNextPage;
+  const followers = useFollowers(me.data?.id, 20, tab === 'followers');
+  const followings = useFollowings(me.data?.id, 20, tab === 'followings');
+
+  const hasNextPage =
+    tab === 'recipes' ? recipes.hasNextPage :
+    tab === 'saved' ? saved.hasNextPage :
+    tab === 'followers' ? followers.hasNextPage :
+    followings.hasNextPage;
+  const isFetchingNext =
+    tab === 'recipes' ? recipes.isFetchingNextPage :
+    tab === 'saved' ? saved.isFetchingNextPage :
+    tab === 'followers' ? followers.isFetchingNextPage :
+    followings.isFetchingNextPage;
+  const fetchMore =
+    tab === 'recipes' ? recipes.fetchNextPage :
+    tab === 'saved' ? saved.fetchNextPage :
+    tab === 'followers' ? followers.fetchNextPage :
+    followings.fetchNextPage;
 
   return (
     <div className="min-h-screen">
@@ -64,9 +83,9 @@ export default function ProfilePage() {
             <div className="mx-auto max-w-[1040px] px-1 py-2">
 
               <div className="mt-6 flex flex-col items-center gap-3">
-                <div className="w-24 h-24 rounded-full overflow-hidden bg-[#eee] border border-[#ddd]">
+                <div className="w-24 h-24 rounded-full overflow-hidden bg-[#eee] border border-[#ddd] relative">
                   {image ? (
-                    <img src={image} alt="아바타" className="w-full h-full object-cover" />
+                    <Image src={image} alt="아바타" fill sizes="96px" style={{ objectFit: 'cover' }} />
                   ) : (
                     <div className="w-full h-full" />
                   )}
@@ -78,44 +97,88 @@ export default function ProfilePage() {
               </div>
 
               <div className="mt-6 grid grid-cols-3 max-w-[520px] mx-auto">
-                <div className="text-center">
+                <button
+                  type="button"
+                  className="text-center cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 rounded-md p-1 hover:bg-neutral-50 group"
+                  onClick={() => { setGroup('recipes'); setTab('recipes'); }}
+                  aria-label="레시피 보기"
+                >
                   <div className="text-[20px] font-bold">{me.data?.recipesCount ?? 0}</div>
-                  <div className="text-[12px] text-[#666] mt-1">레시피</div>
-                </div>
-                <div className="text-center">
+                  <div className="text-[12px] text-[#666] mt-1 group-hover:underline">레시피</div>
+                </button>
+                <button
+                  type="button"
+                  className="text-center cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 rounded-md p-1 hover:bg-neutral-50 group"
+                  onClick={() => { setGroup('follows'); setTab('followings'); }}
+                  aria-label="팔로잉 보기"
+                >
                   <div className="text-[20px] font-bold">{followCounts.data?.followingCount ?? 0}</div>
-                  <div className="text-[12px] text-[#666] mt-1">팔로잉</div>
-                </div>
-                <div className="text-center">
+                  <div className="text-[12px] text-[#666] mt-1 group-hover:underline">팔로잉</div>
+                </button>
+                <button
+                  type="button"
+                  className="text-center cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 rounded-md p-1 hover:bg-neutral-50 group"
+                  onClick={() => { setGroup('follows'); setTab('followers'); }}
+                  aria-label="팔로워 보기"
+                >
                   <div className="text-[20px] font-bold">{followCounts.data?.followerCount ?? 0}</div>
-                  <div className="text-[12px] text-[#666] mt-1">팔로워</div>
-                </div>
+                  <div className="text-[12px] text-[#666] mt-1 group-hover:underline">팔로워</div>
+                </button>
               </div>
 
               <div className="mt-16">
                 <div className="flex items-center justify-center gap-64 border-b border-[#e5e7eb]">
-                  <button
-                    className={(tab === 'recipes' ? 'text-[#111] border-b-2 border-amber-400 ' : 'text-[#999] ') + 'py-2 text-[20px] font-bold'}
-                    onClick={() => setTab('recipes')}
-                  >
-                    레시피
-                  </button>
-                  <button
-                    className={(tab === 'saved' ? 'text-[#111] border-b-2 border-amber-400 ' : 'text-[#999] ') + 'py-2 text-[20px] font-bold'}
-                    onClick={() => setTab('saved')}
-                  >
-                    북마크
-                  </button>
+                  {group === 'recipes' ? (
+                    <>
+                      <button
+                        className={(tab === 'recipes' ? 'text-[#111] border-b-2 border-amber-400 ' : 'text-[#999] ') + 'py-2 text-[20px] font-bold'}
+                        onClick={() => setTab('recipes')}
+                      >
+                        레시피
+                      </button>
+                      <button
+                        className={(tab === 'saved' ? 'text-[#111] border-b-2 border-amber-400 ' : 'text-[#999] ') + 'py-2 text-[20px] font-bold'}
+                        onClick={() => setTab('saved')}
+                      >
+                        북마크
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className={(tab === 'followings' ? 'text-[#111] border-b-2 border-amber-400 ' : 'text-[#999] ') + 'py-2 text-[20px] font-bold'}
+                        onClick={() => setTab('followings')}
+                      >
+                        팔로잉
+                      </button>
+                      <button
+                        className={(tab === 'followers' ? 'text-[#111] border-b-2 border-amber-400 ' : 'text-[#999] ') + 'py-2 text-[20px] font-bold'}
+                        onClick={() => setTab('followers')}
+                      >
+                        팔로워
+                      </button>
+                    </>
+                  )}
                 </div>
 
-                <div className="mt-6 grid grid-cols-2 gap-6 max-w-[900px] mx-auto">
-                  {items.map((it) => {
-                    const inSaved = (saved.data?.pages?.flatMap((p) => p.recipes) ?? []).some((r) => r.id === it.id && (r.isSaved ?? (r as { isBookmarked?: boolean }).isBookmarked));
-                    return (
-                      <RecipeCard key={it.id} title={it.title} image={it.image} href={`/recipes/${it.id}`} saved={inSaved} />
-                    );
-                  })}
-                </div>
+                {tab === 'recipes' || tab === 'saved' ? (
+                  <div className="mt-6 grid grid-cols-2 gap-6 max-w-[900px] mx-auto">
+                    {items.map((it, idx) => {
+                      const inSaved = (saved.data?.pages?.flatMap((p) => p.recipes) ?? []).some((r) => r.id === it.id && (r.isSaved ?? (r as { isBookmarked?: boolean }).isBookmarked));
+                      return (
+                        <RecipeCard key={it.id} title={it.title} image={it.image} href={`/recipes/${it.id}`} saved={inSaved} priority={idx < 6} />
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="mt-6 max-w-[560px] mx-auto">
+                    {(((tab === 'followers' ? (followers.data?.pages ?? []) : (followings.data?.pages ?? [])) as Array<{ users?: PublicUser[] }>))
+                      .flatMap((p) => p.users ?? [])
+                      .map((u: PublicUser) => (
+                        <UserListItem key={u.id} user={u} currentUserId={me.data?.id ?? null} />
+                      ))}
+                  </div>
+                )}
 
                 <div className="mt-6 text-center">
                   {hasNextPage && (

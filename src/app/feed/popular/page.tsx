@@ -36,7 +36,7 @@ export default function PopularPage() {
     <main style={{ padding: 24 }}>
       <h2>인기 레시피</h2>
       <ul className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
-        {items.map((r) => {
+        {items.map((r, idx) => {
           const imageUrl = getImageUrl(r);
           return (
             <li key={r.id}>
@@ -52,6 +52,8 @@ export default function PopularPage() {
                 saved={r.isSaved}
                 authorAvatar={r.author?.profileImage}
                 authorId={r.author?.id}
+                priority={idx < 6}
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 33vw, 360px"
               />
             </li>
           );

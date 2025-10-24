@@ -5,7 +5,9 @@ import Topbar from '@/components/Topbar';
 import Sidebar from '@/components/Sidebar';
 import MobileNav from '@/components/MobileNav';
 import RecipeCard from '@/components/RecipeCard';
-import { useMyProfile, useMyFollowCounts, useToggleFollow, useUserProfile, useUserRecipes } from '@/lib/hooks/users';
+import UserListItem from '@/components/UserListItem';
+import Image from 'next/image';
+import { useFollowers, useFollowings, useMyProfile, useMyFollowCounts, useToggleFollow, useUserProfile, useUserRecipes } from '@/lib/hooks/users';
 
 export default function UserProfilePage() {
   const params = useParams();
@@ -16,7 +18,9 @@ export default function UserProfilePage() {
   const profile = useUserProfile(userId);
   const counts = useMyFollowCounts(userId);
   const recipes = useUserRecipes(userId, 12);
-  const [tab, setTab] = useState<'recipes'>('recipes');
+  const followers = useFollowers(userId, 20, false);
+  const followings = useFollowings(userId, 20, false);
+  const [tab, setTab] = useState<'recipes' | 'followers' | 'followings'>('recipes');
   const toggle = useToggleFollow(userId);
 
   const isSelf = me.data?.id && userId === me.data.id;
@@ -40,14 +44,24 @@ export default function UserProfilePage() {
     } catch {}
   };
 
-  // Sync tab from URL on mount and when query changes (recipes only)
+  // Sync tab from URL on mount and when query changes
   useEffect(() => {
     const t = (searchParams.get('tab') || 'recipes').toLowerCase();
-    if (t === 'recipes') setTab('recipes');
+    if (t === 'recipes' || t === 'followers' || t === 'followings') setTab(t as typeof tab);
   }, [searchParams]);
 
+  // Enable/disable lists based on active tab
+  useEffect(() => {
+    // refetch when switching to a list tab to ensure data is loaded
+    if (tab === 'followers') {
+      followers.refetch();
+    } else if (tab === 'followings') {
+      followings.refetch();
+    }
+  }, [tab]);
+
   // Helper to push tab into URL
-  const gotoTab = (next: 'recipes') => {
+  const gotoTab = (next: 'recipes' | 'followers' | 'followings') => {
     const url = new URL(window.location.href);
     url.searchParams.set('tab', next);
     router.replace(url.pathname + '?' + url.searchParams.toString());
@@ -82,6 +96,19 @@ export default function UserProfilePage() {
     return (pages.flatMap((p) => p.users ?? []) as any[]);
   };
 
+  const hasNextPage =
+    tab === 'recipes' ? recipes.hasNextPage :
+    tab === 'followers' ? followers.hasNextPage :
+    followings.hasNextPage;
+  const isFetchingNext =
+    tab === 'recipes' ? recipes.isFetchingNextPage :
+    tab === 'followers' ? followers.isFetchingNextPage :
+    followings.isFetchingNextPage;
+  const fetchMore =
+    tab === 'recipes' ? recipes.fetchNextPage :
+    tab === 'followers' ? followers.fetchNextPage :
+    followings.fetchNextPage;
+
   return (
     <div className="min-h-screen">
       <Topbar />
@@ -97,10 +124,9 @@ export default function UserProfilePage() {
           {profile.data && (
             <div>
               <div className="mt-6 flex flex-col items-center gap-3">
-                <div className="w-24 h-24 rounded-full overflow-hidden bg-[#eee] border border-[#ddd]">
+                <div className="w-24 h-24 rounded-full overflow-hidden bg-[#eee] border border-[#ddd] relative">
                   {avatar ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={avatar} alt={displayName} className="w-full h-full object-cover" />
+                    <Image src={avatar} alt={displayName} fill sizes="96px" style={{ objectFit: 'cover' }} />
                   ) : (
                     <div className="w-full h-full" />
                   )}
@@ -135,14 +161,24 @@ export default function UserProfilePage() {
                   <div className="text-[20px] font-bold">{profile.data?.recipesCount ?? 0}</div>
                   <div className="text-[12px] text-[#666] mt-1">레시피</div>
                 </div>
-                <div className="text-center">
+                <button
+                  type="button"
+                  className="text-center cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 rounded-md p-1 hover:bg-neutral-50 group"
+                  onClick={() => gotoTab('followings')}
+                  aria-label="팔로잉 보기"
+                >
                   <div className="text-[20px] font-bold">{counts.data?.followingCount ?? 0}</div>
-                  <div className="text-[12px] text-[#666] mt-1">팔로잉</div>
-                </div>
-                <div className="text-center">
+                  <div className="text-[12px] text-[#666] mt-1 group-hover:underline">팔로잉</div>
+                </button>
+                <button
+                  type="button"
+                  className="text-center cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 rounded-md p-1 hover:bg-neutral-50 group"
+                  onClick={() => gotoTab('followers')}
+                  aria-label="팔로워 보기"
+                >
                   <div className="text-[20px] font-bold">{counts.data?.followerCount ?? 0}</div>
-                  <div className="text-[12px] text-[#666] mt-1">팔로워</div>
-                </div>
+                  <div className="text-[12px] text-[#666] mt-1 group-hover:underline">팔로워</div>
+                </button>
               </div>
 
               <div className="mt-16">
@@ -153,18 +189,50 @@ export default function UserProfilePage() {
                   >
                     레시피
                   </button>
+                  <button
+                    className={(tab === 'followings' ? 'text-[#111] border-b-2 border-amber-400 ' : 'text-[#999] ') + 'py-2 text-[20px] font-bold'}
+                    onClick={() => gotoTab('followings')}
+                  >
+                    팔로잉
+                  </button>
+                  <button
+                    className={(tab === 'followers' ? 'text-[#111] border-b-2 border-amber-400 ' : 'text-[#999] ') + 'py-2 text-[20px] font-bold'}
+                    onClick={() => gotoTab('followers')}
+                  >
+                    팔로워
+                  </button>
                 </div>
               </div>
 
-              {tab === 'recipes' && (
+              {tab === 'recipes' ? (
                 <div className="mt-6 grid grid-cols-2 gap-6 max-w-[900px] mx-auto">
-                  {recipeItems.map((r) => (
-                    <RecipeCard key={r.id} recipeId={r.id} title={r.title} minutes={r.minutes} image={r.image} description={r.description} likesCount={r.likesCount} liked={r.liked} saved={r.saved} href={r.href} />
+                  {recipeItems.map((r, idx) => (
+                    <RecipeCard key={r.id} recipeId={r.id} title={r.title} minutes={r.minutes} image={r.image} description={r.description} likesCount={r.likesCount} liked={r.liked} saved={r.saved} href={r.href} priority={idx < 4} />
                   ))}
+                </div>
+              ) : (
+                <div className="mt-6 max-w-[560px] mx-auto">
+                  {(tab === 'followers' ? (followers.data?.pages ?? []) : (followings.data?.pages ?? []))
+                    .flatMap((p: any) => p.users ?? [])
+                    .map((u: any) => (
+                      <UserListItem key={u.id} user={u} currentUserId={me.data?.id ?? null} />
+                    ))}
                 </div>
               )}
 
-              {/* Note: 북마크 탭 제거. 다른 유저는 레시피 탭만 표시 */}
+              <div className="mt-6 text-center">
+                {hasNextPage && (
+                  <button
+                    onClick={() => fetchMore()}
+                    disabled={isFetchingNext}
+                    className="px-4 py-2 rounded-md bg-black text-white disabled:opacity-60"
+                  >
+                    {isFetchingNext ? '불러오는 중...' : '더 보기'}
+                  </button>
+                )}
+              </div>
+
+              {/* Note: 북마크 탭 없음. 다른 유저는 레시피/팔로잉/팔로워 탭 표시 */}
             </div>
           )}
         </main>
