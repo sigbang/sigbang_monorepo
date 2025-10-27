@@ -14,6 +14,7 @@ import {
   ValidateNested,
   IsUrl,
   IsBoolean,
+  IsNumber,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 
@@ -31,6 +32,33 @@ export { PrismaDifficulty };
 export enum RecipeStatus {
   DRAFT = 'DRAFT',
   PUBLISHED = 'PUBLISHED',
+}
+
+// 대표 이미지 크롭 DTO (percent 단위 0~100)
+export class CropRectDto {
+  @ApiProperty({ example: 10, description: '좌측 상단 X (percent 0~100)' })
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  x: number;
+
+  @ApiProperty({ example: 20, description: '좌측 상단 Y (percent 0~100)' })
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  y: number;
+
+  @ApiProperty({ example: 80, description: '너비 (percent 0~100)' })
+  @IsNumber()
+  @Min(1)
+  @Max(100)
+  width: number;
+
+  @ApiProperty({ example: 80, description: '높이 (percent 0~100)' })
+  @IsNumber()
+  @Min(1)
+  @Max(100)
+  height: number;
 }
 
 // 레시피 단계 DTO
@@ -123,6 +151,16 @@ export class CreateRecipeDto {
     })    
     @IsString()
     thumbnailPath: string;
+
+  @ApiProperty({
+    required: false,
+    type: () => CropRectDto,
+    description: '대표 이미지 크롭 (percent 단위: x,y,width,height; 0~100)',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CropRectDto)
+  thumbnailCrop?: CropRectDto;
 
   @ApiProperty({
     example: 30,

@@ -15,6 +15,7 @@ import {
   DraftRecipeResponseDto,
   RecipeStatus,
   RecipeSearchQueryDto,
+  CropRectDto,
 } from './dto/recipes.dto';
 import { ConfigService } from '@nestjs/config';
 // sharp 로더: CJS/ESM 모두 호환되도록 런타임에서 안전하게 로드
@@ -569,8 +570,20 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
         const tempKey = thumbnailPath!;
         const original = await this.supabaseService.downloadFile(bucketName, tempKey);
         const sharp = await getSharp();
-        const processed = await sharp(original)
-          .rotate()
+        const baseImg = sharp(original).rotate();
+        const meta = await baseImg.metadata();
+        const iw = meta.width || 0;
+        const ih = meta.height || 0;
+        let pipeline = baseImg;
+        const crop = (createRecipeDto as any).thumbnailCrop as CropRectDto | undefined;
+        if (crop && iw > 0 && ih > 0) {
+          const left = Math.max(0, Math.min(iw - 1, Math.round((crop.x / 100) * iw)));
+          const top = Math.max(0, Math.min(ih - 1, Math.round((crop.y / 100) * ih)));
+          const width = Math.max(1, Math.min(iw - left, Math.round((crop.width / 100) * iw)));
+          const height = Math.max(1, Math.min(ih - top, Math.round((crop.height / 100) * ih)));
+          pipeline = pipeline.extract({ left, top, width, height });
+        }
+        const processed = await pipeline
           .resize({ width: 1280, withoutEnlargement: true })
           .webp({ quality: 82 })
           .toBuffer();
@@ -673,8 +686,20 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
           // temp → 처리 → 영구 경로 업로드
           const original = await this.supabaseService.downloadFile(bucketName, thumbnailPath);
           const sharp = await getSharp();
-          const processed = await sharp(original)
-            .rotate()
+          const baseImg = sharp(original).rotate();
+          const meta = await baseImg.metadata();
+          const iw = meta.width || 0;
+          const ih = meta.height || 0;
+          let pipeline = baseImg;
+          const crop = (updateRecipeDto as any).thumbnailCrop as CropRectDto | undefined;
+          if (crop && iw > 0 && ih > 0) {
+            const left = Math.max(0, Math.min(iw - 1, Math.round((crop.x / 100) * iw)));
+            const top = Math.max(0, Math.min(ih - 1, Math.round((crop.y / 100) * ih)));
+            const width = Math.max(1, Math.min(iw - left, Math.round((crop.width / 100) * iw)));
+            const height = Math.max(1, Math.min(ih - top, Math.round((crop.height / 100) * ih)));
+            pipeline = pipeline.extract({ left, top, width, height });
+          }
+          const processed = await pipeline
             .resize({ width: 1280, withoutEnlargement: true })
             .webp({ quality: 82 })
             .toBuffer();
@@ -791,8 +816,20 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
         const tempKey = thumbnailPath as string;
         const original = await this.supabaseService.downloadFile(bucketName, tempKey);
         const sharp = await getSharp();
-        const processed = await sharp(original)
-          .rotate()
+        const baseImg = sharp(original).rotate();
+        const meta = await baseImg.metadata();
+        const iw = meta.width || 0;
+        const ih = meta.height || 0;
+        let pipeline = baseImg;
+        const crop = (createRecipeDto as any).thumbnailCrop as CropRectDto | undefined;
+        if (crop && iw > 0 && ih > 0) {
+          const left = Math.max(0, Math.min(iw - 1, Math.round((crop.x / 100) * iw)));
+          const top = Math.max(0, Math.min(ih - 1, Math.round((crop.y / 100) * ih)));
+          const width = Math.max(1, Math.min(iw - left, Math.round((crop.width / 100) * iw)));
+          const height = Math.max(1, Math.min(ih - top, Math.round((crop.height / 100) * ih)));
+          pipeline = pipeline.extract({ left, top, width, height });
+        }
+        const processed = await pipeline
           .resize({ width: 1280, withoutEnlargement: true })
           .webp({ quality: 82 })
           .toBuffer();
@@ -893,8 +930,20 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
         if (isTempPath(thumbnailPath)) {
           const original = await this.supabaseService.downloadFile(bucketName, thumbnailPath);
           const sharp = await getSharp();
-          const processed = await sharp(original)
-            .rotate()
+          const baseImg = sharp(original).rotate();
+          const meta = await baseImg.metadata();
+          const iw = meta.width || 0;
+          const ih = meta.height || 0;
+          let pipeline = baseImg;
+          const crop = (updateRecipeDto as any).thumbnailCrop as CropRectDto | undefined;
+          if (crop && iw > 0 && ih > 0) {
+            const left = Math.max(0, Math.min(iw - 1, Math.round((crop.x / 100) * iw)));
+            const top = Math.max(0, Math.min(ih - 1, Math.round((crop.y / 100) * ih)));
+            const width = Math.max(1, Math.min(iw - left, Math.round((crop.width / 100) * iw)));
+            const height = Math.max(1, Math.min(ih - top, Math.round((crop.height / 100) * ih)));
+            pipeline = pipeline.extract({ left, top, width, height });
+          }
+          const processed = await pipeline
             .resize({ width: 1280, withoutEnlargement: true })
             .webp({ quality: 82 })
             .toBuffer();
@@ -1509,7 +1558,7 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
   }
 
   // 대표 이미지 업로드
-  async uploadThumbnail(id: string, userId: string, file: Express.Multer.File) {
+  async uploadThumbnail(id: string, userId: string, file: Express.Multer.File, crop?: CropRectDto) {
     const recipe = await this.prismaService.recipe.findUnique({
       where: { id },
     });
@@ -1534,9 +1583,22 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
       const now = Date.now();
       const cacheSeconds = 60 * 60 * 24 * 365; // 1년
 
-      // Sharp로 이미지 처리: 회전, 리사이즈, WebP 변환
-      const processed = await sharp(file.buffer)
-        .rotate()
+      // Sharp로 이미지 처리: 회전, (옵션)크롭, 리사이즈, WebP 변환
+      const baseImg = sharp(file.buffer).rotate();
+      let pipeline = baseImg;
+      if (crop) {
+        const meta = await baseImg.metadata();
+        const iw = meta.width || 0;
+        const ih = meta.height || 0;
+        if (iw > 0 && ih > 0) {
+          const left = Math.max(0, Math.min(iw - 1, Math.round((crop.x / 100) * iw)));
+          const top = Math.max(0, Math.min(ih - 1, Math.round((crop.y / 100) * ih)));
+          const width = Math.max(1, Math.min(iw - left, Math.round((crop.width / 100) * iw)));
+          const height = Math.max(1, Math.min(ih - top, Math.round((crop.height / 100) * ih)));
+          pipeline = pipeline.extract({ left, top, width, height });
+        }
+      }
+      const processed = await pipeline
         .resize({ width: 1280, withoutEnlargement: true })
         .webp({ quality: 82 })
         .toBuffer();

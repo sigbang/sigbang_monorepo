@@ -33,6 +33,7 @@ import {
   DraftRecipeResponseDto,
   RecipeSearchQueryDto,
   RecipeSearchResponseDto,
+  CropRectDto,
 } from './dto/recipes.dto';
 import { JwtAuthGuard } from '../common/guards/jwt.guard';
 import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt.guard';
@@ -337,6 +338,7 @@ export class RecipesController {
   })
   @ApiParam({ name: 'id', description: '레시피 ID' })
   @ApiConsumes('multipart/form-data')
+  @ApiBody({ description: '선택적으로 크롭(percent)을 함께 전송할 수 있습니다.', schema: { example: { crop: { x: 10, y: 10, width: 80, height: 80 } } } })
   @ApiResponse({ 
     status: 200, 
     description: '대표 이미지가 성공적으로 업로드되었습니다.',
@@ -354,11 +356,12 @@ export class RecipesController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @CurrentUser() user: any,
     @UploadedFiles() files: Express.Multer.File[],
+    @Body('crop') crop?: CropRectDto,
   ) {
     if (!files || files.length === 0) {
       throw new BadRequestException('파일이 제공되지 않았습니다.');
     }
-    return this.recipesService.uploadThumbnail(id, user.id, files[0]);
+    return this.recipesService.uploadThumbnail(id, user.id, files[0], crop);
   }
 
   // 추가: 이미지 업로드 (단계별 이미지용)
