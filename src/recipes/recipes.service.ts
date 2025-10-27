@@ -551,7 +551,7 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
 
   // 레시피 생성 (즉시 공개)
   async create(userId: string, createRecipeDto: CreateRecipeDto) {
-    const { tags, steps, thumbnailPath, ...recipeData } = createRecipeDto as any;
+    const { tags, steps, thumbnailPath, thumbnailCrop, ...recipeData } = createRecipeDto as any;
 
     // Supabase 버킷명
     const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';    
@@ -668,7 +668,7 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
       throw new ForbiddenException('레시피를 수정할 권한이 없습니다.');
     }
 
-    const { tags, steps, thumbnailPath, ...recipeData } = updateRecipeDto as any;
+    const { tags, steps, thumbnailPath, thumbnailCrop, ...recipeData } = updateRecipeDto as any;
 
     // Supabase 버킷명
     const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
@@ -794,7 +794,7 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
 
   // 1. 레시피 임시 저장 생성
   async createDraft(userId: string, createRecipeDto: CreateRecipeDto) {
-    const { tags, steps, thumbnailPath, ...recipeData } = createRecipeDto as any;
+    const { tags, steps, thumbnailPath, thumbnailCrop, ...recipeData } = createRecipeDto as any;
 
     try {
       // 사용자의 기존 임시 저장 전체 삭제 후 새로 생성
@@ -916,7 +916,7 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
       throw new BadRequestException('임시 저장된 레시피만 수정할 수 있습니다.');
     }
 
-    const { tags, steps, thumbnailPath, ...recipeData } = updateRecipeDto as any;
+    const { tags, steps, thumbnailPath, thumbnailCrop, ...recipeData } = updateRecipeDto as any;
 
     try {
       // 썸네일 업데이트 처리 (temp 이동 또는 경로 정규화)
