@@ -99,7 +99,7 @@ export default function ImportFoodsafetyPage() {
                   className="border border-neutral-200 dark:border-neutral-800 rounded-md p-3 flex gap-3 hover:bg-neutral-50 dark:hover:bg-neutral-800/40 cursor-pointer"
                   onClick={() => setSelected(it)}>
                 <div className="relative w-24 h-24 rounded-md overflow-hidden bg-neutral-200">
-                  <Image src={(it.ATT_FILE_NO_MK || it.ATT_FILE_NO_MAIN) as string}
+                  <Image src={(it.ATT_FILE_NO_MAIN || it.ATT_FILE_NO_MK) as string}
                          alt=""
                          fill sizes="96px" style={{ objectFit: 'cover' }} />
                 </div>
