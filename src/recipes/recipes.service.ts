@@ -649,7 +649,7 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
         await this.handleSteps(recipe.id, normalizedSteps);
       }
 
-      return { id: recipe.id };
+      return { id: recipe.id, ...(finalThumbnailUrl ? { thumbnailImage: finalThumbnailUrl } : {}) };
     } catch (error) {
       this.logger.error(`레시피 생성 실패: ${String((error as any)?.message || error)}`, (error as any)?.stack);
       throw new BadRequestException(`레시피 생성에 실패했습니다: ${String((error as any)?.message || error)}`);
@@ -784,6 +784,7 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
           title: updated.title,
           status: updated.status,
           updatedAt: updated.updatedAt,
+          thumbnailImage: newThumbnailUrl ?? updated.thumbnailImage,
         },
       };
     } catch (error) {
@@ -891,6 +892,7 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
           title: recipe.title,
           status: recipe.status,
           createdAt: recipe.createdAt,
+          ...(finalThumbnailUrl ? { thumbnailImage: finalThumbnailUrl } : {}),
         },
       };
     } catch (error) {
@@ -1006,6 +1008,7 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
           title: updatedRecipe.title,
           status: updatedRecipe.status,
           updatedAt: updatedRecipe.updatedAt,
+          thumbnailImage: newThumbnailUrl ?? updatedRecipe.thumbnailImage,
         },
       };
     } catch (error) {
