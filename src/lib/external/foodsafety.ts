@@ -14,8 +14,7 @@ const UNIT_RULES: UnitRule[] = [
   { aliases: ['간장', '진간장', '저염간장'],   gPerTbsp: 17.5 },
   { aliases: ['식초'],                        gPerTbsp: 15 },
   { aliases: ['설탕', '백설탕'],              gPerTbsp: 12.5, gPerCup: 200 },
-  { aliases: ['소금'],                        gPerTbsp: 18, tinyAsPinch: true },
-  { aliases: ['물'],                          gPerTbsp: 15 },
+  { aliases: ['소금'],                        gPerTbsp: 18, tinyAsPinch: true },  
   { aliases: ['식용유', '해바라기유', '카놀라유', '올리브유'], gPerTbsp: 14 },
 ];
 
@@ -28,49 +27,53 @@ type IntuitiveRule = {
 const INTUITIVE_RULES: IntuitiveRule[] = [
   // 채소류
   { aliases: ['양배추'], getDisplay: (g) => g >= 200 ? '1/2개' : g >= 100 ? '1/4개' : '1/8개' },
-  { aliases: ['배추'], getDisplay: (g) => g >= 200 ? '1/2개' : g >= 100 ? '1/4개' : '1/8개' },
+  { aliases: ['배추', '무'], getDisplay: (g) => g >= 300 ? '1/2개' : g >= 150 ? '1/4개' : '1/8개' },
+  { aliases: ['두부'], getDisplay: (g) => g >= 300 ? '1개' : g >= 150 ? '1/2개' : '1/4개' },
   { aliases: ['당근'], getDisplay: (g) => g >= 100 ? '1개' : g >= 50 ? '1/2개' : '1/4개' },
-  { aliases: ['오이'], getDisplay: (g) => g >= 100 ? '1개' : g >= 50 ? '1/2개' : '1/4개' },
+  { aliases: ['오이', '애호박'], getDisplay: (g) => g >= 100 ? '1개' : g >= 50 ? '1/2개' : '1/4개' },
   { aliases: ['가지'], getDisplay: (g) => g >= 200 ? '1개' : g >= 100 ? '1/2개' : '1/2개' },
   { aliases: ['토마토'], getDisplay: (g) => g >= 150 ? '1개' : g >= 75 ? '1/2개' : '1/4개' },
   { aliases: ['양파'], getDisplay: (g) => g >= 150 ? '1개' : g >= 75 ? '1/2개' : '1/4개' },
-  { aliases: ['마늘'], getDisplay: (g) => g >= 20 ? '1 큰술' : g >= 10 ? '1 작은술' : '1/2 작은술' },
+  { aliases: ['마늘'], getDisplay: (g) => g >= 30 ? '5개' : g >= 15 ? '3개' : '1개' },
   { aliases: ['파', '대파'], getDisplay: (g) => g >= 30 ? '1대' : g >= 15 ? '1/2대' : '1/4대' },
   { aliases: ['미나리'], getDisplay: (g) => g >= 30 ? '1줌' : g >= 15 ? '1/2줌' : '1/4줌' },
-  { aliases: ['시금치'], getDisplay: (g) => g >= 50 ? '1줌' : g >= 25 ? '1/2줌' : '1/4줌' },
+  { aliases: ['시금치', '부추'], getDisplay: (g) => g >= 50 ? '1줌' : g >= 25 ? '1/2줌' : '1/4줌' },
   
   // 버섯류
   { aliases: ['표고버섯', '느타리버섯', '팽이버섯', '새송이버섯', '버섯'], getDisplay: (g) => g >= 100 ? '10송이' : g >= 50 ? '5송이' : '한 줌' },
   
   // 고기류
   { aliases: ['소고기', '돼지고기', '닭고기'], getDisplay: (g) => g >= 200 ? '1인분' : g >= 100 ? '1/2인분' : '1/4인분' },
-  { aliases: ['햄', '베이컨'], getDisplay: (g) => g >= 50 ? '2장' : g >= 25 ? '1장' : '1/2장' },
+  { aliases: ['슬라이스 햄', '베이컨'], getDisplay: (g) => g >= 50 ? '2장' : g >= 25 ? '1장' : '1/2장' },  
   
   // 해산물
   { aliases: ['새우'], getDisplay: (g) => g >= 100 ? '10마리' : g >= 50 ? '5마리' : '3마리' },
   { aliases: ['오징어'], getDisplay: (g) => g >= 200 ? '1마리' : g >= 100 ? '1/2마리' : '1/4마리' },
   { aliases: ['멸치'], getDisplay: (g) => g >= 20 ? '1줌' : g >= 10 ? '1/2줌' : '1/4줌' },
+  { aliases: ['다시마'], getDisplay: (g) => g >= 10 ? '6장' : g >= 5 ? '4장' : '2장' },
   
   // 기타
-  { aliases: ['참기름', '들기름'], getDisplay: (g) => g >= 10 ? '1 큰술' : g >= 5 ? '1/2 큰술' : '1 작은술' },
-  { aliases: ['깨'], getDisplay: (g) => g >= 10 ? '1 큰술' : g >= 5 ? '1 작은술' : '1/2 작은술' },
+  { aliases: ['참기름', '들기름'], getDisplay: (g) => g >= 10 ? '1 큰술' : g >= 5 ? '1/2 큰술' : '1/4 큰술' },
+  { aliases: ['깨'], getDisplay: (g) => g >= 10 ? '1 큰술' : g >= 5 ? '1/2 큰술' : '1/4 큰술' },
   
   // 소스류
-  { aliases: ['맛술', '요리술', '청주'], getDisplay: (g) => g >= 15 ? '1 큰술' : g >= 7 ? '1 작은술' : '1/2 작은술' },
-  { aliases: ['고춧가루'], getDisplay: (g) => g >= 10 ? '1 큰술' : g >= 5 ? '1 작은술' : '1/2 작은술' },
-  { aliases: ['고추장'], getDisplay: (g) => g >= 15 ? '1 큰술' : g >= 7 ? '1 작은술' : '1/2 작은술' },
-  { aliases: ['된장', '일본된장'], getDisplay: (g) => g >= 15 ? '1 큰술' : g >= 7 ? '1 작은술' : '1/2 작은술' },
-  { aliases: ['케첩'], getDisplay: (g) => g >= 15 ? '1 큰술' : g >= 7 ? '1 작은술' : '1/2 작은술' },
-  { aliases: ['마요네즈'], getDisplay: (g) => g >= 15 ? '1 큰술' : g >= 7 ? '1 작은술' : '1/2 작은술' },
-  { aliases: ['겨자'], getDisplay: (g) => g >= 10 ? '1 큰술' : g >= 5 ? '1 작은술' : '1/2 작은술' },
+  { aliases: ['간장', '진간장', '저염간장'], getDisplay: (g) => g >= 70 ? '4 큰술' : g >= 35 ? '2 큰술' : g >= 17 ? '1 큰술' : g >= 9 ? '1/2 큰술' : '1/4 큰술' },
+  { aliases: ['식초'], getDisplay: (g) => g >= 60 ? '4 큰술' : g >= 30 ? '2 큰술' : g >= 15 ? '1 큰술' : g >= 7 ? '1/2 큰술' : '1/4 큰술' },
+  { aliases: ['맛술', '요리술', '청주', '배즙'], getDisplay: (g) => g >= 60 ? '4 큰술' : g >= 30 ? '2 큰술' : g >= 15 ? '1 큰술' : g >= 7 ? '1/2 큰술' : '1/4 큰술' },
+  { aliases: ['고춧가루','후춧가루루'], getDisplay: (g) => g >= 40 ? '4 큰술' : g >= 20 ? '2 큰술' : g >= 10 ? '1 큰술' : g >= 5 ? '1/2 큰술' : '1/4 큰술' },
+  { aliases: ['고추장'], getDisplay: (g) => g >= 60 ? '4 큰술' : g >= 30 ? '2 큰술' : g >= 15 ? '1 큰술' : g >= 7 ? '1/2 큰술' : '1/4 큰술' },
+  { aliases: ['된장', '일본된장'], getDisplay: (g) => g >= 60 ? '4 큰술' : g >= 30 ? '2 큰술' : g >= 15 ? '1 큰술' : g >= 7 ? '1/2 큰술' : '1/4 큰술' },
+  { aliases: ['케첩'], getDisplay: (g) => g >= 60 ? '4 큰술' : g >= 30 ? '2 큰술' : g >= 15 ? '1 큰술' : g >= 7 ? '1/2 큰술' : '1/4 큰술' },
+  { aliases: ['마요네즈'], getDisplay: (g) => g >= 60 ? '4 큰술' : g >= 30 ? '2 큰술' : g >= 15 ? '1 큰술' : g >= 7 ? '1/2 큰술' : '1/4 큰술' },
+  { aliases: ['겨자'], getDisplay: (g) => g >= 40 ? '4 큰술' : g >= 20 ? '2 큰술' : g >= 10 ? '1 큰술' : g >= 5 ? '1/2 큰술' : '1/4 큰술' },
   
   // 새로운 재료들
   { aliases: ['삼치'], getDisplay: (g) => g >= 400 ? '2 마리' : '1 마리' },
   { aliases: ['치커리'], getDisplay: (g) => g >= 50 ? '1줌' : g >= 25 ? '1/2줌' : '1/4줌' },
-  { aliases: ['전분가루', '전분'], getDisplay: (g) => g >= 15 ? '1 큰술' : g >= 7 ? '1 작은술' : '1/2 작은술' },
-  { aliases: ['땅콩가루', '땅콩'], getDisplay: (g) => g >= 15 ? '1 큰술' : g >= 7 ? '1 작은술' : '1/2 작은술' },
-  { aliases: ['유자청'], getDisplay: (g) => g >= 15 ? '1 큰술' : g >= 7 ? '1 작은술' : '1/2 작은술' },
-  { aliases: ['다진마늘'], getDisplay: (g) => g >= 10 ? '1 큰술' : g >= 5 ? '1 작은술' : '1/2 작은술' },
+  { aliases: ['전분가루', '전분'], getDisplay: (g) => g >= 15 ? '1 큰술' : g >= 7 ? '1/2 큰술' : '1/4 큰술' },
+  { aliases: ['땅콩가루', '땅콩'], getDisplay: (g) => g >= 15 ? '1 큰술' : g >= 7 ? '1/2 큰술' : '1/4 큰술' },
+  { aliases: ['유자청'], getDisplay: (g) => g >= 15 ? '1 큰술' : g >= 7 ? '1/2 큰술' : '1/4 큰술' },
+  { aliases: ['다진마늘'], getDisplay: (g) => g >= 15 ? '1 큰술' : g >= 7 ? '1/2 큰술' : '1/4 큰술' },
   { aliases: ['청고추', '홍고추', '고추'], getDisplay: (g) => g >= 20 ? '1개' : g >= 10 ? '1/2개' : '1/4개' },
 ];
 
@@ -133,6 +136,7 @@ function convertIngredientLine(line: string): string {
   const name = m[1].trim();
   const amount = parseFloat(m[2]);
   const unit = m[3] ? m[3].toLowerCase() : 'g'; // 단위가 없으면 g로 가정
+  const normalizedUnit = unit === '그램' ? 'g' : unit;
 
   // g/ml만 변환
   if (!['g', '그램', 'ml', 'ml'].includes(unit)) return line;
@@ -147,10 +151,14 @@ function convertIngredientLine(line: string): string {
   // 2. 기존 단위 변환 룰 적용
   const rule = findUnitRule(name);
   if (!rule || !rule.gPerTbsp) {
-    // 룰이 없으면 ml→큰술로만 근사
-    if (unit === 'ml' || unit === 'ml') {
+    // 룰이 없으면 ml→큰술로만 근사, g는 괄호 제거 후 그대로 표기
+    if (normalizedUnit === 'ml') {
       const tbsp = Math.round(amount / 15); // ml을 큰술로 변환 (15ml = 1큰술)
       return `${name} ${tbsp} 큰술`;
+    }
+    if (normalizedUnit === 'g') {
+      const amountStr = Number.isInteger(amount) ? String(amount) : String(amount);
+      return `${name} ${amountStr}g`;
     }
     return line;
   }
@@ -164,9 +172,9 @@ function convertIngredientLine(line: string): string {
   const spoons = formatSpoonsWithCup(amount, rule.gPerTbsp, rule.gPerCup);
   if (!spoons) return line;
 
-  // 큰술 0 같은 오류 방지
+  // 큰술 0 같은 오류 방지 (작은술 대신 큰술 최소 단위로 표기)
   if (spoons.includes('큰술 0') || spoons.includes('컵 0') || spoons.includes('0 큰술') || spoons.includes('0 컵')) {
-    return `${name} 1 작은술`;
+    return `${name} 1/3 큰술`;
   }
 
   return `${name} ${spoons}`;

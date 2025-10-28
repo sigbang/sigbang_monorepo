@@ -9,9 +9,11 @@ export function useRecipe(id: string | undefined, initial?: RecipeDetail | null)
     enabled: !!id,
     select: (res) => res.data,
     initialData: initial ? { data: initial } : undefined,
-    refetchOnMount: false,
+    // Always refetch on mount to ensure latest thumbnail/crop is reflected
+    refetchOnMount: 'always',
     refetchOnWindowFocus: false,
-    staleTime: 30000,
+    // Do not keep detail fresh too long; we want most recent server state
+    staleTime: 0,
   });
 }
 
