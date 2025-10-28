@@ -81,21 +81,21 @@ async function handle(req: NextRequest) {
     // Mark as authorization error (permissions issue)
     headers.set('x-auth-status', 'forbidden');
   } else if (res.status === 422 || res.status === 400) {
-    // Check if it's a token format error
+    // Check if it's a token format error (clone before reading to avoid locking the stream)
     try {
-      const bodyText = await res.text();
-      if (bodyText.toLowerCase().includes('token') || bodyText.toLowerCase().includes('jwt')) {
+      const inspect = res.clone();
+      const bodyText = await inspect.text();
+      if (bodyText && (bodyText.toLowerCase().includes('token') || bodyText.toLowerCase().includes('jwt'))) {
         await clearTokens();
         headers.set('x-auth-status', 'invalid');
-        const newRes = new NextResponse(bodyText, { status: 401, headers });
-        return newRes;
+        return new NextResponse(bodyText, { status: 401, headers });
       }
     } catch {
-      // If we can't read the body, just pass through the original response
+      // If inspection fails, fall through and stream the original response body
     }
   }
 
-  const body = res.body ? res.body : null;
+  const body = res.body ?? null;
   const out = new NextResponse(body, { status: res.status, headers });
   return out;
 }

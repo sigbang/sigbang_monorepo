@@ -12,8 +12,8 @@ export default function ExplorePage() {
 
   const items = useMemo(() => data?.pages.flatMap((p) => p.recipes) ?? [], [data]);
 
-  const getImageUrl = (recipe: { thumbnailImage?: string; thumbnailUrl?: string; thumbnailPath?: string }) => {
-    const thumb = recipe.thumbnailImage || recipe.thumbnailUrl || recipe.thumbnailPath;
+  const getImageUrl = (recipe: { thumbnailImage?: string }) => {
+    const thumb = recipe.thumbnailImage;
     if (!thumb) return '';
     if (/^https?:/i.test(thumb)) return thumb;
     const clean = thumb.startsWith('/') ? thumb.slice(1) : thumb;

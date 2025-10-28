@@ -61,9 +61,9 @@ export default function ImportFoodsafetyPage() {
         embedded
         onCancel={() => setSelected(null)}
         onSubmit={async (dto) => {
-          const id = await createRecipe(dto);
+          const { id } = await createRecipe(dto);
           alert(`레시피 업로드 완료: ${id}`);
-          router.push('/');
+          router.push(`/recipes/${id}`);
         }}
       />
     );

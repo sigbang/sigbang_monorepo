@@ -12,6 +12,7 @@ export type CreateRecipeDto = {
   servings?: number;
   difficulty?: 'easy' | 'medium' | 'hard';
   thumbnailPath?: string;
+  thumbnailCrop?: { x: number; y: number; width: number; height: number };
   linkTitle?: string;
   linkUrl?: string;
   steps?: StepDto[];
@@ -26,13 +27,16 @@ function toServerDto(dto: CreateRecipeDto) {
   } as Record<string, unknown>;
 }
 
-export async function createRecipe(dto: CreateRecipeDto) {
+export async function createRecipe(dto: CreateRecipeDto): Promise<{ id: string; thumbnailImage?: string }> {
   const { data } = await api.post('/recipes', toServerDto(dto), { timeout: 120000 });
-  return data.id as string;
+  const raw: any = (data && (data as any).data) ? (data as any).data : data;
+  return { id: String(raw.id), thumbnailImage: raw.thumbnailImage };
 }
 
-export async function updateRecipe(id: string, dto: CreateRecipeDto) {
-  await api.put(`/recipes/${id}`, toServerDto(dto));
+export async function updateRecipe(id: string, dto: CreateRecipeDto): Promise<{ thumbnailImage?: string }> {
+  const { data } = await api.put(`/recipes/${id}`, toServerDto(dto));
+  const raw: any = (data && (data as any).data) ? (data as any).data : data;
+  return { thumbnailImage: raw?.thumbnailImage };
 }
 
 export async function aiGenerate(params: { imagePath?: string; title?: string }) {

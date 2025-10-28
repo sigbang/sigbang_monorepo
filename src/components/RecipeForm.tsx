@@ -25,22 +25,31 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
   const [description, setDesc] = useState(initial?.description ?? '');
   const [ingredients, setIngr] = useState(initial?.ingredients ?? '');
   
-  // Use the same image resolution logic as the detail page
+  // In edit mode: only use server-generated final thumbnail with one-time cache-bust
+  // In create/import mode: allow external URL or existing server path as initial preview
   const getThumbnailPath = (recipe?: RecipeDetail) => {
     if (!recipe) return undefined;
+    if (mode === 'edit') {
+      const thumb = recipe.thumbnailImage;
+      if (!thumb) return undefined;
+      const toUrl = (s: string) => {
+        if (/^https?:/i.test(s)) return s;
+        const clean = s.startsWith('/') ? s.slice(1) : s;
+        return `/media/${clean}`;
+      };
+      return `${toUrl(thumb)}?t=${Date.now()}`;
+    }
+    // create/import
     const thumb = recipe.thumbnailImage || recipe.thumbnailUrl || recipe.thumbnailPath;
     if (!thumb) return undefined;
-    // If it's already a full URL, return as-is
     if (/^https?:/i.test(thumb)) return thumb;
-    // If it's already a media path, return as-is
-    if (thumb.startsWith('/media/')) return thumb;
-    // Otherwise, prepend /media/
     const clean = thumb.startsWith('/') ? thumb.slice(1) : thumb;
     return `/media/${clean}`;
   };
   
   const [thumbnailPath, setThumbPath] = useState<string | undefined>(getThumbnailPath(initial));
   const [thumbnailFile, setThumbFile] = useState<File | undefined>(undefined);
+  const [thumbnailCrop, setThumbCrop] = useState<{ x: number; y: number; width: number; height: number } | undefined>(undefined);
   const [cookingTime, setCookingTime] = useState<number | undefined>(initial?.cookingTime ?? 30);
   // Helper function to resolve step image paths
   const getStepImagePath = (imagePath?: string | null) => {
@@ -100,7 +109,19 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
     return true;
   };
 
-  const getErrorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e));
+  const getErrorMessage = (e: unknown) => {
+    try {
+      const anyErr = e as any;
+      const resp = anyErr?.response;
+      const data = resp?.data;
+      const msgFromData = typeof data === 'string'
+        ? data
+        : (data && typeof data === 'object' && 'message' in data ? String(data.message) : undefined);
+      return msgFromData || (anyErr?.message ? String(anyErr.message) : String(e));
+    } catch {
+      return e instanceof Error ? e.message : String(e);
+    }
+  };
 
   const handleNext = () => {
     if (!canProceed(stage)) {
@@ -124,12 +145,27 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
     setBusy(true);
     if (onBusyChange) onBusyChange(true);
     try {
-      // Thumbnail upload only when a new file is selected
+      // Thumbnail handling
+      // 1) If a new file was selected, upload it via presign
+      // 2) If coming from import (external URL), download once and upload to get a temp path
       let finalThumbnailPath = thumbnailPath;
       if (thumbnailFile) {
         const { uploadFile } = await import('@/lib/api/media');
-        finalThumbnailPath = await uploadFile(thumbnailFile);
+        finalThumbnailPath = await uploadFile(thumbnailFile, { kind: 'thumbnail' });
         setThumbPath(finalThumbnailPath);
+      } else if (thumbnailPath && /^https?:/i.test(thumbnailPath)) {
+        try {
+          const res = await fetch(thumbnailPath);
+          const blob = await res.blob();
+          const contentType = blob.type || 'image/jpeg';
+          const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : contentType.includes('gif') ? 'gif' : contentType.includes('heic') ? 'heic' : contentType.includes('heif') ? 'heif' : 'jpg';
+          const file = new File([blob], `thumbnail.${ext}`, { type: contentType });
+          const { uploadFile } = await import('@/lib/api/media');
+          finalThumbnailPath = await uploadFile(file, { kind: 'thumbnail' });
+          setThumbPath(finalThumbnailPath);
+        } catch {
+          // keep original path if download fails
+        }
       }
 
       // Step images: keep existing imagePath, only upload new imageFile
@@ -148,6 +184,7 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
         description: description.trim(),
         ingredients: ingredients.trim(),
         thumbnailPath: finalThumbnailPath,
+        ...(thumbnailCrop ? { thumbnailCrop } : {}),
         cookingTime,
         steps: stepsWithUploaded.filter((s) => s.description.trim()),
         ...(linkTitle ? { linkTitle } : {}),
@@ -195,7 +232,12 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {stage === 1 && (
           <>
-            <ImageUploader value={thumbnailPath} file={thumbnailFile} onFileChange={setThumbFile} />
+            <ImageUploader
+              value={thumbnailPath}
+              file={thumbnailFile}
+              onFileChange={(f) => setThumbFile(f)}
+              onCropChange={(crop: { x: number; y: number; width: number; height: number } | undefined) => setThumbCrop(crop)}
+            />
             <div>
               <label htmlFor="recipe-title" className="block text-sm font-medium mb-1">
                 제목 <span className="text-red-500">*</span>

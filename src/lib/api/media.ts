@@ -1,8 +1,10 @@
 import { api } from './client';
 import { createSupabaseClient } from '../../supabase';
 
-export async function presign(contentType: string) {
-  const { data } = await api.post('/media/presign', { contentType });
+export async function presign(contentType: string, opts?: { kind?: string }) {
+  const body: Record<string, unknown> = { contentType };
+  if (opts?.kind) body.kind = opts.kind;
+  const { data } = await api.post('/media/presign', body);
   const res = data?.data ?? data;
   return res as { bucket?: string; path: string; token?: string; uploadUrl?: string; url?: string };
 }
@@ -12,9 +14,9 @@ export async function fileToBytes(file: File) {
   return new Uint8Array(ab);
 }
 
-export async function uploadFile(file: File) {
+export async function uploadFile(file: File, opts?: { kind?: string }) {
   const contentType = file.type || 'application/octet-stream';
-  const meta = await presign(contentType);
+  const meta = await presign(contentType, opts);
 
   // Supabase 서명 업로드
   if (meta.bucket && meta.token) {

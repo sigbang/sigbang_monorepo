@@ -31,7 +31,7 @@ const INTUITIVE_RULES: IntuitiveRule[] = [
   { aliases: ['배추'], getDisplay: (g) => g >= 200 ? '1/2개' : g >= 100 ? '1/4개' : '1/8개' },
   { aliases: ['당근'], getDisplay: (g) => g >= 100 ? '1개' : g >= 50 ? '1/2개' : '1/4개' },
   { aliases: ['오이'], getDisplay: (g) => g >= 100 ? '1개' : g >= 50 ? '1/2개' : '1/4개' },
-  { aliases: ['가지'], getDisplay: (g) => g >= 100 ? '1개' : g >= 50 ? '1/2개' : '1/4개' },
+  { aliases: ['가지'], getDisplay: (g) => g >= 200 ? '1개' : g >= 100 ? '1/2개' : '1/2개' },
   { aliases: ['토마토'], getDisplay: (g) => g >= 150 ? '1개' : g >= 75 ? '1/2개' : '1/4개' },
   { aliases: ['양파'], getDisplay: (g) => g >= 150 ? '1개' : g >= 75 ? '1/2개' : '1/4개' },
   { aliases: ['마늘'], getDisplay: (g) => g >= 20 ? '1 큰술' : g >= 10 ? '1 작은술' : '1/2 작은술' },
@@ -40,7 +40,7 @@ const INTUITIVE_RULES: IntuitiveRule[] = [
   { aliases: ['시금치'], getDisplay: (g) => g >= 50 ? '1줌' : g >= 25 ? '1/2줌' : '1/4줌' },
   
   // 버섯류
-  { aliases: ['표고버섯', '느타리버섯', '팽이버섯', '새송이버섯', '버섯'], getDisplay: (g) => g >= 50 ? '1줌' : g >= 25 ? '1/2줌' : '1/4줌' },
+  { aliases: ['표고버섯', '느타리버섯', '팽이버섯', '새송이버섯', '버섯'], getDisplay: (g) => g >= 100 ? '10송이' : g >= 50 ? '5송이' : '한 줌' },
   
   // 고기류
   { aliases: ['소고기', '돼지고기', '닭고기'], getDisplay: (g) => g >= 200 ? '1인분' : g >= 100 ? '1/2인분' : '1/4인분' },
@@ -52,7 +52,7 @@ const INTUITIVE_RULES: IntuitiveRule[] = [
   { aliases: ['멸치'], getDisplay: (g) => g >= 20 ? '1줌' : g >= 10 ? '1/2줌' : '1/4줌' },
   
   // 기타
-  { aliases: ['참기름', '들기름'], getDisplay: (g) => g >= 10 ? '1 큰술' : g >= 5 ? '1 작은술' : '1/2 작은술' },
+  { aliases: ['참기름', '들기름'], getDisplay: (g) => g >= 10 ? '1 큰술' : g >= 5 ? '1/2 큰술' : '1 작은술' },
   { aliases: ['깨'], getDisplay: (g) => g >= 10 ? '1 큰술' : g >= 5 ? '1 작은술' : '1/2 작은술' },
   
   // 소스류
@@ -65,7 +65,7 @@ const INTUITIVE_RULES: IntuitiveRule[] = [
   { aliases: ['겨자'], getDisplay: (g) => g >= 10 ? '1 큰술' : g >= 5 ? '1 작은술' : '1/2 작은술' },
   
   // 새로운 재료들
-  { aliases: ['삼치'], getDisplay: (g) => g >= 200 ? '1인분' : g >= 100 ? '1/2인분' : '1/4인분' },
+  { aliases: ['삼치'], getDisplay: (g) => g >= 400 ? '2 마리' : '1 마리' },
   { aliases: ['치커리'], getDisplay: (g) => g >= 50 ? '1줌' : g >= 25 ? '1/2줌' : '1/4줌' },
   { aliases: ['전분가루', '전분'], getDisplay: (g) => g >= 15 ? '1 큰술' : g >= 7 ? '1 작은술' : '1/2 작은술' },
   { aliases: ['땅콩가루', '땅콩'], getDisplay: (g) => g >= 15 ? '1 큰술' : g >= 7 ? '1 작은술' : '1/2 작은술' },

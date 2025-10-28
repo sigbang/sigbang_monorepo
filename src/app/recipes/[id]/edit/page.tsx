@@ -30,6 +30,7 @@ export default function EditRecipePage() {
       onSubmit={async (dto) => {
         await updateRecipe(initial.id, dto);
         alert('수정 완료');
+        // 응답에 thumbnailImage 포함(서버 반영 즉시), 상세로 이동
         router.replace(`/recipes/${initial.id}`);
       }}
     />

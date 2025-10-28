@@ -27,7 +27,7 @@ export default function RecipeDetailClient({ id, initial }: { id: string; initia
     if (/^https?:/i.test(thumb)) return thumb;
     const clean = thumb.startsWith('/') ? thumb.slice(1) : thumb;
     return `/media/${clean.startsWith('media/') ? clean.slice('media/'.length) : clean}`;
-  }, [recipe]);
+  }, [recipe?.thumbnailImage, recipe?.thumbnailUrl, recipe?.thumbnailPath]);
 
   return (
     <div className="min-h-screen">

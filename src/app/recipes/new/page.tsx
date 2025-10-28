@@ -10,9 +10,10 @@ export default function NewRecipePage() {
       mode="create"
       onCancel={() => router.back()}
       onSubmit={async (dto) => {
-        const id = await createRecipe(dto);
+        const { id } = await createRecipe(dto);
         alert(`레시피 업로드 완료: ${id}`);
-        router.push('/');
+        // 응답에 thumbnailImage가 포함되므로 재조회 없이 상세 이동
+        router.push(`/recipes/${id}`);
       }}
     />
   );
