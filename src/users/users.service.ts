@@ -17,7 +17,7 @@ export class UsersService {
     private supabaseService: SupabaseService,
   ) {}
 
-  private readonly PROFILE_BUCKET = 'recipe-images';
+  private readonly PROFILE_BUCKET = 'recipes';
   private readonly PRESET_DIR = 'profiles/presets';
 
   private isUserUploadedProfileUrl(userId: string, url?: string) {
@@ -118,7 +118,7 @@ export class UsersService {
     }
 
     try {
-      const bucketName = 'recipe-images';
+      const bucketName = 'recipes';
       const cacheSeconds = 60 * 60 * 24 * 365; // 1년
       
       // Sharp로 이미지 처리: 회전, 리사이즈, WebP 변환

@@ -169,7 +169,7 @@ export class RecipesService {
   // AI: 이미지 기반 레시피 생성 (제목이 없으면 생성 포함)
   async generateFromImage(userId: string, params: { imagePath: string; title?: string }) {
     const { imagePath, title } = params;
-    const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
+    const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipes';
 
     if (!imagePath || typeof imagePath !== 'string') {
       throw new BadRequestException('유효한 imagePath가 필요합니다.');
@@ -554,7 +554,7 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
     const { tags, steps, thumbnailPath, thumbnailCrop, ...recipeData } = createRecipeDto as any;
 
     // Supabase 버킷명
-    const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';    
+    const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipes';    
 
     // 이미지 경로 정리: temp 경로를 다운로드 후 전처리하여 정식 경로로 저장
     const now = Date.now();
@@ -671,7 +671,7 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
     const { tags, steps, thumbnailPath, thumbnailCrop, ...recipeData } = updateRecipeDto as any;
 
     // Supabase 버킷명
-    const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
+    const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipes';
     const now = Date.now();
     const isTempPath = (p?: string) => !!p && p.startsWith(`temp/${userId}/`);
     const toPublicUrl = (path: string) => this.supabaseService.getPublicUrl(bucketName, path);
@@ -807,7 +807,7 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
       });
 
       // 썸네일 처리 (temp 경로 이동 또는 경로 정규화)
-      const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
+      const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipes';
       const isTempPath = (p?: string) => !!p && p.startsWith(`temp/${userId}/`);
       const toPublicUrl = (path: string) => this.supabaseService.getPublicUrl(bucketName, path);
       const now = Date.now();
@@ -922,7 +922,7 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
 
     try {
       // 썸네일 업데이트 처리 (temp 이동 또는 경로 정규화)
-      const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
+      const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipes';
       const isTempPath = (p?: string) => !!p && p.startsWith(`temp/${userId}/`);
       const toPublicUrl = (path: string) => this.supabaseService.getPublicUrl(bucketName, path);
       const now = Date.now();
@@ -1524,7 +1524,7 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
   // 기존 메소드들 (이미지 업로드, 삭제 등)
   async uploadImages(files: Express.Multer.File[], userId: string) {
     try {
-      const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
+      const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipes';
       const sharp = await getSharp();
       const now = Date.now();
       const cacheSeconds = 60 * 60 * 24 * 365; // 1년
@@ -1581,7 +1581,7 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
         throw new BadRequestException(`지원하지 않는 이미지 형식입니다: ${file.mimetype}. JPG, PNG, WebP, HEIC만 업로드 가능합니다.`);
       }
 
-      const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
+      const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipes';
       const sharp = await getSharp();
       const now = Date.now();
       const cacheSeconds = 60 * 60 * 24 * 365; // 1년
@@ -1647,7 +1647,7 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
         throw new BadRequestException(`지원하지 않는 이미지 형식입니다: ${file.mimetype}. JPG, PNG, WebP, HEIC만 업로드 가능합니다.`);
       }
 
-      const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
+      const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipes';
       const sharp = await getSharp();
       const now = Date.now();
       const cacheSeconds = 60 * 60 * 24 * 365; // 1년
@@ -1686,7 +1686,7 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
 
   private toProxyUrl(storedUrl?: string): string | undefined {
     if (!storedUrl) return undefined;
-    const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
+    const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipes';
     const path = this.extractStoragePathFromPublicUrl(storedUrl, bucketName) || storedUrl;
     const base = this.configService.get<string>('PUBLIC_API_BASE_URL') || '';
     const proxyPath = `/media/image?path=${encodeURIComponent(path)}`;

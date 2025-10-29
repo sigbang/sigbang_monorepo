@@ -17,7 +17,7 @@ export class CleanupCronService {
   @Cron(CronExpression.EVERY_DAY_AT_4AM)
   async purgeHiddenRecipes() {
     const retentionDays = Number(this.config.get<string>('RECIPE_DELETE_RETENTION_DAYS') ?? '30');
-    const bucketName = this.config.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
+    const bucketName = this.config.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipes';
     const threshold = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
 
     this.logger.log(`Purging hidden recipes older than ${retentionDays}d (before ${threshold.toISOString()})`);

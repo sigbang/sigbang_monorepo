@@ -113,7 +113,7 @@ export class AuthService {
       // 프리셋 프로필 이미지에서 랜덤 선택 (best-effort)
       let profileUrl: string | undefined;
       try {
-        const bucketName = 'recipe-images';
+        const bucketName = 'recipes';
         const presetDir = 'profiles/presets';
         const rows = await this.supabaseService.listFiles(bucketName, presetDir);
         const files = (rows as any[]).filter((r) => r.name && !String(r.name).endsWith('/'));
@@ -343,7 +343,7 @@ export class AuthService {
       // payload.picture가 없으면 프리셋에서 랜덤으로 설정 (best-effort)
       if (!user.profileImage) {
         try {
-          const bucketName = 'recipe-images';
+          const bucketName = 'recipes';
           const presetDir = 'profiles/presets';
           const rows = await this.supabaseService.listFiles(bucketName, presetDir);
           const files = (rows as any[]).filter((r) => r.name && !String(r.name).endsWith('/'));

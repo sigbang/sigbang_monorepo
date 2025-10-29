@@ -176,7 +176,7 @@ PORT=3000
 NODE_ENV="development"
 
 # File Upload
-SUPABASE_STORAGE_BUCKET="recipe-images"
+SUPABASE_STORAGE_BUCKET="recipes"
 
 # OpenAI
 OPENAI_API_KEY="your_openai_api_key"

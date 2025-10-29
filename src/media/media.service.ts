@@ -18,7 +18,7 @@ export class MediaService {
     dto: { contentType: string; kind?: 'thumbnail' | 'step' },
   ) {
     const bucketName =
-      this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
+      this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipes';
     const session = new Date().toISOString().slice(0, 10).replace(/-/g, ''); // yyyymmdd
     const ext = this.extFromContentType(dto.contentType);
     const key = `temp/${userId}/${session}/${randomUUID()}${ext}`;
@@ -52,7 +52,7 @@ export class MediaService {
 
   async getSignedDownloadUrl(path: string, expiresInSec = 300) {
     const bucketName =
-      this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipe-images';
+      this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipes';
     return this.supabaseService.createSignedUrl(bucketName, path, expiresInSec);
   }
 }

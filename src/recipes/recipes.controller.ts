@@ -404,7 +404,7 @@ export class RecipesController {
     description: '요청 받은 파일을 Supabase Storage에 업로드하고 공개 URL을 반환합니다.'
   })
   @ApiConsumes('multipart/form-data')
-  @ApiResponse({ status: 200, description: '업로드 성공', schema: { example: { imageUrl: 'https://.../public/recipe-images/recipes/<userId>/steps/<file>.jpg' } } })
+  @ApiResponse({ status: 200, description: '업로드 성공', schema: { example: { imageUrl: 'https://.../public/recipes/recipes/<userId>/steps/<file>.jpg' } } })
   @ApiResponse({ status: 400, description: '업로드 실패' })
   async uploadStepImage(
     @CurrentUser() user: any,
