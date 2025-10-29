@@ -57,23 +57,7 @@ export default function Home() {
       <Topbar />
       <div className="mx-auto max-w-[1200px] flex">
         <Sidebar />
-        <main id="main" className="flex-1 px-6 py-6 focus:outline-none" role="main" tabIndex={-1} ref={mainRef}>
-          <div className="text-center mb-6">
-            <div className="text-[14px] text-[#111] font-semibold">{t('welcome.title')}</div>
-            <div className="text-[12px] text-[#777] mt-1">{t('welcome.subtitle')}</div>
-            {status !== 'loading' && (
-              <div className="mt-3 text-[12px] text-[#555]">
-                {session ? (
-                  <span>{session.user?.name}님 환영합니다</span>
-                ) : (
-                  <span>로그인이 필요합니다</span>
-                )}
-              </div>
-            )}
-            <div className="mt-2">
-              <AuthButtons />
-            </div>
-          </div>
+        <main id="main" className="flex-1 px-6 py-6 focus:outline-none" role="main" tabIndex={-1} ref={mainRef}>          
           <Section title={t('sections.now')} items={nowItems} loading={popular.status === 'pending'} />
           <div className="h-[24px]" />
           <Section title={t('sections.recommend')} items={recommendItems} highlightFirst loading={recommended.status === 'pending'} />

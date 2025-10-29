@@ -33,7 +33,7 @@ export default function Section({
   }, [focusIndex, startIndex, items.length]);
   return (
     <section style={{ marginTop: 24 }} aria-labelledby={`${title}-heading`}>
-      <h3 id={`${title}-heading`} className="text-[14px] font-semibold text-[#222] mb-3">{title}</h3>
+      <h3 id={`${title}-heading`} className="text-[22px] font-semibold text-[#222] mb-3">{title}</h3>
       {loading ? (
         <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-8" aria-busy="true" aria-live="polite">
           {Array.from({ length: 6 }).map((_, idx) => (
