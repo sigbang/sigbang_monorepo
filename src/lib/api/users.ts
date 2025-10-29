@@ -120,3 +120,63 @@ export async function unfollowUser(userId: string): Promise<ToggleFollowResponse
   return unwrap<ToggleFollowResponse>(data);
 }
 
+// Profile image presets and updates
+export type ProfileImagePreset = { key: string; url?: string | null };
+
+function toMediaUrl(pathOrUrl: string | null | undefined): string | null {
+  if (!pathOrUrl) return null;
+  if (/^https?:/i.test(pathOrUrl)) return pathOrUrl;
+  const clean = pathOrUrl.startsWith('/') ? pathOrUrl.slice(1) : pathOrUrl;
+  return `/media/${clean.startsWith('media/') ? clean.slice('media/'.length) : clean}`;
+}
+
+export async function getDefaultProfileImages(): Promise<ProfileImagePreset[]> {
+  const { data } = await api.get('/users/profile-images/defaults');
+  const raw = unwrap<unknown>(data);
+  let items: unknown[] = [];
+  if (Array.isArray(raw)) {
+    items = raw as unknown[];
+  } else if (raw && typeof raw === 'object') {
+    const obj = raw as Record<string, unknown>;
+    const images = obj['images'];
+    if (Array.isArray(images)) items = images as unknown[];
+  }
+  return items.map((it) => {
+    if (typeof it === 'string') return { key: it, url: toMediaUrl(it) } as ProfileImagePreset;
+    if (typeof it === 'object' && it !== null) {
+      const obj = it as Record<string, unknown>;
+      const keyRaw = (obj['key'] ?? obj['path'] ?? obj['id']) as string | undefined;
+      const urlRaw = (obj['url'] ?? obj['src'] ?? obj['path'] ?? obj['key']) as string | undefined;
+      const key = keyRaw ? String(keyRaw) : '';
+      const url = urlRaw ? String(urlRaw) : key;
+      return { key, url: toMediaUrl(url) } as ProfileImagePreset;
+    }
+    const s = String(it as unknown as string);
+    return { key: s, url: toMediaUrl(s) } as ProfileImagePreset;
+  });
+}
+
+export type UpdateProfileImageResponse = { profileImage?: string | null; image?: string | null };
+
+export async function setRandomProfileImage(): Promise<string | null> {
+  const { data } = await api.patch('/users/me/profile-image/random');
+  const res = unwrap<UpdateProfileImageResponse>(data);
+  return (res.profileImage ?? res.image ?? null) as string | null;
+}
+
+export async function setDefaultProfileImage(key: string): Promise<string | null> {
+  const { data } = await api.patch('/users/me/profile-image/default', { key });
+  const res = unwrap<UpdateProfileImageResponse>(data);
+  return (res.profileImage ?? res.image ?? null) as string | null;
+}
+
+export async function uploadProfileImage(file: File): Promise<string | null> {
+  const form = new FormData();
+  form.append('file', file);
+  const { data } = await api.post('/users/me/profile-image', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  const res = unwrap<UpdateProfileImageResponse>(data);
+  return (res.profileImage ?? res.image ?? null) as string | null;
+}
+

@@ -12,6 +12,10 @@ import {
   getUserProfile,
   getUserRecipes,
   unfollowUser,
+  getDefaultProfileImages,
+  setDefaultProfileImage,
+  setRandomProfileImage,
+  uploadProfileImage,
 } from '../api/users';
 import type { PublicUser } from '../types/user';
 
@@ -155,6 +159,49 @@ export function useToggleFollow(targetUserId: string | undefined) {
         qc.invalidateQueries({ queryKey: ['followers'] }),
         qc.invalidateQueries({ queryKey: ['followings'] }),
       ]);
+    },
+  });
+}
+
+// Profile image defaults and mutations
+export function useProfileImageDefaults(enabled: boolean = true) {
+  return useQuery({
+    queryKey: ['users', 'profile-images', 'defaults'],
+    queryFn: () => getDefaultProfileImages(),
+    enabled,
+  });
+}
+
+export function useSetRandomProfileImage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationKey: ['users', 'profile-image', 'random'],
+    mutationFn: () => setRandomProfileImage(),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['me'] });
+    },
+  });
+}
+
+export function useSetDefaultProfileImage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationKey: ['users', 'profile-image', 'default'],
+    mutationFn: (key: string) => setDefaultProfileImage(key),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['me'] });
+    },
+  });
+}
+
+export function useUploadProfileImage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationKey: ['users', 'profile-image', 'upload']
+    ,
+    mutationFn: (file: File) => uploadProfileImage(file),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['me'] });
     },
   });
 }

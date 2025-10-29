@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMyProfile } from '@/lib/hooks/users';
 
 export default function Topbar() {
   const { data: session, status } = useSession();
@@ -30,7 +31,14 @@ export default function Topbar() {
     };
   }, []);
 
-  const userImageUrl = (session?.user as { image?: string } | undefined)?.image || '';
+  const me = useMyProfile();
+  const userImageUrl = useMemo(() => {
+    const src = (me.data?.image ?? (session?.user as { image?: string } | undefined)?.image) || '';
+    if (!src) return '';
+    if (/^https?:/i.test(src)) return src;
+    const clean = src.startsWith('/') ? src.slice(1) : src;
+    return `/media/${clean.startsWith('media/') ? clean.slice('media/'.length) : clean}`;
+  }, [me.data, session]);
   const userEmail = (session?.user as { email?: string } | undefined)?.email || '';
   const userName = (session?.user as { name?: string } | undefined)?.name || '';
 

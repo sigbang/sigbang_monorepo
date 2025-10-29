@@ -1,7 +1,6 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useFollowers, useFollowings, useMyFollowCounts, useMyProfile, useMyRecipes, useMySavedRecipes } from "@/lib/hooks/users";
 import RecipeCard from "@/components/RecipeCard";
@@ -11,6 +10,7 @@ import MobileNav from "@/components/MobileNav";
 import Image from "next/image";
 import UserListItem from "@/components/UserListItem";
 import type { PublicUser } from "@/lib/types/user";
+import Link from "next/link";
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
@@ -19,11 +19,16 @@ export default function ProfilePage() {
     console.log('[profile] session status', status);
   }
 
-  const name = (session?.user as { name?: string } | undefined)?.name || "사용자";
-  const email = (session?.user as { email?: string } | undefined)?.email || "";
-  const image = (session?.user as { image?: string } | undefined)?.image || "";
-
   const me = useMyProfile();
+  const name = me.data?.name || (session?.user as { name?: string } | undefined)?.name || "사용자";
+  const email = (session?.user as { email?: string } | undefined)?.email || "";
+  const image = useMemo(() => {
+    const src = (me.data?.image ?? (session?.user as { image?: string } | undefined)?.image) || '';
+    if (!src) return '';
+    if (/^https?:/i.test(src)) return src;
+    const clean = src.startsWith('/') ? src.slice(1) : src;
+    return `/media/${clean.startsWith('media/') ? clean.slice('media/'.length) : clean}`;
+  }, [me.data, session]);
   const followCounts = useMyFollowCounts(me.data?.id);
   const recipes = useMyRecipes(12);
   const saved = useMySavedRecipes(12);
@@ -83,12 +88,25 @@ export default function ProfilePage() {
             <div className="mx-auto max-w-[1040px] px-1 py-2">
 
               <div className="mt-6 flex flex-col items-center gap-3">
-                <div className="w-24 h-24 rounded-full overflow-hidden bg-[#eee] border border-[#ddd] relative">
-                  {image ? (
-                    <Image src={image} alt="아바타" fill sizes="96px" style={{ objectFit: 'cover' }} />
-                  ) : (
-                    <div className="w-full h-full" />
-                  )}
+                <div className="relative">
+                  <div className="w-24 h-24 rounded-full overflow-hidden bg-[#eee] border border-[#ddd] relative">
+                    {image ? (
+                      <Image src={image} alt="아바타" fill sizes="96px" style={{ objectFit: 'cover' }} />
+                    ) : (
+                      <div className="w-full h-full" />
+                    )}
+                  </div>
+                  <Link
+                    href="/profile/image"
+                    className="absolute -bottom-2 -right-2 w-9 h-9 rounded-full bg-black text-white border border-white shadow-md flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                    aria-label="프로필 이미지 설정"
+                    title="프로필 이미지 설정"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" stroke="currentColor" strokeWidth="1.8"/>
+                      <path d="M19 12a7 7 0 0 0-.12-1.28l1.74-1.36-1.6-2.77-2.06.83a6.97 6.97 0 0 0-2.22-1.28l-.33-2.2h-3.2l-.33 2.2a6.97 6.97 0 0 0-2.22 1.28l-2.06-.83-1.6 2.77 1.74 1.36A7.06 7.06 0 0 0 5 12c0 .43.04.85.12 1.28l-1.74 1.36 1.6 2.77 2.06-.83c.66.54 1.41.97 2.22 1.28l.33 2.2h3.2l.33-2.2c.81-.31 1.56-.74 2.22-1.28l2.06.83 1.6-2.77-1.74-1.36c.08-.43.12-.85.12-1.28Z" stroke="currentColor" strokeWidth="1.8"/>
+                    </svg>
+                  </Link>
                 </div>
                 <div className="text-center">
                   <div className="text-[18px] font-semibold">{name}</div>
