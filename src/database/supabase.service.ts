@@ -107,4 +107,22 @@ export class SupabaseService {
     if (error) throw error;
     return data.signedUrl;
   }
+
+  // 스토리지 파일 목록 조회
+  async listFiles(
+    bucketName: string,
+    path: string,
+    opts?: { limit?: number; offset?: number },
+  ) {
+    const { data, error } = await this.serviceClient.storage
+      .from(bucketName)
+      .list(path, {
+        limit: opts?.limit ?? 100,
+        offset: opts?.offset ?? 0,
+        sortBy: { column: 'name', order: 'asc' },
+      });
+
+    if (error) throw error;
+    return data ?? [];
+  }
 } 

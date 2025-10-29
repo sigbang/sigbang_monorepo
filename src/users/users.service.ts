@@ -8,6 +8,7 @@ import { PrismaService } from '../database/prisma.service';
 import { SupabaseService } from '../database/supabase.service';
 import { UpdateUserDto } from './dto/users.dto';
 import { UsersRecipesQueryDto } from './dto/users.dto';
+import { SetDefaultProfileImageDto } from './dto/set-default-profile.dto';
 
 @Injectable()
 export class UsersService {
@@ -15,6 +16,13 @@ export class UsersService {
     private prismaService: PrismaService,
     private supabaseService: SupabaseService,
   ) {}
+
+  private readonly PROFILE_BUCKET = 'recipe-images';
+  private readonly PRESET_DIR = 'profiles/presets';
+
+  private isUserUploadedProfileUrl(userId: string, url?: string) {
+    return !!url && url.includes(`/profiles/${userId}/`);
+  }
 
   async findMe(userId: string) {
     const user = await this.prismaService.user.findUnique({
@@ -124,16 +132,16 @@ export class UsersService {
 
       const fileName = `profiles/${userId}/${Date.now()}.webp`;
 
-      // 기존 프로필 이미지 삭제
-      const user = await this.prismaService.user.findUnique({
+      // 기존 프로필 이미지 정리 (내 업로드인 경우에만 삭제)
+      const current = await this.prismaService.user.findUnique({
         where: { id: userId },
         select: { profileImage: true },
       });
 
-      if (user?.profileImage) {
-        const oldPath = user.profileImage.split('/').pop();
-        if (oldPath) {
-          await this.supabaseService.deleteFile(bucketName, [`profiles/${userId}/${oldPath}`]);
+      if (this.isUserUploadedProfileUrl(userId, current?.profileImage)) {
+        const oldFile = (current as any).profileImage.split('/').pop();
+        if (oldFile) {
+          await this.supabaseService.deleteFile(bucketName, [`profiles/${userId}/${oldFile}`]);
         }
       }
 
@@ -169,6 +177,61 @@ export class UsersService {
     } catch (error) {
       throw new BadRequestException('이미지 업로드 중 오류가 발생했습니다.');
     }
+  }
+
+  // 기본 제공 프로필 이미지 목록 조회
+  async listDefaultProfileImages() {
+    const rows = await this.supabaseService.listFiles(this.PROFILE_BUCKET, this.PRESET_DIR);
+    const images = (rows as any[])
+      .filter((r) => r.name && !String(r.name).endsWith('/'))
+      .map((f) => ({
+        key: f.name,
+        path: `${this.PRESET_DIR}/${f.name}`,
+        url: this.supabaseService.getPublicUrl(this.PROFILE_BUCKET, `${this.PRESET_DIR}/${f.name}`),
+      }));
+    return { images };
+  }
+
+  // 기본 제공 이미지로 설정
+  async setDefaultProfileImage(userId: string, key: string) {
+    const path = key.includes('/') ? key : `${this.PRESET_DIR}/${key}`;
+    const rows = await this.supabaseService.listFiles(this.PROFILE_BUCKET, this.PRESET_DIR);
+    const exists = (rows as any[]).some((f) => `${this.PRESET_DIR}/${f.name}` === path);
+    if (!exists) {
+      throw new BadRequestException('올바르지 않은 기본 이미지 키입니다.');
+    }
+
+    const current = await this.prismaService.user.findUnique({
+      where: { id: userId },
+      select: { profileImage: true },
+    });
+
+    // 기존 업로드 이미지면 삭제
+    if (this.isUserUploadedProfileUrl(userId, current?.profileImage)) {
+      const oldFile = (current as any).profileImage.split('/').pop();
+      if (oldFile) {
+        await this.supabaseService.deleteFile(this.PROFILE_BUCKET, [`profiles/${userId}/${oldFile}`]);
+      }
+    }
+
+    const url = this.supabaseService.getPublicUrl(this.PROFILE_BUCKET, path);
+    const updated = await this.prismaService.user.update({
+      where: { id: userId },
+      data: { profileImage: url },
+      select: { id: true, email: true, nickname: true, profileImage: true, bio: true, createdAt: true },
+    });
+    return { message: '기본 프로필 이미지로 변경되었습니다.', user: updated };
+  }
+
+  // 무작위 기본 이미지로 설정
+  async setRandomDefaultProfileImage(userId: string) {
+    const rows = await this.supabaseService.listFiles(this.PROFILE_BUCKET, this.PRESET_DIR);
+    const files = (rows as any[]).filter((r) => r.name && !String(r.name).endsWith('/'));
+    if (!files.length) {
+      throw new BadRequestException('사용 가능한 기본 이미지가 없습니다.');
+    }
+    const pick = files[Math.floor(Math.random() * files.length)];
+    return this.setDefaultProfileImage(userId, pick.name);
   }
 
   async deleteAccount(userId: string) {

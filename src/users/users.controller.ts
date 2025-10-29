@@ -23,6 +23,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { UpdateUserDto, UserResponseDto, UsersRecipesQueryDto } from './dto/users.dto';
+import { SetDefaultProfileImageDto } from './dto/set-default-profile.dto';
 import { JwtAuthGuard } from '../common/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
 import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt.guard';
@@ -112,6 +113,34 @@ export class UsersController {
     @UploadedFile() file: Express.Multer.File,
   ) {
     return this.usersService.uploadProfileImage(user.id, file);
+  }
+
+  // 기본 제공 프로필 이미지 목록 (공개)
+  @Get('profile-images/defaults')
+  @ApiOperation({ summary: '기본 제공 프로필 이미지 목록 조회' })
+  async listDefaultProfileImages() {
+    return this.usersService.listDefaultProfileImages();
+  }
+
+  // 기본 제공 이미지로 설정
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @Patch('me/profile-image/default')
+  @ApiOperation({ summary: '기본 제공 프로필 이미지로 변경' })
+  async setDefaultProfileImage(
+    @CurrentUser() user: any,
+    @Body() dto: SetDefaultProfileImageDto,
+  ) {
+    return this.usersService.setDefaultProfileImage(user.id, dto.key);
+  }
+
+  // 무작위 기본 이미지로 설정
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @Patch('me/profile-image/random')
+  @ApiOperation({ summary: '무작위 기본 프로필 이미지로 변경' })
+  async setRandomDefaultProfileImage(@CurrentUser() user: any) {
+    return this.usersService.setRandomDefaultProfileImage(user.id);
   }
 
   @UseGuards(JwtAuthGuard)

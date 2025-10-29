@@ -110,12 +110,26 @@ export class AuthService {
         throw new ConflictException('회원가입에 실패했습니다: ' + error.message);
       }
 
+      // 프리셋 프로필 이미지에서 랜덤 선택 (best-effort)
+      let profileUrl: string | undefined;
+      try {
+        const bucketName = 'recipe-images';
+        const presetDir = 'profiles/presets';
+        const rows = await this.supabaseService.listFiles(bucketName, presetDir);
+        const files = (rows as any[]).filter((r) => r.name && !String(r.name).endsWith('/'));
+        if (files.length) {
+          const pick = files[Math.floor(Math.random() * files.length)];
+          profileUrl = this.supabaseService.getPublicUrl(bucketName, `${presetDir}/${pick.name}`);
+        }
+      } catch {}
+
       // 데이터베이스에 사용자 정보 저장
       const user = await this.prismaService.user.create({
         data: {
           email,
           nickname,
           supabaseId: data.user.id,
+          ...(profileUrl ? { profileImage: profileUrl } : {}),
         },
       });
 
@@ -141,6 +155,7 @@ export class AuthService {
           id: user.id,
           email: user.email,
           nickname: user.nickname,
+          profileImage: user.profileImage,
         },
       };
     } catch (error) {
@@ -313,7 +328,7 @@ export class AuthService {
         data: {
           email: payload.email,
           nickname: payload.name || `사용자_${Date.now()}`, // name이 없을 경우 대체값
-          profileImage: payload.picture,
+          profileImage: payload.picture || undefined,
           // Google OAuth 사용자는 supabaseId 없이 생성
         },
       });
@@ -324,6 +339,21 @@ export class AuthService {
           data: { userId: user.id, type: 'SIGN_UP', actorType: 'USER', actorId: user.id, nextStatus: 'ACTIVE', source: 'google-oauth' },
         });
       } catch {}
+
+      // payload.picture가 없으면 프리셋에서 랜덤으로 설정 (best-effort)
+      if (!user.profileImage) {
+        try {
+          const bucketName = 'recipe-images';
+          const presetDir = 'profiles/presets';
+          const rows = await this.supabaseService.listFiles(bucketName, presetDir);
+          const files = (rows as any[]).filter((r) => r.name && !String(r.name).endsWith('/'));
+          if (files.length) {
+            const pick = files[Math.floor(Math.random() * files.length)];
+            const url = this.supabaseService.getPublicUrl(bucketName, `${presetDir}/${pick.name}`);
+            user = await this.prismaService.user.update({ where: { id: user.id }, data: { profileImage: url } });
+          }
+        } catch {}
+      }
     } else if ((user as any).status === 'DELETED') {
       // 기존 DELETED 계정 재활성화
       user = await this.prismaService.user.update({
