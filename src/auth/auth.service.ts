@@ -56,11 +56,7 @@ export class AuthService {
           console.warn('Supabase 동기화 오류, 계속 진행:', error);
         }
 
-        // 닉네임 변경 요청 시 중복 체크 후 반영
-        if (nickname && nickname !== existingByEmail.nickname) {
-          const dup = await this.prismaService.user.findFirst({ where: { nickname, id: { not: existingByEmail.id } } });
-          if (dup) throw new ConflictException('이미 사용 중인 닉네임입니다.');
-        }
+        // 닉네임 변경 요청은 중복 허용 (이력은 프로필 수정 시 기록)
 
         const reactivated = await this.prismaService.user.update({
           where: { id: existingByEmail.id },
@@ -92,9 +88,7 @@ export class AuthService {
       throw new ConflictException('이미 가입된 이메일입니다.');
     }
 
-    // 신규 가입 경로: 닉네임 중복 체크
-    const existingUser = await this.prismaService.user.findUnique({ where: { nickname } });
-    if (existingUser) throw new ConflictException('이미 사용 중인 닉네임입니다.');
+    // 신규 가입 경로: 닉네임 중복 허용
 
     try {
       // Supabase Auth로 사용자 생성

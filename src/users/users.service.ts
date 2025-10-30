@@ -57,21 +57,12 @@ export class UsersService {
   async updateProfile(userId: string, updateUserDto: UpdateUserDto) {
     const { nickname, bio } = updateUserDto;
 
-    // 닉네임 변경 시 중복 체크
-    if (nickname) {
-      const existingUser = await this.prismaService.user.findFirst({
-        where: {
-          nickname,
-          id: { not: userId },
-        },
+    try {
+      const before = await this.prismaService.user.findUnique({
+        where: { id: userId },
+        select: { nickname: true },
       });
 
-      if (existingUser) {
-        throw new ConflictException('이미 사용 중인 닉네임입니다.');
-      }
-    }
-
-    try {
       const updatedUser = await this.prismaService.user.update({
         where: { id: userId },
         data: {
@@ -87,6 +78,22 @@ export class UsersService {
           createdAt: true,
         },
       });
+
+      // 닉네임 변경 이력 기록 (PROFILE_UPDATE)
+      if (nickname && before?.nickname !== nickname) {
+        try {
+          await (this.prismaService as any).userLifecycleEvent.create({
+            data: {
+              userId,
+              type: 'PROFILE_UPDATE',
+              actorType: 'USER',
+              actorId: userId,
+              reason: JSON.stringify({ prevNickname: before?.nickname, nextNickname: nickname }),
+              source: 'profile',
+            },
+          });
+        } catch {}
+      }
 
       return {
         message: '프로필이 성공적으로 업데이트되었습니다.',
