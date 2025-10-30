@@ -180,3 +180,10 @@ export async function uploadProfileImage(file: File): Promise<string | null> {
   return (res.profileImage ?? res.image ?? null) as string | null;
 }
 
+
+// Update nickname
+export type UpdateNicknameResponse = { message?: string; user?: unknown; nickname?: string; name?: string };
+export async function updateNickname(nickname: string): Promise<UpdateNicknameResponse> {
+  const { data } = await api.patch('/users/me', { nickname });
+  return unwrap<UpdateNicknameResponse>(data);
+}

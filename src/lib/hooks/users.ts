@@ -16,6 +16,7 @@ import {
   setDefaultProfileImage,
   setRandomProfileImage,
   uploadProfileImage,
+  updateNickname,
 } from '../api/users';
 import type { PublicUser } from '../types/user';
 
@@ -206,4 +207,15 @@ export function useUploadProfileImage() {
   });
 }
 
+
+export function useUpdateNickname() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationKey: ['users', 'nickname', 'update'],
+    mutationFn: (nickname: string) => updateNickname(nickname),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['me'] });
+    },
+  });
+}
 

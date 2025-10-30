@@ -1,13 +1,14 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useMemo, useState } from "react";
-import { useFollowers, useFollowings, useMyFollowCounts, useMyProfile, useMyRecipes, useMySavedRecipes } from "@/lib/hooks/users";
+import { useMemo, useState, useEffect } from "react";
+import { useFollowers, useFollowings, useMyFollowCounts, useMyProfile, useMyRecipes, useMySavedRecipes, useUpdateNickname } from "@/lib/hooks/users";
 import RecipeCard from "@/components/RecipeCard";
 import Topbar from "@/components/Topbar";
 import Sidebar from "@/components/Sidebar";
 import MobileNav from "@/components/MobileNav";
 import Image from "next/image";
+import { IconSettings } from "@/components/icons";
 import UserListItem from "@/components/UserListItem";
 import type { PublicUser } from "@/lib/types/user";
 import Link from "next/link";
@@ -35,6 +36,13 @@ export default function ProfilePage() {
 
   const [tab, setTab] = useState<'recipes' | 'saved' | 'followers' | 'followings'>("recipes");
   const [group, setGroup] = useState<'recipes' | 'follows'>('recipes');
+  const [editingName, setEditingName] = useState(false);
+  const [nickInput, setNickInput] = useState(name);
+  const updateNickMut = useUpdateNickname();
+
+  useEffect(() => {
+    if (!editingName) setNickInput(name);
+  }, [name, editingName]);
 
   const getImageUrl = (recipe: { thumbnailImage?: string; thumbnailUrl?: string; thumbnailPath?: string }) => {
     const thumb = recipe.thumbnailImage || recipe.thumbnailUrl || recipe.thumbnailPath;
@@ -98,18 +106,84 @@ export default function ProfilePage() {
                   </div>
                   <Link
                     href="/profile/image"
-                    className="absolute -bottom-2 -right-2 w-9 h-9 rounded-full bg-black text-white border border-white shadow-md flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                    className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-black text-white flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
                     aria-label="프로필 이미지 설정"
                     title="프로필 이미지 설정"
                   >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                      <path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" stroke="currentColor" strokeWidth="1.8"/>
-                      <path d="M19 12a7 7 0 0 0-.12-1.28l1.74-1.36-1.6-2.77-2.06.83a6.97 6.97 0 0 0-2.22-1.28l-.33-2.2h-3.2l-.33 2.2a6.97 6.97 0 0 0-2.22 1.28l-2.06-.83-1.6 2.77 1.74 1.36A7.06 7.06 0 0 0 5 12c0 .43.04.85.12 1.28l-1.74 1.36 1.6 2.77 2.06-.83c.66.54 1.41.97 2.22 1.28l.33 2.2h3.2l.33-2.2c.81-.31 1.56-.74 2.22-1.28l2.06.83 1.6-2.77-1.74-1.36c.08-.43.12-.85.12-1.28Z" stroke="currentColor" strokeWidth="1.8"/>
+                    <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4 20h4l10.5-10.5a2.121 2.121 0 0 0-3-3L5 17v3z" fill="currentColor"/>
                     </svg>
                   </Link>
                 </div>
                 <div className="text-center">
-                  <div className="text-[18px] font-semibold">{name}</div>
+                  {!editingName ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="text-[18px] font-semibold">{name}</div>
+                      <button
+                        type="button"
+                        className="w-7 h-7 rounded-full border border-[#ddd] hover:bg-neutral-50 flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                        aria-label="닉네임 수정"
+                        title="닉네임 수정"
+                        onClick={() => { setNickInput(name); setEditingName(true); }}
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M4 20h4l10.5-10.5a2.121 2.121 0 0 0-3-3L5 17v3z" fill="currentColor"/>
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2">
+                      <input
+                        value={nickInput}
+                        onChange={(e) => setNickInput(e.target.value)}
+                        className="px-3 py-1 rounded-md border border-[#ddd] text-[16px] w-[220px] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                        placeholder="닉네임 입력"
+                        maxLength={30}
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const trimmed = (nickInput ?? '').trim();
+                          if (!trimmed) {
+                            setEditingName(false);
+                            setNickInput(name);
+                            return;
+                          }
+                          if (trimmed === name) {
+                            setEditingName(false);
+                            return;
+                          }
+                          try {
+                            await updateNickMut.mutateAsync(trimmed);
+                            setEditingName(false);
+                          } catch (err) {
+                            console.error(err);
+                            // keep editor open on error
+                          }
+                        }}
+                        disabled={updateNickMut.isPending}
+                        className="w-7 h-7 rounded-full border border-[#ddd] hover:bg-neutral-50 flex items-center justify-center disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                        aria-label="저장"
+                        title="저장"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setEditingName(false); setNickInput(name); }}
+                        disabled={updateNickMut.isPending}
+                        className="w-7 h-7 rounded-full border border-[#ddd] hover:bg-neutral-50 flex items-center justify-center disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                        aria-label="취소"
+                        title="취소"
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                        </svg>
+                      </button>
+                    </div>
+                  )}
                   {email && <div className="text-[14px] text-[#666] mt-1 mb-6">{email}</div>}
                 </div>
               </div>
