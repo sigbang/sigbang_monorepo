@@ -496,3 +496,32 @@ export class AiRecipeGenerateResponseDto {
   })
   steps: RecipeStepDto[];
 }
+
+// 비정형 재료 텍스트 정규화 요청 DTO
+export class NormalizeIngredientsDto {
+  @ApiProperty({
+    example: '필수 재료 : 가다랑어포(10g), 돼지고기(100g)\n밑간 : 소금(1g), 후춧가루(1g)',
+    description: '공공데이터 등에서 받은 비정형 재료 원문 텍스트',
+  })
+  @IsString()
+  @MinLength(1)
+  raw: string;
+
+  @ApiProperty({
+    required: false,
+    enum: ['ko', 'en'],
+    description: '출력 언어 (기본값 ko)'
+  })
+  @IsOptional()
+  @IsString()
+  locale?: 'ko' | 'en';
+}
+
+// 비정형 재료 텍스트 정규화 응답 DTO
+export class NormalizedIngredientsResponseDto {
+  @ApiProperty({ description: '사람이 읽기 좋은 정규화된 재료 텍스트(제목 포함, 줄바꿈 포함)' })
+  text: string;
+
+  @ApiProperty({ required: false, description: '모델 및 토큰 사용량 등 메타정보', default: undefined })
+  meta?: { model: string; tokens?: { prompt: number; completion: number; total: number } };
+}

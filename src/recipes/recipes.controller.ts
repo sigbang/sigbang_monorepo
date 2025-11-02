@@ -34,6 +34,8 @@ import {
   RecipeSearchQueryDto,
   RecipeSearchResponseDto,
   CropRectDto,
+  NormalizeIngredientsDto,
+  NormalizedIngredientsResponseDto,
 } from './dto/recipes.dto';
 import { JwtAuthGuard } from '../common/guards/jwt.guard';
 import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt.guard';
@@ -92,6 +94,19 @@ export class RecipesController {
     @Body() body: AiGenerateRecipeDto,
   ): Promise<AiRecipeGenerateResponseDto> {
     return this.recipesService.generateFromImage(user.id, body);
+  }
+
+  // AI: 비정형 재료 텍스트 정규화
+  @Post('ai/normalize-ingredients')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: '비정형 재료 텍스트 정규화', description: '공공데이터 등에서 받은 비정형 재료 텍스트를 사람이 읽기 좋은 형식으로 변환합니다.' })
+  @ApiBody({ type: NormalizeIngredientsDto })
+  @ApiResponse({ status: 201, description: '성공', type: NormalizedIngredientsResponseDto })
+  async normalizeIngredients(
+    @Body() body: NormalizeIngredientsDto,
+  ): Promise<NormalizedIngredientsResponseDto> {
+    return this.recipesService.normalizeIngredients(body.raw, body.locale ?? 'ko');
   }
 
   // 1. 레시피 임시 저장 생성 (기존 임시 저장 전부 제거 후 새로 생성)

@@ -260,6 +260,65 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
     }
   }
 
+  // AI: 비정형 재료 텍스트 정규화
+  async normalizeIngredients(raw: string, locale: 'ko' | 'en' = 'ko') {
+    if (!raw || typeof raw !== 'string' || raw.trim().length === 0) {
+      throw new BadRequestException('raw 텍스트가 필요합니다.');
+    }
+
+    const systemPromptKo =
+      '너는 요리 레시피 데이터를 사용자 친화적으로 정리하는 도우미야. '
+      + '입력되는 텍스트는 공공데이터의 비정형 재료 정보이며, 너는 이를 사람이 보기 좋게 정리해야 해. '
+      + '단위는 가능한 g 단위를 유지하되, 개수나 비율로 표현이 더 자연스러울 경우 변환해줘. '
+      + "예를 들어, 양파 30g은 '1/4개', 숙주 50g은 '한 줌', 소금 1g은 '약간'처럼 바꿀 수 있어. "
+      + "출력 형식은 텍스트이며, 제목(예: 필수 재료, 밑간 등)을 유지하고 각 항목은 '- 재료명 : 양 또는 개수' 형식으로 줄바꿈해줘. "
+      + '불필요한 설명은 제외하고, 사람이 읽기 쉬운 깔끔한 요리 레시피 스타일로 써줘.';
+
+    const systemPromptEn =
+      'You format messy ingredient text into clean, human-friendly cooking notes. '
+      + 'Prefer grams when natural; convert to counts/ratio when it reads better. '
+      + "Keep section headings (e.g., Essentials, Seasoning) and list each as '- name : amount'. "
+      + 'Exclude extra commentary; write concise, readable recipe style.';
+
+    const system = locale === 'en' ? systemPromptEn : systemPromptKo;
+    const user = locale === 'en'
+      ? `Please convert the following ingredient text into a clean list. Keep headings and use '- name : amount' per line.\n\n${raw}`
+      : `다음 재료 정보를 보기 좋은 텍스트로 변환해줘.\n\n${raw}`;
+
+    try {
+      const model =
+        this.configService.get<string>('OPENAI_RECIPE_MODEL')
+        || 'gpt-4o-mini';
+
+      const resp = await this.openai.chat.completions.create({
+        model,
+        temperature: 0.2,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
+      });
+
+      const text: string = resp.choices?.[0]?.message?.content?.trim() || '';
+      if (!text) {
+        throw new BadRequestException('정규화 결과가 비어 있습니다.');
+      }
+      const usage: any = (resp as any).usage || {};
+      return {
+        text,
+        meta: {
+          model,
+          tokens: usage
+            ? { prompt: usage.prompt_tokens ?? 0, completion: usage.completion_tokens ?? 0, total: usage.total_tokens ?? 0 }
+            : undefined,
+        },
+      };
+    } catch (error) {
+      this.logger.error(`재료 정규화 실패: ${String((error as any)?.message || error)}`);
+      throw new BadRequestException('재료 정규화에 실패했습니다.');
+    }
+  }
+
   // 개인화 추천 (간단 휴리스틱): 팔로우, 태그 유사, 참여 점수
   async getRecommendedRecipes(query: RecipeQueryDto, userId?: string) {
     const { cursor, limit = 10 } = (query as any) || {};
