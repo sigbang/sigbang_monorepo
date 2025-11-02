@@ -1,12 +1,22 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import RecipeForm from '@/components/RecipeForm';
-import { createRecipe } from '@/lib/api/recipes';
+import { createRecipe, RecipeDetail, aiNormalizeIngredients } from '@/lib/api/recipes';
 import { toRecipeDetail } from '@/lib/external/foodsafety';
 
-type Item = Record<string, any>;
+type Item = {
+  [key: string]: unknown;
+  RCP_SEQ?: string;
+  ATT_FILE_NO_MAIN?: string;
+  ATT_FILE_NO_MK?: string;
+  RCP_NM?: string;
+  RCP_PAT2?: string;
+  RCP_WAY2?: string;
+  HASH_TAG?: string;
+  RCP_PARTS_DTLS?: string;
+};
 
 export default function ImportFoodsafetyPage() {
   const router = useRouter();
@@ -14,8 +24,30 @@ export default function ImportFoodsafetyPage() {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
   const [selected, setSelected] = useState<Item | null>(null);
+  const [initial, setInitial] = useState<RecipeDetail | undefined>(undefined);
 
-  const initial = useMemo(() => (selected ? toRecipeDetail(selected) : undefined), [selected]);
+  useEffect(() => {
+    if (!selected) {
+      setInitial(undefined);
+      return;
+    }
+    const base = toRecipeDetail(selected);
+    setInitial(base);
+
+    const raw = String(selected?.RCP_PARTS_DTLS ?? '').trim();
+    if (!raw) return;
+
+    (async () => {
+      try {
+        const normalized = await aiNormalizeIngredients({ raw, locale: 'ko' });
+        if (normalized && normalized.trim().length > 0) {
+          setInitial((prev) => (prev ? { ...prev, ingredients: normalized } : prev));
+        }
+      } catch {
+        // Keep base ingredients on failure
+      }
+    })();
+  }, [selected]);
 
   const search = async () => {
     setLoading(true);

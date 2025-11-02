@@ -44,6 +44,16 @@ export async function aiGenerate(params: { imagePath?: string; title?: string })
   return data;
 }
 
+export async function aiNormalizeIngredients(params: { raw: string; locale?: string }): Promise<string> {
+  const { data } = await api.post('/recipes/ai/normalize-ingredients', {
+    raw: params.raw,
+    locale: params.locale ?? 'ko',
+  });
+  const body: any = (data && (data as any).data) ? (data as any).data : data;
+  const normalized = body?.normalized ?? body?.ingredients ?? body?.result ?? '';
+  return String(normalized ?? '');
+}
+
 // Detail types and API
 export type RecipeDetail = {
   id: string;

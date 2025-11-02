@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ImageUploader from '@/components/ImageUploader';
 import StepsEditor from '@/components/StepsEditor';
 import IngredientsEditor from '@/components/IngredientsEditor';
@@ -24,6 +24,15 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
   const [title, setTitle] = useState(initial?.title ?? '');
   const [description, setDesc] = useState(initial?.description ?? '');
   const [ingredients, setIngr] = useState(initial?.ingredients ?? '');
+  const prevInitialIngredientsRef = useRef<string>(initial?.ingredients ?? '');
+  useEffect(() => {
+    const nextInit = initial?.ingredients ?? '';
+    const prevInit = prevInitialIngredientsRef.current ?? '';
+    if (ingredients === prevInit && nextInit && nextInit !== prevInit) {
+      setIngr(nextInit);
+    }
+    prevInitialIngredientsRef.current = nextInit;
+  }, [initial?.ingredients]);
   
   // In edit mode: only use server-generated final thumbnail with one-time cache-bust
   // In create/import mode: allow external URL or existing server path as initial preview
