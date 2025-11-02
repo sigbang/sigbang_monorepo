@@ -11,10 +11,12 @@ type UnitRule = {
 const UNIT_RULES: UnitRule[] = [
   { aliases: ['밀가루', '중력분', '박력분'], gPerTbsp: 8,  gPerCup: 120 },
   { aliases: ['찹쌀가루', '쌀가루'],          gPerTbsp: 10, gPerCup: 160 },
-  { aliases: ['간장', '진간장', '저염간장'],   gPerTbsp: 17.5 },
+  { aliases: ['간장', '진간장', '저염간장', '어간장'],   gPerTbsp: 17.5 },
   { aliases: ['식초'],                        gPerTbsp: 15 },
-  { aliases: ['설탕', '백설탕'],              gPerTbsp: 12.5, gPerCup: 200 },
-  { aliases: ['소금'],                        gPerTbsp: 18, tinyAsPinch: true },  
+  { aliases: ['레몬즙'],                        gPerTbsp: 15 },
+  { aliases: ['생강청청'],                        gPerTbsp: 15 },
+  { aliases: ['설탕', '백설탕', '흑설탕'],              gPerTbsp: 12.5, gPerCup: 200 },
+  { aliases: ['소금','후추','흰후추'],                        gPerTbsp: 18, tinyAsPinch: true },  
   { aliases: ['식용유', '해바라기유', '카놀라유', '올리브유'], gPerTbsp: 14 },
 ];
 
@@ -37,14 +39,16 @@ const INTUITIVE_RULES: IntuitiveRule[] = [
   { aliases: ['마늘'], getDisplay: (g) => g >= 30 ? '5개' : g >= 15 ? '3개' : '1개' },
   { aliases: ['파', '대파'], getDisplay: (g) => g >= 30 ? '1대' : g >= 15 ? '1/2대' : '1/4대' },
   { aliases: ['미나리'], getDisplay: (g) => g >= 30 ? '1줌' : g >= 15 ? '1/2줌' : '1/4줌' },
-  { aliases: ['시금치', '부추'], getDisplay: (g) => g >= 50 ? '1줌' : g >= 25 ? '1/2줌' : '1/4줌' },
+  { aliases: ['시금치', '부추', '영양부추'], getDisplay: (g) => g >= 50 ? '1줌' : g >= 25 ? '1/2줌' : '1/4줌' },
+  { aliases: ['고추', '오이고추'], getDisplay: (g) => g >= 40 ? '4개' : g >= 30 ? '3개' : '2개' },
   
   // 버섯류
   { aliases: ['표고버섯', '느타리버섯', '팽이버섯', '새송이버섯', '버섯'], getDisplay: (g) => g >= 100 ? '10송이' : g >= 50 ? '5송이' : '한 줌' },
   
   // 고기류
   { aliases: ['소고기', '돼지고기', '닭고기'], getDisplay: (g) => g >= 200 ? '1인분' : g >= 100 ? '1/2인분' : '1/4인분' },
-  { aliases: ['슬라이스 햄', '베이컨'], getDisplay: (g) => g >= 50 ? '2장' : g >= 25 ? '1장' : '1/2장' },  
+  { aliases: ['슬라이스 햄', '베이컨'], getDisplay: (g) => g >= 50 ? '2장' : g >= 25 ? '1장' : '1/2장' },
+  { aliases: ['달걀'], getDisplay: (g) => g >= 150 ? '5개' : g >= 120 ? '4개' : g >= 90 ? '3개' : g >= 60 ? '2개' : '1개'},  
   
   // 해산물
   { aliases: ['새우'], getDisplay: (g) => g >= 100 ? '10마리' : g >= 50 ? '5마리' : '3마리' },
@@ -54,15 +58,15 @@ const INTUITIVE_RULES: IntuitiveRule[] = [
   
   // 기타
   { aliases: ['참기름', '들기름'], getDisplay: (g) => g >= 10 ? '1 큰술' : g >= 5 ? '1/2 큰술' : '1/4 큰술' },
-  { aliases: ['깨'], getDisplay: (g) => g >= 10 ? '1 큰술' : g >= 5 ? '1/2 큰술' : '1/4 큰술' },
+  { aliases: ['깨', '통깨'], getDisplay: (g) => g >= 10 ? '1 큰술' : g >= 5 ? '1/2 큰술' : '1/4 큰술' },
   
   // 소스류
-  { aliases: ['간장', '진간장', '저염간장'], getDisplay: (g) => g >= 70 ? '4 큰술' : g >= 35 ? '2 큰술' : g >= 17 ? '1 큰술' : g >= 9 ? '1/2 큰술' : '1/4 큰술' },
+  { aliases: ['간장', '진간장', '저염간장', '맛간장'], getDisplay: (g) => g >= 70 ? '4 큰술' : g >= 35 ? '2 큰술' : g >= 17 ? '1 큰술' : g >= 9 ? '1/2 큰술' : '1/4 큰술' },
   { aliases: ['식초'], getDisplay: (g) => g >= 60 ? '4 큰술' : g >= 30 ? '2 큰술' : g >= 15 ? '1 큰술' : g >= 7 ? '1/2 큰술' : '1/4 큰술' },
   { aliases: ['맛술', '요리술', '청주', '배즙'], getDisplay: (g) => g >= 60 ? '4 큰술' : g >= 30 ? '2 큰술' : g >= 15 ? '1 큰술' : g >= 7 ? '1/2 큰술' : '1/4 큰술' },
   { aliases: ['고춧가루','후춧가루','들깻가루'], getDisplay: (g) => g >= 40 ? '4 큰술' : g >= 20 ? '2 큰술' : g >= 10 ? '1 큰술' : g >= 5 ? '1/2 큰술' : '1/4 큰술' },
   { aliases: ['고추장'], getDisplay: (g) => g >= 60 ? '4 큰술' : g >= 30 ? '2 큰술' : g >= 15 ? '1 큰술' : g >= 7 ? '1/2 큰술' : '1/4 큰술' },
-  { aliases: ['된장', '일본된장'], getDisplay: (g) => g >= 60 ? '4 큰술' : g >= 30 ? '2 큰술' : g >= 15 ? '1 큰술' : g >= 7 ? '1/2 큰술' : '1/4 큰술' },
+  { aliases: ['된장', '일본된장', '미소된장'], getDisplay: (g) => g >= 60 ? '4 큰술' : g >= 30 ? '2 큰술' : g >= 15 ? '1 큰술' : g >= 7 ? '1/2 큰술' : '1/4 큰술' },
   { aliases: ['케첩'], getDisplay: (g) => g >= 60 ? '4 큰술' : g >= 30 ? '2 큰술' : g >= 15 ? '1 큰술' : g >= 7 ? '1/2 큰술' : '1/4 큰술' },
   { aliases: ['마요네즈'], getDisplay: (g) => g >= 60 ? '4 큰술' : g >= 30 ? '2 큰술' : g >= 15 ? '1 큰술' : g >= 7 ? '1/2 큰술' : '1/4 큰술' },
   { aliases: ['겨자'], getDisplay: (g) => g >= 40 ? '4 큰술' : g >= 20 ? '2 큰술' : g >= 10 ? '1 큰술' : g >= 5 ? '1/2 큰술' : '1/4 큰술' },

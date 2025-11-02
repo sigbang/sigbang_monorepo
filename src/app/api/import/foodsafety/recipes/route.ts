@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const API_BASE = process.env.FOOD_SAFETY_API_BASE ?? 'http://openapi.foodsafetykorea.go.kr/api';
+const API_BASE = process.env.FOOD_SAFETY_API_BASE ?? 'https://openapi.foodsafetykorea.go.kr/api';
 const KEY = process.env.FOOD_SAFETY_API_KEY as string | undefined;
 const SERVICE = process.env.FOOD_SAFETY_SERVICE_ID ?? 'COOKRCP01';
 
@@ -9,6 +9,35 @@ type FoodsafetyBox = {
   total_count?: string;
   row?: any[];
 };
+
+async function fetchWithRetry(
+  url: string,
+  opts: RequestInit & { timeoutMs?: number; retries?: number; backoffMs?: number } = {}
+) {
+  const { timeoutMs = 15000, retries = 1, backoffMs = 500, ...rest } = opts;
+
+  let attempt = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { ...rest, signal: controller.signal, cache: 'no-store' });
+      clearTimeout(timer);
+      return res;
+    } catch (err: any) {
+      clearTimeout(timer);
+      const code = err?.code || err?.cause?.code;
+      const isAbort = err?.name === 'AbortError';
+      const isHeadersTimeout = code === 'UND_ERR_HEADERS_TIMEOUT';
+      const canRetry = attempt < retries && (isAbort || isHeadersTimeout);
+      if (!canRetry) throw err;
+      attempt += 1;
+      const delay = backoffMs * Math.pow(2, attempt - 1);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+}
 
 export async function GET(req: NextRequest) {
   if (!KEY) return NextResponse.json({ message: 'Missing FOOD_SAFETY_API_KEY' }, { status: 500 });
@@ -32,17 +61,25 @@ export async function GET(req: NextRequest) {
   const tail = segments.length ? `/${segments.join('/')}` : '';
   const url = `${API_BASE}/${KEY}/${SERVICE}/json/${startIdx}/${endIdx}${tail}`;
 
-  const res = await fetch(url, { cache: 'no-store' });
-  if (!res.ok) {
-    const text = await res.text();
-    return NextResponse.json({ message: 'Upstream error', detail: text }, { status: 502 });
-  }
-  const data = await res.json();
-  const box: FoodsafetyBox = (data as any)?.[SERVICE] ?? {};
-  const items = Array.isArray(box.row) ? box.row : [];
-  const total = Number(box.total_count ?? items.length ?? 0);
+  try {
+    const res = await fetchWithRetry(url, { timeoutMs: 15000, retries: 1 });
+    if (!res.ok) {
+      const text = await res.text();
+      return NextResponse.json({ message: 'Upstream error', detail: text }, { status: 502 });
+    }
+    const data = await res.json();
+    const box: FoodsafetyBox = (data as any)?.[SERVICE] ?? {};
+    const items = Array.isArray(box.row) ? box.row : [];
+    const total = Number(box.total_count ?? items.length ?? 0);
 
-  return NextResponse.json({ data: { items, total, page, pageSize } }, { status: 200 });
+    return NextResponse.json({ data: { items, total, page, pageSize } }, { status: 200 });
+  } catch (err: any) {
+    const code = err?.code || err?.cause?.code;
+    if (err?.name === 'AbortError' || code === 'UND_ERR_HEADERS_TIMEOUT') {
+      return NextResponse.json({ message: 'Upstream timeout', detail: String(code || err?.message || err) }, { status: 504 });
+    }
+    return NextResponse.json({ message: 'Upstream fetch failed', detail: String(err?.message || err) }, { status: 502 });
+  }
 }
 
 
