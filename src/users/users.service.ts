@@ -249,6 +249,8 @@ export class UsersService {
         await tx.user.update({ where: { id: userId }, data: { status: 'DELETED' as any, deletedAt: new Date() } });
         await tx.recipe.updateMany({ where: { authorId: userId }, data: { authorId: null } });
         await tx.comment.updateMany({ where: { authorId: userId }, data: { authorId: null } });
+        // Revoke all refresh tokens (immediate logout)
+        await tx.refreshToken.deleteMany({ where: { userId } });
         await (tx as any).userLifecycleEvent.create({
           data: {
             userId,

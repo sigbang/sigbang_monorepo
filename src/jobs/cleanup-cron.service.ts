@@ -68,6 +68,34 @@ export class CleanupCronService {
     }
   }
 
+  // 매일 새벽 4시 사용자 영구 삭제 (보존 기간 경과)
+  @Cron(CronExpression.EVERY_DAY_AT_4AM)
+  async purgeDeletedUsers() {
+    const retentionDays = Number(this.config.get<string>('USER_DELETE_RETENTION_DAYS') ?? '30');
+    const threshold = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+
+    this.logger.log(`Purging users with status=DELETED older than ${retentionDays}d (before ${threshold.toISOString()})`);
+
+    const candidates = await this.prisma.user.findMany({
+      where: {
+        status: 'DELETED' as any,
+        deletedAt: { lt: threshold },
+      },
+      select: { id: true },
+      take: 200,
+    });
+
+    for (const u of candidates) {
+      try {
+        // Reports are preserved via FK ON DELETE SET NULL (reporterId becomes NULL)
+        await this.prisma.user.delete({ where: { id: u.id } });
+        this.logger.log(`Purged user ${u.id}`);
+      } catch (e) {
+        this.logger.error(`User purge failed for ${u.id}: ${String(e)}`);
+      }
+    }
+  }
+
   private extractStoragePathFromPublicUrl(publicUrl: string, bucketName: string): string | null {
     try {
       const marker = `/object/public/${bucketName}/`;

@@ -260,8 +260,8 @@ model Report {
   updatedAt DateTime   @updatedAt
   
   // 관계 - 신고자
-  reporterId String
-  reporter   User    @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  reporterId String?
+  reporter   User?   @relation(fields: [reporterId], references: [id], onDelete: SetNull)
   
   // 신고 대상 (레시피 또는 댓글)
   recipeId   String?
