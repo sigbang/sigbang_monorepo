@@ -50,7 +50,7 @@ export async function aiNormalizeIngredients(params: { raw: string; locale?: str
     locale: params.locale ?? 'ko',
   });
   const body: any = (data && (data as any).data) ? (data as any).data : data;
-  const normalized = body?.normalized ?? body?.ingredients ?? body?.result ?? '';
+  const normalized = body?.normalized ?? body?.ingredients ?? body?.result ?? body?.text ?? '';
   return String(normalized ?? '');
 }
 
