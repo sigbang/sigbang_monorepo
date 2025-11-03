@@ -1,35 +1,138 @@
-import Topbar from '@/components/Topbar';
-import Footer from '@/components/Footer';
-import MobileNav from '@/components/MobileNav';
+"use client";
+
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import Topbar from "@/components/Topbar";
+import Sidebar from "@/components/Sidebar";
+import MobileNav from "@/components/MobileNav";
+import { deleteMe } from "@/lib/api/users";
+import { signOut, useSession } from "next-auth/react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useMyProfile } from "@/lib/hooks/users";
+import Image from "next/image";
 
 export default function AccountDeletePage() {
+  const router = useRouter();
+  const { data: session } = useSession();
+  const me = useMyProfile();
+  const qc = useQueryClient();
+  const [agree, setAgree] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const userImageUrl = useMemo(() => {
+    const src = (me.data?.image ?? (session?.user as { image?: string } | undefined)?.image) || '';
+    if (!src) return '';
+    if (/^https?:/i.test(src)) return src;
+    const clean = src.startsWith('/') ? src.slice(1) : src;
+    return `/media/${clean.startsWith('media/') ? clean.slice('media/'.length) : clean}`;
+  }, [me.data, session]);
+  const userEmail = ((session?.user as { email?: string } | undefined)?.email || '').trim();
+  const userName = ((me.data?.name || (session?.user as { name?: string } | undefined)?.name || '') as string).trim();
+
+  const onConfirm = async () => {
+    if (!agree || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    setMessage(null);
+    try {
+      try { sessionStorage.setItem('suppress-login-modal', '1'); } catch {}
+      await deleteMe();
+      setMessage("탈퇴 처리되었습니다.");
+      try { await fetch("/api/auth/logout", { method: "POST" }); } catch {}
+      try { qc.clear(); } catch {}
+      try { localStorage.removeItem('recipe:new:draft'); } catch {}
+      try { sessionStorage.setItem('suppress-login-modal', '1'); } catch {}
+      setTimeout(async () => {
+        await signOut({ callbackUrl: "/account/deleted" });
+      }, 1200);
+    } catch {
+      setError("탈퇴에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen">
       <Topbar />
-      <div className="mx-auto max-w-[1200px] px-6 py-8">
-        <h1 className="text-2xl font-semibold">계정 및 데이터 삭제</h1>
-        <div className="mt-6 space-y-4 text-gray-700 leading-relaxed">
-          <p>
-            계정과 관련 데이터의 삭제를 원하시면 아래 방법 중 하나로 요청해 주세요. 본인 확인 후 지체 없이 처리합니다.
-          </p>
-          <ol className="list-decimal pl-5 space-y-2">
-            <li>
-              이메일 요청: <a className="text-sky-600 hover:underline" href="mailto:contact.aminity@gmail.com?subject=%5B%EC%8B%9D%EB%B0%A9%5D%20%EA%B3%84%EC%A0%95%20%EB%B0%8F%20%EB%8D%B0%EC%9D%B4%ED%84%B0%20%EC%82%AD%EC%A0%9C%20%EC%9A%94%EC%B2%AD">contact.aminity@gmail.com</a>
-              로 아래 정보를 포함해 보내 주세요: 계정 이메일, 닉네임(선택), 삭제 사유(선택)
-            </li>
-            <li>
-              앱 내 지원: 향후 제공 예정인 설정 &gt; 계정 &gt; 삭제 요청 기능을 통해 간편하게 접수하실 수 있습니다.
-            </li>
-          </ol>
-          <p className="mt-6">
-            법령에 의해 보관이 필요한 항목은 해당 기간 동안 분리 보관 후 파기하며, 그 외 데이터는 삭제 완료 시 즉시 파기됩니다.
-          </p>
-        </div>
+      <div className="mx-auto max-w-[1200px] flex">
+        <Sidebar />
+        <main id="main" className="flex-1 px-6 py-6" role="main">
+          <div className="mx-auto max-w-[720px]">
+            <h1 className="text-2xl font-semibold">회원 탈퇴</h1>
+
+            <div className="mt-6 flex items-center gap-4">
+              <div className="w-16 h-16 rounded-full overflow-hidden bg-[#eee] border border-[#ddd] relative">
+                {userImageUrl ? (
+                  <Image src={userImageUrl} alt="프로필" fill sizes="64px" style={{ objectFit: 'cover' }} />
+                ) : (
+                  <div className="w-full h-full" />
+                )}
+              </div>
+              <div>
+                <div className="text-[18px] font-semibold">{userName || '사용자'}</div>
+                {userEmail && <div className="text-[14px] text-[#666]">{userEmail}</div>}
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-lg border border-[#eee] p-5 bg-white">
+              <ul className="list-disc pl-5 space-y-2 text-[18px] text-[#444]">
+                <li>계정 정보와 활동 데이터는 즉시 삭제됩니다.</li>
+                <li>레시피 북마크 정보가 모두 지워집니다.</li>
+                <li>작성한 레시피와 댓글은 노출되지 않습니다.</li>
+                <li>탈퇴 후 동일 계정으로 30일간 재가입할 수 없습니다.</li>
+              </ul>
+
+              <label className="mt-5 flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={agree}
+                  onChange={(e) => setAgree(e.target.checked)}
+                  aria-label="탈퇴 안내에 모두 동의"
+                />
+                <span className="text-[18px]">
+                  위 내용을 모두 확인하였으며 탈퇴에 동의합니다.
+                </span>
+              </label>
+
+              <div className="mt-6 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={onConfirm}
+                  disabled={!agree || submitting}
+                  className={`inline-flex items-center rounded px-4 py-2 text-white ${
+                    !agree || submitting ? "opacity-60 bg-red-500" : "bg-red-600 hover:bg-red-700"
+                  }`}
+                >
+                  {submitting ? "탈퇴 처리중..." : "확인"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.back()}
+                  className="text-sm text-gray-600 hover:underline"
+                >
+                  취소
+                </button>
+              </div>
+
+              {message && (
+                <div className="mt-4 text-sm text-green-600" role="status" aria-live="polite">
+                  {message}
+                </div>
+              )}
+              {error && (
+                <div className="mt-4 text-sm text-red-600" role="alert">
+                  {error}
+                </div>
+              )}
+            </div>
+          </div>
+        </main>
       </div>
-      <Footer />
       <MobileNav />
     </div>
   );
 }
-
-

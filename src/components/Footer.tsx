@@ -28,7 +28,7 @@ export default function Footer() {
               </a>
               <a
                 className="hover:underline"
-                href="https://instagram.com/aminity"
+                href="https://www.instagram.com/sig.bang"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Instagram"
@@ -37,7 +37,7 @@ export default function Footer() {
               </a>
               <a
                 className="hover:underline"
-                href="https://www.threads.net/@aminity"
+                href="https://www.threads.net/@sig.bang"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Threads"

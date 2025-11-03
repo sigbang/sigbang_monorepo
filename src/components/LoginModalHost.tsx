@@ -9,6 +9,19 @@ export default function LoginModalHost() {
 
   useEffect(() => {
     function onOpen() {
+      try {
+        const path = typeof window !== 'undefined' ? window.location.pathname : '';
+        // Suppress on account deletion completion page
+        if (path && (path === '/account/deleted' || path.startsWith('/account/deleted'))) {
+          return;
+        }
+        // Optional suppression flag set during flows like account deletion
+        const flag = typeof window !== 'undefined' ? window.sessionStorage.getItem('suppress-login-modal') : null;
+        if (flag === '1') {
+          try { window.sessionStorage.removeItem('suppress-login-modal'); } catch {}
+          return;
+        }
+      } catch {}
       setOpen(true);
     }
     function onKeyDown(e: KeyboardEvent) {

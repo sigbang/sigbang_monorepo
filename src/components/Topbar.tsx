@@ -85,8 +85,15 @@ export default function Topbar() {
                 <div className="mt-1 text-[12px] text-[#666] truncate">{userEmail}</div>
               )}
               <div className="my-3 h-px bg-[#ddd]" />
-              <Link href="/profile" className="block text-[14px] text-[#111] hover:text-sky-600" role="menuitem">
+              <Link href="/profile" className="mt-2 block text-[14px] text-[#111] hover:text-sky-600" role="menuitem">
                 프로필
+              </Link>              
+              <Link
+                href="/account/delete"
+                className="mt-2 block text-[14px] text-[#b91c1c] hover:text-red-600"
+                role="menuitem"
+              >
+                회원탈퇴
               </Link>
               <div className="my-3 h-px bg-[#eee]" />
           <button

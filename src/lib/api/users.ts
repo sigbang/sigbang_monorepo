@@ -187,3 +187,8 @@ export async function updateNickname(nickname: string): Promise<UpdateNicknameRe
   const { data } = await api.patch('/users/me', { nickname });
   return unwrap<UpdateNicknameResponse>(data);
 }
+
+// Delete current user account
+export async function deleteMe(): Promise<void> {
+  await api.delete('/users/me');
+}

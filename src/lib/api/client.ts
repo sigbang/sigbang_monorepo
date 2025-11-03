@@ -27,17 +27,20 @@ api.interceptors.response.use(
       const status: number | undefined = error?.response?.status;
       const authHeader: string | undefined = error?.response?.headers?.['x-auth-status'];
       const data: unknown = error?.response?.data;
+      const suppress = ((): boolean => {
+        try { return typeof window !== 'undefined' && window.sessionStorage.getItem('suppress-login-modal') === '1'; } catch { return false; }
+      })();
       
       // Handle various authentication errors
-      if (status === 401 || authHeader === 'invalid') {
+      if ((status === 401 || authHeader === 'invalid')) {
         console.warn('[auth] Unauthorized - prompting login');
-        if (typeof window !== 'undefined') {
+        if (typeof window !== 'undefined' && !suppress) {
           window.dispatchEvent(new Event('open-login-modal'));
         }
       } else if (status === 403) {
         console.warn('[auth] Forbidden - insufficient permissions');
         // Could show a toast notification or modal for 403 errors
-        if (typeof window !== 'undefined') {
+        if (typeof window !== 'undefined' && !suppress) {
           const message = (data && typeof data === 'object' && 'message' in data) 
             ? String(data.message) 
             : 'Insufficient permissions';
@@ -53,7 +56,7 @@ api.interceptors.response.use(
           : 'Authentication token error';
         if (errorMessage.toLowerCase().includes('token') || errorMessage.toLowerCase().includes('jwt')) {
           console.warn('[auth] Token format error - prompting login');
-          if (typeof window !== 'undefined') {
+          if (typeof window !== 'undefined' && !suppress) {
             window.dispatchEvent(new Event('open-login-modal'));
           }
         }
