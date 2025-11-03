@@ -63,6 +63,14 @@ export class AuthService {
           data: { status: 'ACTIVE' as any, deletedAt: null, ...(nickname ? { nickname } : {}) },
         });
 
+        // Fresh start: 관계/세션 초기화 (좋아요/저장/팔로우/토큰)
+        await this.prismaService.$transaction(async (tx) => {
+          await tx.like.deleteMany({ where: { userId: reactivated.id } });
+          await tx.save.deleteMany({ where: { userId: reactivated.id } });
+          await tx.follow.deleteMany({ where: { OR: [{ followerId: reactivated.id }, { followingId: reactivated.id }] } });
+          await tx.refreshToken.deleteMany({ where: { userId: reactivated.id } });
+        });
+
         // 이벤트 로그: REACTIVATE
         await (this.prismaService as any).userLifecycleEvent.create({
           data: {
@@ -191,6 +199,16 @@ export class AuthService {
           where: { id: user.id },
           data: { status: 'ACTIVE' as any, deletedAt: null },
         });
+
+        // Fresh start: 관계/세션 초기화
+        try {
+          await this.prismaService.$transaction(async (tx) => {
+            await tx.like.deleteMany({ where: { userId: user.id } });
+            await tx.save.deleteMany({ where: { userId: user.id } });
+            await tx.follow.deleteMany({ where: { OR: [{ followerId: user.id }, { followingId: user.id }] } });
+            await tx.refreshToken.deleteMany({ where: { userId: user.id } });
+          });
+        } catch {}
 
         // 이벤트 로그: REACTIVATE
         try {
@@ -354,6 +372,16 @@ export class AuthService {
         where: { id: user.id },
         data: { status: 'ACTIVE' as any, deletedAt: null },
       });
+
+      // Fresh start: 관계/세션 초기화
+      try {
+        await this.prismaService.$transaction(async (tx) => {
+          await tx.like.deleteMany({ where: { userId: user.id } });
+          await tx.save.deleteMany({ where: { userId: user.id } });
+          await tx.follow.deleteMany({ where: { OR: [{ followerId: user.id }, { followingId: user.id }] } });
+          await tx.refreshToken.deleteMany({ where: { userId: user.id } });
+        });
+      } catch {}
 
       // 이벤트 로그: REACTIVATE(OAuth)
       try {
