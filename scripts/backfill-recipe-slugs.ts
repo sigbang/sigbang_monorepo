@@ -1,5 +1,5 @@
 import { PrismaClient } from '../generated/prisma';
-import { generateRecipeSlug } from '../src/common/utils/slug.util';
+import { generateSemanticRecipeSlug } from '../src/common/utils/slug.util';
 
 const prisma = new PrismaClient();
 
@@ -15,7 +15,7 @@ async function main() {
 			seen.add(r.slug);
 			continue;
 		}
-		const base = generateRecipeSlug(r.title);
+		const base = await generateSemanticRecipeSlug(r.title);
 		let candidate = base;
 		let i = 2;
 		// ensure uniqueness across DB and this run

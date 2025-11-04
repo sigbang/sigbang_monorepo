@@ -18,7 +18,7 @@ import {
   CropRectDto,
 } from './dto/recipes.dto';
 import { ConfigService } from '@nestjs/config';
-import { generateRecipeSlug } from '../common/utils/slug.util';
+import { generateSemanticRecipeSlug } from '../common/utils/slug.util';
 // sharp 로더: CJS/ESM 모두 호환되도록 런타임에서 안전하게 로드
 let _sharp: any | null = null;
 async function getSharp(): Promise<any> {
@@ -691,7 +691,7 @@ export class RecipesService {
       }
 
       // 2) 슬러그 생성 및 DB에 레시피 생성 (PUBLISHED)
-      const rawSlug = generateRecipeSlug(recipeData.title);
+      const rawSlug = await generateSemanticRecipeSlug(recipeData.title);
       const uniqueSlug = await this.ensureUniqueRecipeSlug(rawSlug);
       const recipe = await this.prismaService.recipe.create({
         data: {
@@ -822,7 +822,7 @@ export class RecipesService {
       // 본문 필드 업데이트 + 슬러그 갱신(제목 변경 시)
       let slugPatch: { slug?: string } = {};
       if (recipeData.title && recipeData.title !== recipe.title) {
-        const newRaw = generateRecipeSlug(recipeData.title);
+        const newRaw = await generateSemanticRecipeSlug(recipeData.title);
         slugPatch.slug = await this.ensureUniqueRecipeSlug(newRaw);
       }
 
@@ -953,7 +953,7 @@ export class RecipesService {
           : toPublicUrl(thumbnailPath as string);
       }
 
-      const rawSlug = generateRecipeSlug(recipeData.title);
+      const rawSlug = await generateSemanticRecipeSlug(recipeData.title);
       const uniqueSlug = await this.ensureUniqueRecipeSlug(rawSlug);
       const recipe = await this.prismaService.recipe.create({
         data: {
