@@ -83,6 +83,9 @@ model Recipe {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   
+  // SEO-friendly slug (region/slug 형태를 포함할 수 있음)
+  slug            String?  @unique
+  
   // 관계
   authorId        String?
   author          User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
@@ -97,8 +100,21 @@ model Recipe {
   counter         RecipeCounter?   // 1:1
   events          RecipeEvent[]    // 1:N
   editorialBoost  EditorialBoost?  // 1:1
+  slugHistories   RecipeSlugHistory[]
   
   @@map("recipes")
+}
+
+// 과거 슬러그 보관(301 리다이렉트 등 용도)
+model RecipeSlugHistory {
+  id        String   @id @default(uuid())
+  recipeId  String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@map("recipe_slug_history")
 }
 
 // 레시피 트렌드 카운터 (최근 7일 집계)

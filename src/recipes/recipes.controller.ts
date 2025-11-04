@@ -12,6 +12,7 @@ import {
   UploadedFiles,
   BadRequestException,
   ParseUUIDPipe,
+  Res,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -41,6 +42,7 @@ import { JwtAuthGuard } from '../common/guards/jwt.guard';
 import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
 import { AiGenerateRecipeDto, AiRecipeGenerateResponseDto } from './dto/recipes.dto';
+import type { Response } from 'express';
 
 @ApiTags('레시피')
 @Controller('recipes')
@@ -321,6 +323,48 @@ export class RecipesController {
   @ApiResponse({ status: 200, description: '검색 결과', type: Object })
   async search(@Query() query: RecipeSearchQueryDto, @CurrentUser() user?: any): Promise<RecipeSearchResponseDto> {
     return this.recipesService.search(query, user?.id);
+  }
+
+  // 5. 레시피 상세 조회
+  @Get('by-slug/:region/:slug')
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({ summary: '레시피 상세 조회 (slug)' })
+  @ApiParam({ name: 'region', description: '지역/카테고리 슬러그 (예: korea, japan, fusion)' })
+  @ApiParam({ name: 'slug', description: '레시피 제목 기반 슬러그' })
+  @ApiResponse({ status: 200, description: '레시피 상세 조회 성공', type: RecipeResponseDto })
+  @ApiResponse({ status: 403, description: '권한 없음 (비공개 레시피)' })
+  @ApiResponse({ status: 404, description: '레시피를 찾을 수 없음' })
+  async getRecipeBySlug(
+    @Param('region') region: string,
+    @Param('slug') slug: string,
+    @CurrentUser() user?: any,
+  ) {
+    const slugPath = `${region}/${slug}`;
+    return this.recipesService.getRecipeBySlug(slugPath, user?.id);
+  }
+
+  // UUID → slug 조회 (리다이렉트 전용 경량 엔드포인트)
+  @Get(':id/slug')
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({ summary: '레시피 slug 조회 (리다이렉트용)' })
+  @ApiParam({ name: 'id', description: '레시피 ID(UUID)' })
+  @ApiResponse({ status: 200, description: '성공', schema: { example: { slug: 'korea/bulgogi-rice-bowl' } } })
+  async getRecipeSlug(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @CurrentUser() user?: any,
+  ) {
+    return this.recipesService.getRecipeSlug(id, user?.id);
+  }
+
+  // 간단한 sitemap.xml (recipes 전용)
+  @Get('sitemap.xml')
+  @ApiOperation({ summary: '레시피 전용 sitemap.xml' })
+  @ApiResponse({ status: 200, description: 'XML' })
+  async getRecipesSitemap(@Res() res: Response) {
+    const baseUrl = process.env.PUBLIC_BASE_URL || 'https://sigbang.com';
+    const xml = await this.recipesService.buildRecipesSitemapXml(baseUrl);
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    return res.send(xml);
   }
 
   // 5. 레시피 상세 조회

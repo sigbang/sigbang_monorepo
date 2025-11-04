@@ -18,6 +18,7 @@ import {
   CropRectDto,
 } from './dto/recipes.dto';
 import { ConfigService } from '@nestjs/config';
+import { generateRecipeSlug } from '../common/utils/slug.util';
 // sharp 로더: CJS/ESM 모두 호환되도록 런타임에서 안전하게 로드
 let _sharp: any | null = null;
 async function getSharp(): Promise<any> {
@@ -46,6 +47,17 @@ export class RecipesService {
   ) {}
 
   private readonly logger = new Logger(RecipesService.name);
+
+  private async ensureUniqueRecipeSlug(slug: string): Promise<string> {
+    let candidate = slug;
+    let i = 2;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const exists = await this.prismaService.recipe.findUnique({ where: { slug: candidate } });
+      if (!exists) return candidate;
+      candidate = `${slug}-${i++}`;
+    }
+  }
 
   // OpenAI 클라이언트 Lazy 생성
   private _openai: any | null = null;
@@ -179,13 +191,9 @@ export class RecipesService {
     const signedUrl = await this.supabaseService.createSignedUrl(bucketName, imagePath, 60 * 5);
 
     // OpenAI prompt 구성
-    const systemPrompt =
-  'You are a friendly and modern cooking buddy. Look at the food image and create a simple recipe in JSON format. \
-The tone should be light, casual, and approachable (not too professional). \
-Do not limit yourself to Korean food. The recipe can be Korean, global, or fusion depending on the image and context. \
-For the title: avoid plain ingredient listings. Instead, make it feel informative and lively, like something you’d see in a modern recipe blog or cooking app.';
+    const systemPrompt = `You are a friendly and modern cooking buddy. Look at the food image and create a simple recipe in JSON format. The tone should be light, casual, and approachable (not too professional). Do not limit yourself to Korean food. The recipe can be Korean, global, or fusion depending on the image and context. For the title: avoid plain ingredient listings. Instead, make it feel informative and lively, like something you'd see in a modern recipe blog or cooking app.`;
 
-const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 조건:
+    const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 조건:
 1) 제목:
    - 단순히 재료만 나열하지 말고 ("올리브 문어 요리" X)
    - 생활감 있고 감각적인 제목으로 ("문어로 즐기는 스페인 뽈뽀" O)
@@ -682,10 +690,13 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
           : toPublicUrl(thumbnailPath);
       }
 
-      // 2) DB에 레시피 생성 (PUBLISHED)
+      // 2) 슬러그 생성 및 DB에 레시피 생성 (PUBLISHED)
+      const rawSlug = generateRecipeSlug(recipeData.title);
+      const uniqueSlug = await this.ensureUniqueRecipeSlug(rawSlug);
       const recipe = await this.prismaService.recipe.create({
         data: {
           ...recipeData,
+          slug: uniqueSlug,
           description: (recipeData.description ?? '').toString(),
           ingredients: (recipeData.ingredients ?? '').toString(),
           authorId: userId,
@@ -808,14 +819,27 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
         }
       }
 
-      // 본문 필드 업데이트
+      // 본문 필드 업데이트 + 슬러그 갱신(제목 변경 시)
+      let slugPatch: { slug?: string } = {};
+      if (recipeData.title && recipeData.title !== recipe.title) {
+        const newRaw = generateRecipeSlug(recipeData.title);
+        slugPatch.slug = await this.ensureUniqueRecipeSlug(newRaw);
+      }
+
       const updated = await this.prismaService.recipe.update({
         where: { id },
         data: {
           ...recipeData,
+          ...slugPatch,
           ...(newThumbnailUrl !== undefined && { thumbnailImage: newThumbnailUrl }),
         },
       });
+
+      if (slugPatch.slug && recipe.slug && recipe.slug !== slugPatch.slug) {
+        try {
+          await this.prismaService.recipeSlugHistory.create({ data: { recipeId: id, slug: recipe.slug } });
+        } catch {}
+      }
 
       // 태그 업데이트 (명시 제공 시에만 갱신)
       if (tags !== undefined) {
@@ -929,9 +953,12 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
           : toPublicUrl(thumbnailPath as string);
       }
 
+      const rawSlug = generateRecipeSlug(recipeData.title);
+      const uniqueSlug = await this.ensureUniqueRecipeSlug(rawSlug);
       const recipe = await this.prismaService.recipe.create({
         data: {
           ...recipeData,
+          slug: uniqueSlug,
           description: (recipeData.description ?? '').toString(),
           ingredients: (recipeData.ingredients ?? '').toString(),
           authorId: userId,
@@ -1271,6 +1298,64 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
         description: step.description,
         imageUrl: step.imageUrl,
       })),
+      likesCount: recipe._count.likes,
+      commentsCount: recipe._count.comments,
+      isLiked: userId ? recipe.likes?.length > 0 : false,
+      isSaved: userId ? recipe.saves?.length > 0 : false,
+    };
+
+    return formattedRecipe;
+  }
+
+  // 5-1. 레시피 상세 조회 (slug)
+  async getRecipeBySlug(slugPath: string, userId?: string) {
+    const recipe = await this.prismaService.recipe.findUnique({
+      where: { slug: slugPath },
+      include: {
+        author: { select: { id: true, nickname: true, profileImage: true } },
+        tags: { include: { tag: true } },
+        steps: { orderBy: { order: 'asc' } },
+        _count: { select: { likes: true, comments: true } },
+        ...(userId && {
+          likes: { where: { userId }, select: { id: true } },
+          saves: { where: { userId }, select: { id: true } },
+        }),
+      },
+    });
+
+    if (!recipe) {
+      throw new NotFoundException('레시피를 찾을 수 없습니다.');
+    }
+
+    if (!recipe.authorId) {
+      throw new NotFoundException('레시피를 찾을 수 없습니다.');
+    }
+    try {
+      const author = await this.prismaService.user.findUnique({ where: { id: recipe.authorId }, select: { id: true, /* @ts-ignore */ status: true as any } as any });
+      if (!author || (author as any).status === 'DELETED') {
+        throw new NotFoundException('레시피를 찾을 수 없습니다.');
+      }
+    } catch {
+      throw new NotFoundException('레시피를 찾을 수 없습니다.');
+    }
+
+    if (recipe.isHidden) {
+      throw new NotFoundException('레시피를 찾을 수 없습니다.');
+    }
+
+    if (recipe.status !== RecipeStatus.PUBLISHED && recipe.authorId !== userId) {
+      throw new ForbiddenException('레시피를 조회할 권한이 없습니다.');
+    }
+
+    if (recipe.status === RecipeStatus.PUBLISHED && recipe.authorId !== userId) {
+      await this.prismaService.recipe.update({ where: { id: recipe.id }, data: { viewCount: { increment: 1 } } });
+    }
+
+    const formattedRecipe = {
+      ...recipe,
+      thumbnailImage: recipe.thumbnailImage,
+      tags: recipe.tags.map(t => ({ name: t.tag.name, emoji: t.tag.emoji })),
+      steps: recipe.steps.map(step => ({ order: step.order, description: step.description, imageUrl: step.imageUrl })),
       likesCount: recipe._count.likes,
       commentsCount: recipe._count.comments,
       isLiked: userId ? recipe.likes?.length > 0 : false,
@@ -1801,5 +1886,53 @@ const userPrompt = `다음 이미지를 분석해서 레시피를 만들어줘. 
     } catch (error) {
       throw new BadRequestException('레시피 삭제에 실패했습니다.');
     }
+  }
+
+  async getRecipeSlug(id: string, userId?: string): Promise<{ slug: string }>
+  {
+    // 최소 필드만 조회하여 가볍게 처리
+    const recipe = await this.prismaService.recipe.findUnique({
+      where: { id },
+      select: { id: true, slug: true, status: true, isHidden: true, authorId: true },
+    });
+
+    if (!recipe) {
+      throw new NotFoundException('레시피를 찾을 수 없습니다.');
+    }
+    if (!recipe.authorId) {
+      throw new NotFoundException('레시피를 찾을 수 없습니다.');
+    }
+    // 비공개 접근 차단
+    if (recipe.status !== RecipeStatus.PUBLISHED && recipe.authorId !== userId) {
+      throw new ForbiddenException('레시피를 조회할 권한이 없습니다.');
+    }
+    if (recipe.isHidden) {
+      throw new NotFoundException('레시피를 찾을 수 없습니다.');
+    }
+    if (!recipe.slug) {
+      throw new NotFoundException('레시피 슬러그가 없습니다.');
+    }
+    return { slug: recipe.slug };
+  }
+
+  async buildRecipesSitemapXml(baseUrl: string): Promise<string> {
+    // 공개된 레시피만 포함
+    const rows = await this.prismaService.recipe.findMany({
+      where: { status: RecipeStatus.PUBLISHED, isHidden: false, authorId: { not: null } },
+      select: { slug: true, updatedAt: true },
+      orderBy: { updatedAt: 'desc' },
+      take: 50000, // sitemap 한도
+    });
+    const urls = rows
+      .filter(r => !!r.slug)
+      .map(r => ({ loc: `${baseUrl.replace(/\/$/, '')}/recipes/${r.slug}`, lastmod: r.updatedAt.toISOString() }));
+
+    const xml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+      ...urls.map(u => `  <url><loc>${u.loc}</loc><lastmod>${u.lastmod}</lastmod></url>`),
+      '</urlset>',
+    ].join('\n');
+    return xml;
   }
 }

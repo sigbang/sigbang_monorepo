@@ -369,6 +369,9 @@ export class RecipeResponseDto {
   @ApiProperty({ example: 'uuid', description: '레시피 ID' })
   id: string;
 
+  @ApiProperty({ example: 'korea/bulgogi-rice-bowl', description: 'SEO 슬러그 경로(지역 포함 가능)' })
+  slug: string;
+
   @ApiProperty({ example: '레몬 고소 부타', description: '제목' })
   title: string;
 
