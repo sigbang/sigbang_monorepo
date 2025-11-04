@@ -56,7 +56,7 @@ export default function RecipeDetailClient({ id, initial }: { id: string; initia
                     {me.data?.id && (
                       <RecipeActionsMenu
                         isOwner={!!(recipe.author?.id && me.data?.id === recipe.author.id)}
-                        onEdit={() => router.push(`/recipes/${recipe.id}/edit`)}
+                        onEdit={() => router.push(`/recipes/edit/${recipe.id}`)}
                         onDelete={async () => {
                           if (!confirm('정말 삭제하시겠어요? 되돌릴 수 없습니다.')) return;
                           try {
@@ -92,7 +92,7 @@ export default function RecipeDetailClient({ id, initial }: { id: string; initia
                   <div style={{ width: '100%', aspectRatio: '16 / 9' }} className="bg-[#f3f4f6]" />
                 )}
                 <div className="p-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify_between">
                     <div className="flex items-center gap-4 text-[16px] text-[#666]">
                     {recipe.cookingTime != null && (
                       <div className="flex items-center gap-1">

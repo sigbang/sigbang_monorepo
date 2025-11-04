@@ -169,7 +169,7 @@ function SearchPageInner() {
               <li key={r.id} className="max-w-[520px] w-full mx-auto py-6 border-b border-[#e5e7eb] last:border-b-0">
                 <RecipeCard
                   recipeId={r.id}
-                  href={`/recipes/${r.id}`}
+                  href={`/recipes/${(() => { const s = (r as any).slug as string | undefined; const g = (r as any).region as string | undefined; return (r as any).slugPath || (s && s.includes('/') ? s : (g && s ? `${g}/${s}` : r.id)); })()}`}
                   title={r.title}
                   image={imageUrl}
                   minutes={r.cookingTime}

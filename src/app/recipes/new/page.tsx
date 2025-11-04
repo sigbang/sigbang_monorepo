@@ -12,7 +12,21 @@ export default function NewRecipePage() {
       onSubmit={async (dto) => {
         const { id } = await createRecipe(dto);
         alert(`레시피 업로드 완료: ${id}`);
-        // 응답에 thumbnailImage가 포함되므로 재조회 없이 상세 이동
+        try {
+          const resp = await fetch(`/api/proxy/recipes/${id}/slug`);
+          if (resp.ok) {
+            const b: unknown = await resp.json().catch(() => null);
+            let slug: string | undefined;
+            if (b && typeof b === 'object' && b !== null) {
+              const v = (b as Record<string, unknown>)['slug'];
+              if (typeof v === 'string') slug = v;
+            }
+            if (slug) {
+              router.push(`/recipes/${slug}`);
+              return;
+            }
+          }
+        } catch {}
         router.push(`/recipes/${id}`);
       }}
     />

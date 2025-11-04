@@ -64,7 +64,7 @@ export default function Section({
               active={highlightFirst && idx === 0}
               priority={idx < 6}
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 45vw, 360px"
-              href={`/recipes/${it.id}`}
+              href={`/recipes/${(() => { const s = (it as any).slug as string | undefined; const r = (it as any).region as string | undefined; return (it as any).slugPath || (s && s.includes('/') ? s : (r && s ? `${r}/${s}` : it.id)); })()}`}
             />
           ))}
         </div>

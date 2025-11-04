@@ -257,8 +257,11 @@ export default function ProfilePage() {
                   <div className="mt-6 grid grid-cols-2 gap-6 max-w-[900px] mx-auto">
                     {items.map((it, idx) => {
                       const inSaved = (saved.data?.pages?.flatMap((p) => p.recipes) ?? []).some((r) => r.id === it.id && (r.isSaved ?? (r as { isBookmarked?: boolean }).isBookmarked));
+                      const s = (it as any).slug as string | undefined;
+                      const r = (it as any).region as string | undefined;
+                      const path = (it as any).slugPath || (s && s.includes('/') ? s : (r && s ? `${r}/${s}` : it.id));
                       return (
-                        <RecipeCard key={it.id} title={it.title} image={it.image} href={`/recipes/${it.id}`} saved={inSaved} priority={idx < 6} />
+                        <RecipeCard key={it.id} title={it.title} image={it.image} href={`/recipes/${path}`} saved={inSaved} priority={idx < 6} />
                       );
                     })}
                   </div>

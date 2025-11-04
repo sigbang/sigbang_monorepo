@@ -30,7 +30,21 @@ export default function EditRecipePage() {
       onSubmit={async (dto) => {
         await updateRecipe(initial.id, dto);
         alert('수정 완료');
-        // 응답에 thumbnailImage 포함(서버 반영 즉시), 상세로 이동
+        try {
+          const resp = await fetch(`/api/proxy/recipes/${initial.id}/slug`);
+          if (resp.ok) {
+            const b: unknown = await resp.json().catch(() => null);
+            let slug: string | undefined;
+            if (b && typeof b === 'object' && b !== null) {
+              const v = (b as Record<string, unknown>)['slug'];
+              if (typeof v === 'string') slug = v;
+            }
+            if (slug) {
+              router.replace(`/recipes/${slug}`);
+              return;
+            }
+          }
+        } catch {}
         router.replace(`/recipes/${initial.id}`);
       }}
     />

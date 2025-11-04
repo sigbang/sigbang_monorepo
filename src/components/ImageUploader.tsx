@@ -184,15 +184,15 @@ export default function ImageUploader({
       <div className="text-sm font-medium mb-3">
         {label} <span className="text-red-500">*</span>
       </div>
-      {/* Fixed 16:7 preview box to prevent layout shift and crop inside */}
-      <div className="w-full aspect-[16/7] rounded-md bg-neutral-50 dark:bg-neutral-800 relative overflow-hidden mb-3">
+      {/* Fixed 16:9 preview box to prevent layout shift and crop inside */}
+      <div className="w-full aspect-[16/9] rounded-md bg-neutral-50 dark:bg-neutral-800 relative overflow-hidden mb-3">
         {sourceUrl ? (
           <div ref={containerRef} className="absolute inset-0">
             <Cropper
               image={sourceUrl}
               crop={cropPos}
               zoom={1}
-              aspect={16 / 7}
+              aspect={16 / 9}
               onCropChange={setCropPos}
               onCropComplete={handleCropComplete}
               objectFit="cover"
