@@ -21,6 +21,9 @@ type Props = {
 
 export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded = false, onBusyChange }: Props) {
   const [stage, setStage] = useState(1);
+  const [showStage1Errors, setShowStage1Errors] = useState(false);
+  const [showStage2Errors, setShowStage2Errors] = useState(false);
+  const [showStage3Errors, setShowStage3Errors] = useState(false);
   const [title, setTitle] = useState(initial?.title ?? '');
   const [description, setDesc] = useState(initial?.description ?? '');
   const [ingredients, setIngr] = useState(initial?.ingredients ?? '');
@@ -100,7 +103,7 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
   }, [stage, steps.length]);
 
   const stage1Errors: { field: string; message: string }[] = [];
-  if (!title || title.trim().length < 3) stage1Errors.push({ field: 'title', message: '제목 3자 이상 필요' });
+  if (!title || title.trim().length < 2) stage1Errors.push({ field: 'title', message: '제목 2자 이상 필요' });
   if (!thumbnailPath && !thumbnailFile) stage1Errors.push({ field: 'thumbnail', message: '대표 이미지 필요' });
 
   const stage2Errors: { field: string; message: string }[] = [];
@@ -134,8 +137,9 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
 
   const handleNext = () => {
     if (!canProceed(stage)) {
-      const errors = stage === 1 ? stage1Errors : stage === 2 ? stage2Errors : stage3Errors;
-      alert(`필수 항목을 완료해주세요:\n${errors.map((e) => `- ${e.message}`).join('\n')}`);
+      if (stage === 1) setShowStage1Errors(true);
+      else if (stage === 2) setShowStage2Errors(true);
+      else setShowStage3Errors(true);
       return;
     }
     if (stage < 3) setStage(stage + 1);
@@ -148,7 +152,9 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
 
   const submit = async () => {
     if (allErrors.length > 0) {
-      alert(`필수 항목을 완료해주세요:\n${allErrors.map((e) => `- ${e.message}`).join('\n')}`);
+      setShowStage1Errors(true);
+      setShowStage2Errors(true);
+      setShowStage3Errors(true);
       return;
     }
     setBusy(true);
@@ -246,11 +252,17 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
               file={thumbnailFile}
               onFileChange={(f) => setThumbFile(f)}
               onCropChange={(crop: { x: number; y: number; width: number; height: number } | undefined) => setThumbCrop(crop)}
+              error={showStage1Errors ? stage1Errors.find((e) => e.field === 'thumbnail')?.message : undefined}
             />
             <div>
-              <label htmlFor="recipe-title" className="block text-sm font-medium mb-1">
-                제목 <span className="text-red-500">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label htmlFor="recipe-title" className="block text-sm font-medium">
+                  제목 <span className="text-red-500">*</span>
+                </label>
+                {showStage1Errors && stage1Errors.find((e) => e.field === 'title') && (
+                  <span className="text-xs text-red-600 dark:text-red-400">{stage1Errors.find((e) => e.field === 'title')!.message}</span>
+                )}
+              </div>
               <input
                 id="recipe-title"
                 type="text"
@@ -288,7 +300,12 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
               </div>
             </div>
             <div>
-              <h3 className="text-sm font-medium mb-3">재료 링크 (선택) </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium">재료 링크 (선택) </h3>
+                {showStage2Errors && stage2Errors.find((e) => e.field === 'linkUrl') && (
+                  <span className="text-xs text-red-600 dark:text-red-400">{stage2Errors.find((e) => e.field === 'linkUrl')!.message}</span>
+                )}
+              </div>
               <div className="space-y-2">
                 <input
                   value={linkTitle}
@@ -309,6 +326,12 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
 
         {stage === 3 && (
           <>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium">조리 순서</h3>
+              {showStage3Errors && stage3Errors.find((e) => e.field === 'steps') && (
+                <span className="text-xs text-red-600 dark:text-red-400">{stage3Errors.find((e) => e.field === 'steps')!.message}</span>
+              )}
+            </div>
             <StepsEditor
               initial={steps}
               onChange={(next) =>
@@ -340,7 +363,7 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
             <button
               type="button"
               onClick={handleNext}
-              disabled={!canProceed(stage)}
+              disabled={busy}
               className="flex-1 px-6 py-2.5 bg-black text-white rounded-md hover:bg-black/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               다음

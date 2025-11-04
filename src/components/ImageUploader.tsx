@@ -10,12 +10,14 @@ export default function ImageUploader({
   onFileChange,
   onCropChange,
   label = '대표 이미지',
+  error,
 }: {
   value?: string;
   file?: File | null;
   onFileChange: (file: File | undefined) => void;
   onCropChange?: (cropPercent: { x: number; y: number; width: number; height: number } | undefined) => void;
   label?: string;
+  error?: string;
 }) {
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -181,8 +183,13 @@ export default function ImageUploader({
       onPaste={handlePaste}
       tabIndex={0}
     >
-      <div className="text-sm font-medium mb-3">
-        {label} <span className="text-red-500">*</span>
+      <div className="text-sm font-medium mb-3 flex items-center justify-between">
+        <span>
+          {label} <span className="text-red-500">*</span>
+        </span>
+        {error ? (
+          <span className="text-xs text-red-600 dark:text-red-400">{error}</span>
+        ) : null}
       </div>
       {/* Fixed 16:9 preview box to prevent layout shift and crop inside */}
       <div className="w-full aspect-[16/9] rounded-md bg-neutral-50 dark:bg-neutral-800 relative overflow-hidden mb-3">
