@@ -13,7 +13,7 @@ export default function Section({
   loading,
 }: {
   title: string;
-  items: Array<{ id: string; title: string; image: string; minutes?: number; description?: string; likesCount?: number; authorAvatar?: string; authorId?: string; liked?: boolean; saved?: boolean }>;
+  items: Array<{ id: string; title: string; image: string; minutes?: number; description?: string; likesCount?: number; authorAvatar?: string; authorId?: string; liked?: boolean; saved?: boolean; stepImages?: string[] }>;
   highlightFirst?: boolean;
   startIndex?: number;
   focusIndex?: number;
@@ -65,6 +65,8 @@ export default function Section({
               priority={idx < 6}
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 45vw, 360px"
               href={`/recipes/${(() => { const s = (it as any).slug as string | undefined; const r = (it as any).region as string | undefined; return (it as any).slugPath || (s && s.includes('/') ? s : (r && s ? `${r}/${s}` : it.id)); })()}`}
+              hoverPreview={!!it.stepImages && it.stepImages.length > 0}
+              stepImages={it.stepImages}
             />
           ))}
         </div>

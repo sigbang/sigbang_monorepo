@@ -165,6 +165,15 @@ function SearchPageInner() {
         <ul className="flex flex-col">
           {rqItems.map((r) => {
             const imageUrl = getImageUrl(r);
+            const stepImages = ((r as any).steps || [])
+              .map((s: any) => (s?.imageUrl || s?.imagePath) as string | undefined)
+              .filter(Boolean)
+              .map((u: string) => {
+                if (/^https?:/i.test(u)) return u;
+                const clean = u.startsWith('/') ? u.slice(1) : u;
+                return `/media/${clean.startsWith('media/') ? clean.slice('media/'.length) : clean}`;
+              })
+              .slice(0, 3) as string[];
             return (
               <li key={r.id} className="max-w-[520px] w-full mx-auto py-6 border-b border-[#e5e7eb] last:border-b-0">
                 <RecipeCard
@@ -179,6 +188,8 @@ function SearchPageInner() {
                   saved={r.isSaved}
                   authorAvatar={r.author?.profileImage}
                   authorId={r.author?.id}
+                  hoverPreview
+                  stepImages={stepImages}
                 />
               </li>
             );

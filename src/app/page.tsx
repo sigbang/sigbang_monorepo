@@ -32,7 +32,16 @@ export default function Home() {
     liked: r.isLiked,
     saved: r.isSaved,
     authorAvatar: r.author?.profileImage ?? '',
-    authorId: r.author?.id
+    authorId: r.author?.id,
+    stepImages: ((r as any).steps || [])
+      .map((s: any) => (s?.imageUrl || s?.imagePath) as string | undefined)
+      .filter(Boolean)
+      .map((u: string) => {
+        if (/^https?:/i.test(u)) return u;
+        const clean = u.startsWith('/') ? u.slice(1) : u;
+        return `/media/${clean.startsWith('media/') ? clean.slice('media/'.length) : clean}`;
+      })
+      .slice(0, 3) as string[]
   }));
   const recommendItems = (recommended.data?.pages.flatMap((p) => p.recipes) ?? []).map((r) => ({
     id: r.id,
@@ -44,7 +53,16 @@ export default function Home() {
     liked: r.isLiked,
     saved: r.isSaved,
     authorAvatar: r.author?.profileImage ?? '',
-    authorId: r.author?.id
+    authorId: r.author?.id,
+    stepImages: ((r as any).steps || [])
+      .map((s: any) => (s?.imageUrl || s?.imagePath) as string | undefined)
+      .filter(Boolean)
+      .map((u: string) => {
+        if (/^https?:/i.test(u)) return u;
+        const clean = u.startsWith('/') ? u.slice(1) : u;
+        return `/media/${clean.startsWith('media/') ? clean.slice('media/'.length) : clean}`;
+      })
+      .slice(0, 3) as string[]
   }));
   const mainRef = useRef<HTMLElement>(null);
 

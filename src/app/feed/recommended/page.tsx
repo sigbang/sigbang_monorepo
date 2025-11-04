@@ -38,6 +38,15 @@ export default function RecommendedPage() {
       <ul className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
         {items.map((r, idx) => {
           const imageUrl = getImageUrl(r);
+          const stepImages = ((r as any).steps || [])
+            .map((s: any) => (s?.imageUrl || s?.imagePath) as string | undefined)
+            .filter(Boolean)
+            .map((u: string) => {
+              if (/^https?:/i.test(u)) return u;
+              const clean = u.startsWith('/') ? u.slice(1) : u;
+              return `/media/${clean.startsWith('media/') ? clean.slice('media/'.length) : clean}`;
+            })
+            .slice(0, 3) as string[];
           return (
             <li key={r.id}>
               <RecipeCard
@@ -54,6 +63,8 @@ export default function RecommendedPage() {
                 authorId={r.author?.id}
                 priority={idx < 6}
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 33vw, 360px"
+                hoverPreview
+                stepImages={stepImages}
               />
             </li>
           );
