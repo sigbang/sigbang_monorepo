@@ -1,8 +1,13 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import RecipeForm from '@/components/RecipeForm';
+import dynamic from 'next/dynamic';
 import { createRecipe } from '@/lib/api/recipes';
+
+const RecipeForm = dynamic(() => import('@/components/RecipeForm'), {
+  ssr: false,
+  loading: () => <div className="min-h-[320px] flex items-center justify-center">폼 로딩...</div>,
+});
 
 export default function NewRecipeModalPage() {
   const router = useRouter();

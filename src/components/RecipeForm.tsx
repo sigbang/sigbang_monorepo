@@ -1,12 +1,41 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import ImageUploader from '@/components/ImageUploader';
-import StepsEditor from '@/components/StepsEditor';
-import IngredientsEditor from '@/components/IngredientsEditor';
-import DiscreteSlider from '@/components/DiscreteSlider';
+import dynamic from 'next/dynamic';
 import { CreateRecipeDto, RecipeDetail } from '@/lib/api/recipes';
 import { useHotkeys } from '@/hooks/useHotkeys';
+
+const ImageUploader = dynamic(() => import('@/components/ImageUploader'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full aspect-[16/9] rounded-md bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
+  ),
+});
+
+const IngredientsEditor = dynamic(() => import('@/components/IngredientsEditor'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-28 w-full rounded-md bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
+  ),
+});
+
+const DiscreteSlider = dynamic(() => import('@/components/DiscreteSlider'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-6 w-full rounded bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
+  ),
+});
+
+const StepsEditor = dynamic(() => import('@/components/StepsEditor'), {
+  ssr: false,
+  loading: () => (
+    <div className="space-y-3">
+      <div className="h-24 rounded-md bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
+      <div className="h-24 rounded-md bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
+      <div className="h-24 rounded-md bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
+    </div>
+  ),
+});
 
 type StepDraft = { order: number; description: string; imagePath?: string | null; imageFile?: File };
 
@@ -101,6 +130,13 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
       });
     }
   }, [stage, steps.length]);
+
+  // Prefetch StepsEditor chunk while user is on stage 2 to minimize perceived delay
+  useEffect(() => {
+    if (stage === 2) {
+      import('@/components/StepsEditor');
+    }
+  }, [stage]);
 
   const stage1Errors: { field: string; message: string }[] = [];
   if (!title || title.trim().length < 2) stage1Errors.push({ field: 'title', message: '제목 2자 이상 필요' });

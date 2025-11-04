@@ -70,10 +70,7 @@ export default function StepsEditor({
   };
 
   return (
-    <div className="space-y-3">
-      <div className="mb-2">
-        <label className="block text-sm font-medium">조리 순서</label>
-      </div>
+    <div className="space-y-3">      
       {steps.map((s, i) => (
         <div
           key={i}
