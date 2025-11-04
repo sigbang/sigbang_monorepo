@@ -343,6 +343,21 @@ export class RecipesController {
     return this.recipesService.getRecipeBySlug(slugPath, user?.id);
   }
 
+  // 단일 세그먼트 슬러그 지원 (region 없이 저장된 slug 대응)
+  @Get('by-slug/:slug')
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({ summary: '레시피 상세 조회 (단일 슬러그)' })
+  @ApiParam({ name: 'slug', description: '레시피 제목 기반 단일 슬러그' })
+  @ApiResponse({ status: 200, description: '레시피 상세 조회 성공', type: RecipeResponseDto })
+  @ApiResponse({ status: 403, description: '권한 없음 (비공개 레시피)' })
+  @ApiResponse({ status: 404, description: '레시피를 찾을 수 없음' })
+  async getRecipeBySingleSlug(
+    @Param('slug') slug: string,
+    @CurrentUser() user?: any,
+  ) {
+    return this.recipesService.getRecipeBySlug(slug, user?.id);
+  }
+
   // UUID → slug 조회 (리다이렉트 전용 경량 엔드포인트)
   @Get(':id/slug')
   @UseGuards(OptionalJwtAuthGuard)
