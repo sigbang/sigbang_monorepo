@@ -34,5 +34,9 @@ export function useSearchFeed(query: string, limit = 20) {
       return parsed;
     },
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    staleTime: 15_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    placeholderData: (prev) => prev,
   });
 }

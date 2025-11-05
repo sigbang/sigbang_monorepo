@@ -7,15 +7,18 @@ export const api = axios.create({
   timeout: 30000,
 });
 
-// Proactive refresh: validate and refresh tokens if needed
+// Proactive refresh: validate and refresh tokens if needed (debounced)
+let __lastValidateCallAt = 0;
 api.interceptors.request.use(async (config) => {
   try {
-    // Call API route to validate and refresh tokens if needed
-    // The server will handle the timing logic based on ENV.PROACTIVE_REFRESH_WINDOW_SECONDS
-    await fetch('/api/auth/validate', { 
-      method: 'POST',
-      cache: 'no-store' 
-    });
+    const now = Date.now();
+    if (now - __lastValidateCallAt > 60_000) {
+      __lastValidateCallAt = now;
+      await fetch('/api/auth/validate', {
+        method: 'POST',
+        cache: 'no-store',
+      }).catch(() => {});
+    }
   } catch {}
   return config;
 });
