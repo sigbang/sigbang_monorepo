@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
   HttpCode,
   HttpStatus,
@@ -18,6 +19,7 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { SignUpDto, SignInDto, RefreshTokenDto, GoogleOAuthDto, SignOutDto, RevokeSessionDto } from './dto/auth.dto';
 import { JwtAuthGuard } from '../common/guards/jwt.guard';
+import { JwtFastGuard } from '../common/guards/jwt-fast.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
 
 @ApiTags('인증')
@@ -199,5 +201,16 @@ export class AuthController {
       userAgent,
       ip,
     });
+  }
+
+  @Get('validate')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtFastGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: '액세스 토큰 유효성 검사 (빠른 204)' })
+  @ApiResponse({ status: 204, description: '유효한 토큰' })
+  @ApiResponse({ status: 401, description: '유효하지 않은 토큰' })
+  validate() {
+    return;
   }
 } 

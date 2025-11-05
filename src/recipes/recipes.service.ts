@@ -521,7 +521,7 @@ export class RecipesService {
       const next = rows.length > safeLimit ? rows[safeLimit] : null;
       const nextCursor = next
         ? Buffer.from(JSON.stringify({ score: Number(next.trend_score) || 0, id: next.id })).toString('base64')
-        : undefined;
+        : null;
 
       // 상세 정보 로드 (피드 카드 형태)
       const ids = page.map(r => r.id);
@@ -598,7 +598,7 @@ export class RecipesService {
     const next = rows.length > safeLimit ? rows[safeLimit] : null;
     const nextCursor = next
       ? Buffer.from(JSON.stringify({ score: Number((next as any).total_score) || 0, id: (next as any).id })).toString('base64')
-      : undefined;
+      : null;
 
     // 상세 정보 로드 (피드 카드 형태)
     const ids = page.map(r => r.id);

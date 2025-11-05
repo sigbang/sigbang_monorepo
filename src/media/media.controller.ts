@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Post, Query, Redirect, UseGuards, BadRequestException } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Redirect, UseGuards, BadRequestException, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { MediaService } from './media.service';
 import { PresignDto } from './dto/media.dto';
 import { JwtAuthGuard } from '../common/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
+import type { Response } from 'express';
 
 @ApiTags('미디어')
 @Controller('media')
@@ -26,9 +27,12 @@ export class MediaController {
   @ApiQuery({ name: 'path', required: true, description: 'Storage 파일 경로 (예: recipes/{userId}/thumbnails/xxx.webp)' })
   @ApiQuery({ name: 'expires', required: false, description: '만료(초). 기본 300, 최소 30, 최대 86400' })
   @Redirect(undefined, 302)
-  async image(@Query('path') path: string, @Query('expires') expires?: string) {
+  async image(@Query('path') path: string, @Query('expires') expires?: string, @Res({ passthrough: true }) res?: Response) {
     if (!path) throw new BadRequestException('path is required');
     const ttl = Math.max(30, Math.min(86400, Number(expires) || 300));
+    if (res) {
+      res.setHeader('Cache-Control', `private, max-age=${ttl}`);
+    }
     const url = await this.media.getSignedDownloadUrl(path, ttl);
     return { url };
   }

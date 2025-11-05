@@ -1,9 +1,11 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, Res, Headers } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RecipesService } from './recipes.service';
 import { RecipeQueryDto } from './dto/recipes.dto';
 import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
+import type { Response } from 'express';
+import { createHash } from 'crypto';
 
 @ApiTags('레시피')
 @Controller('feed')
@@ -64,24 +66,60 @@ export class FeedController {
       },
     },
   })
-  async getFeed(@Query() query: RecipeQueryDto, @CurrentUser() user?: any) {
-    return this.recipesService.getFeed(query, user?.id);
+  async getFeed(@Query() query: RecipeQueryDto, @CurrentUser() user?: any, @Res({ passthrough: true }) res?: Response, @Headers('if-none-match') inm?: string) {
+    const data = await this.recipesService.getFeed(query, user?.id);
+    if (!user) {
+      const etag = 'W/"' + createHash('sha1').update(JSON.stringify(data)).digest('hex') + '"';
+      res!.setHeader('ETag', etag);
+      res!.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=300');
+      if (inm && inm === etag) {
+        res!.status(304).end();
+        return undefined as any;
+      }
+    } else {
+      res!.setHeader('Cache-Control', 'private, max-age=0, no-store');
+    }
+    return data as any;
   }
 
   @Get('popular')
   @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: '인기 레시피', description: '최근 조회수/참여 기반 인기 레시피' })
   @ApiQuery({ type: RecipeQueryDto })
-  async getPopular(@Query() query: RecipeQueryDto, @CurrentUser() user?: any) {
-    return this.recipesService.getPopularRecipes(query, user?.id);
+  async getPopular(@Query() query: RecipeQueryDto, @CurrentUser() user?: any, @Res({ passthrough: true }) res?: Response, @Headers('if-none-match') inm?: string) {
+    const data = await this.recipesService.getPopularRecipes(query, user?.id);
+    if (!user) {
+      const etag = 'W/"' + createHash('sha1').update(JSON.stringify(data)).digest('hex') + '"';
+      res!.setHeader('ETag', etag);
+      res!.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=300');
+      if (inm && inm === etag) {
+        res!.status(304).end();
+        return undefined as any;
+      }
+    } else {
+      res!.setHeader('Cache-Control', 'private, max-age=0, no-store');
+    }
+    return data as any;
   }
 
   @Get('recommended')
   @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: '추천 레시피', description: '개인화된 휴리스틱 추천 레시피' })
   @ApiQuery({ type: RecipeQueryDto })
-  async getRecommended(@Query() query: RecipeQueryDto, @CurrentUser() user?: any) {
-    return this.recipesService.getRecommendedRecipes(query, user?.id);
+  async getRecommended(@Query() query: RecipeQueryDto, @CurrentUser() user?: any, @Res({ passthrough: true }) res?: Response, @Headers('if-none-match') inm?: string) {
+    const data = await this.recipesService.getRecommendedRecipes(query, user?.id);
+    if (!user) {
+      const etag = 'W/"' + createHash('sha1').update(JSON.stringify(data)).digest('hex') + '"';
+      res!.setHeader('ETag', etag);
+      res!.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=300');
+      if (inm && inm === etag) {
+        res!.status(304).end();
+        return undefined as any;
+      }
+    } else {
+      res!.setHeader('Cache-Control', 'private, max-age=0, no-store');
+    }
+    return data as any;
   }
 }
 

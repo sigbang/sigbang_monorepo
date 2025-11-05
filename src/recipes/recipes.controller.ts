@@ -13,6 +13,7 @@ import {
   BadRequestException,
   ParseUUIDPipe,
   Res,
+  Headers,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -43,6 +44,7 @@ import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
 import { AiGenerateRecipeDto, AiRecipeGenerateResponseDto } from './dto/recipes.dto';
 import type { Response } from 'express';
+import { createHash } from 'crypto';
 
 @ApiTags('레시피')
 @Controller('recipes')
@@ -309,8 +311,20 @@ export class RecipesController {
       }
     }
   })
-  async getFeed(@Query() query: RecipeQueryDto, @CurrentUser() user?: any) {
-    return this.recipesService.getFeed(query, user?.id);
+  async getFeed(@Query() query: RecipeQueryDto, @CurrentUser() user?: any, @Res({ passthrough: true }) res?: Response, @Headers('if-none-match') inm?: string) {
+    const data = await this.recipesService.getFeed(query, user?.id);
+    if (!user) {
+      const etag = 'W/"' + createHash('sha1').update(JSON.stringify(data)).digest('hex') + '"';
+      res!.setHeader('ETag', etag);
+      res!.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=300');
+      if (inm && inm === etag) {
+        res!.status(304).end();
+        return undefined as any;
+      }
+    } else {
+      res!.setHeader('Cache-Control', 'private, max-age=0, no-store');
+    }
+    return data as any;
   }
 
   // 7. 검색 API (q 없으면 트렌드 피드)
@@ -321,8 +335,20 @@ export class RecipesController {
   @ApiQuery({ name: 'limit', required: false, description: '페이지 크기(기본 20)' })
   @ApiQuery({ name: 'cursor', required: false, description: '키셋 커서 Base64({score,id})' })
   @ApiResponse({ status: 200, description: '검색 결과', type: Object })
-  async search(@Query() query: RecipeSearchQueryDto, @CurrentUser() user?: any): Promise<RecipeSearchResponseDto> {
-    return this.recipesService.search(query, user?.id);
+  async search(@Query() query: RecipeSearchQueryDto, @CurrentUser() user?: any, @Res({ passthrough: true }) res?: Response, @Headers('if-none-match') inm?: string): Promise<RecipeSearchResponseDto> {
+    const data = await this.recipesService.search(query, user?.id);
+    if (!user) {
+      const etag = 'W/"' + createHash('sha1').update(JSON.stringify(data)).digest('hex') + '"';
+      res!.setHeader('ETag', etag);
+      res!.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=300');
+      if (inm && inm === etag) {
+        res!.status(304).end();
+        return undefined as any;
+      }
+    } else {
+      res!.setHeader('Cache-Control', 'private, max-age=0, no-store');
+    }
+    return data as any;
   }
 
   // 5. 레시피 상세 조회
@@ -338,9 +364,22 @@ export class RecipesController {
     @Param('region') region: string,
     @Param('slug') slug: string,
     @CurrentUser() user?: any,
+    @Res({ passthrough: true }) res?: Response,
+    @Headers('if-none-match') inm?: string,
   ) {
     const slugPath = `${region}/${slug}`;
-    return this.recipesService.getRecipeBySlug(slugPath, user?.id);
+    const data = await this.recipesService.getRecipeBySlug(slugPath, user?.id);
+    const cacheCtl = user ? 'private, max-age=0, no-store' : 'public, max-age=60, stale-while-revalidate=300';
+    res!.setHeader('Cache-Control', cacheCtl);
+    if (!user) {
+      const etag = 'W/"' + createHash('sha1').update(JSON.stringify(data)).digest('hex') + '"';
+      res!.setHeader('ETag', etag);
+      if (inm && inm === etag) {
+        res!.status(304).end();
+        return undefined as any;
+      }
+    }
+    return data;
   }
 
   // 단일 세그먼트 슬러그 지원 (region 없이 저장된 slug 대응)
@@ -354,8 +393,21 @@ export class RecipesController {
   async getRecipeBySingleSlug(
     @Param('slug') slug: string,
     @CurrentUser() user?: any,
+    @Res({ passthrough: true }) res?: Response,
+    @Headers('if-none-match') inm?: string,
   ) {
-    return this.recipesService.getRecipeBySlug(slug, user?.id);
+    const data = await this.recipesService.getRecipeBySlug(slug, user?.id);
+    const cacheCtl = user ? 'private, max-age=0, no-store' : 'public, max-age=60, stale-while-revalidate=300';
+    res!.setHeader('Cache-Control', cacheCtl);
+    if (!user) {
+      const etag = 'W/"' + createHash('sha1').update(JSON.stringify(data)).digest('hex') + '"';
+      res!.setHeader('ETag', etag);
+      if (inm && inm === etag) {
+        res!.status(304).end();
+        return undefined as any;
+      }
+    }
+    return data;
   }
 
   // UUID → slug 조회 (리다이렉트 전용 경량 엔드포인트)
@@ -397,8 +449,19 @@ export class RecipesController {
   })
   @ApiResponse({ status: 403, description: '권한 없음 (비공개 레시피)' })
   @ApiResponse({ status: 404, description: '레시피를 찾을 수 없음' })
-  async getRecipe(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string, @CurrentUser() user?: any) {
-    return this.recipesService.getRecipe(id, user?.id);
+  async getRecipe(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string, @CurrentUser() user?: any, @Res({ passthrough: true }) res?: Response, @Headers('if-none-match') inm?: string) {
+    const data = await this.recipesService.getRecipe(id, user?.id);
+    const cacheCtl = user ? 'private, max-age=0, no-store' : 'public, max-age=60, stale-while-revalidate=300';
+    res!.setHeader('Cache-Control', cacheCtl);
+    if (!user) {
+      const etag = 'W/"' + createHash('sha1').update(JSON.stringify(data)).digest('hex') + '"';
+      res!.setHeader('ETag', etag);
+      if (inm && inm === etag) {
+        res!.status(304).end();
+        return undefined as any;
+      }
+    }
+    return data;
   }
 
   // 대표 이미지 업로드

@@ -7,6 +7,7 @@ import { TokenService } from './token.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from '../common/guards/jwt.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { JwtFastGuard } from '../common/guards/jwt-fast.guard';
 
 @Module({
   imports: [
@@ -23,12 +24,14 @@ import { RolesGuard } from '../common/guards/roles.guard';
     JwtStrategy,
     JwtAuthGuard, 
     RolesGuard,
+    JwtFastGuard,
   ],
   exports: [
     AuthService, 
     TokenService,
     JwtAuthGuard, 
     RolesGuard,
+    JwtFastGuard,
   ],
 })
 export class AuthModule {} 
