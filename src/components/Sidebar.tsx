@@ -6,6 +6,7 @@ import CompassIcon from './icons/CompassIcon';
 import PlusIcon from './icons/PlusIcon';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import AppMenuButton from './AppMenuButton';
 
 export default function Sidebar() {
   const t = useT();
@@ -22,6 +23,7 @@ export default function Sidebar() {
         <Link className={`flex items-center gap-2 rounded text-[#6b7280] hover:text-black ${isActive('/feed/explore') ? 'text-black' : ''}`} href="/feed/explore" aria-current={isActive('/feed/explore') ? 'page' : undefined}><CompassIcon size={24} filled={isActive('/feed/explore')} />{t('nav.explore')}</Link>
         <Link className={`flex items-center gap-2 rounded text-[#6b7280] hover:text-black ${isActive('/recipes/import') ? 'text-black' : ''}`} href="/recipes/import" aria-current={isActive('/recipes/import') ? 'page' : undefined}><PlusIcon size={24} filled={isActive('/recipes/import')} />가져오기</Link>
         <Link className={`flex items-center gap-2 rounded text-[#6b7280] hover:text-black ${isActive('/recipes/new') ? 'text-black' : ''}`} href="/recipes/new" aria-current={isActive('/recipes/new') ? 'page' : undefined}><PlusIcon size={24} filled={isActive('/recipes/new')} />{t('nav.create')}</Link>
+        <AppMenuButton menuPosition="left" variant="nav" />
       </nav>
     </aside>
   );

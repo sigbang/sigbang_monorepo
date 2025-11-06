@@ -6,6 +6,7 @@ import CompassIcon from './icons/CompassIcon';
 import PlusIcon from './icons/PlusIcon';
 import Link from 'next/link';
 import { useT } from '@/i18n/I18nProvider';
+import AppMenuButton from './AppMenuButton';
 
 export default function MobileNav() {
   const t = useT();
@@ -25,15 +26,9 @@ export default function MobileNav() {
           </Link>
         </li>
         <li>
-          <a href="#" className="flex flex-col items-center py-2 focus:outline-none focus:ring-2 focus:ring-sky-500">
+          <Link href="/feed/explore" className="flex flex-col items-center py-2 focus:outline-none focus:ring-2 focus:ring-sky-500">
             <CompassIcon size={20} />
             <span>{t('nav.explore')}</span>
-          </a>
-        </li>
-        <li>
-          <Link href="/recipes/import" className="flex flex-col items-center py-2 focus:outline-none focus:ring-2 focus:ring-sky-500">
-            <PlusIcon size={20} />
-            <span>가져오기</span>
           </Link>
         </li>
         <li>
@@ -41,6 +36,9 @@ export default function MobileNav() {
             <PlusIcon size={20} />
             <span>{t('nav.create')}</span>
           </Link>
+        </li>
+        <li className="flex items-center justify-center">
+          <AppMenuButton menuPosition="right" variant="mobile" label="메뉴" />
         </li>
       </ul>
     </nav>
