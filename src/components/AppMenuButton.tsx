@@ -101,7 +101,7 @@ export default function AppMenuButton({
             role="menuitem"
             onClick={() => setOpen(false)}
           >
-            서비스 소개(랜딩페이지)
+            서비스 소개
           </Link>
           <Link
             href="/feedback"
