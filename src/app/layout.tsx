@@ -37,6 +37,13 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     images: ['/og.png'],
   },
+  verification: {
+    ...(ENV.GOOGLE_SITE_VERIFICATION ? { google: ENV.GOOGLE_SITE_VERIFICATION } : {}),
+    other: {
+      ...(ENV.BING_SITE_VERIFICATION ? { 'msvalidate.01': ENV.BING_SITE_VERIFICATION } : {}),
+      ...(ENV.NAVER_SITE_VERIFICATION ? { 'naver-site-verification': ENV.NAVER_SITE_VERIFICATION } : {}),
+    },
+  },
 };
 
 export default async function RootLayout({

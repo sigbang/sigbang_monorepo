@@ -3,6 +3,12 @@ import MobileNav from "@/components/MobileNav";
 import Footer from "@/components/Footer";
 import Link from "next/link";
 import WorldMarquee from "@/components/WorldMarquee";
+export const metadata = {
+  title: '식방 소개',
+  description: '세상의 모든 레시피를 발견하고 저장하는 공간, 식방 소개',
+  alternates: { canonical: '/about' },
+  openGraph: { type: 'website', url: '/about', title: '식방 소개', description: '세상의 모든 레시피를 발견하고 저장하는 공간', images: [{ url: '/og.png' }] },
+};
 
 export default function AboutPage() {
   return (

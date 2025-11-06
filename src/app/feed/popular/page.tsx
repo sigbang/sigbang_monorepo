@@ -2,6 +2,7 @@
 import { usePopularFeed } from '@/lib/hooks/feed';
 import RecipeCard from '@/components/RecipeCard';
 import RecipeCardSkeleton from '@/components/RecipeCardSkeleton';
+import { ENV } from '@/lib/env';
 
 export default function PopularPage() {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } = usePopularFeed(10);
@@ -70,6 +71,28 @@ export default function PopularPage() {
           );
         })}
       </ul>
+      {(() => {
+        const base = ENV.SITE_URL;
+        const itemUrls = items.map((r) => {
+          const s = (r as any).slug as string | undefined;
+          const g = (r as any).region as string | undefined;
+          const p = (r as any).slugPath || (s && s.includes('/') ? s : (g && s ? `${g}/${s}` : r.id));
+          const rel = `/recipes/${p}`;
+          return new URL(rel, base).toString();
+        });
+        const jsonLd = {
+          '@context': 'https://schema.org',
+          '@type': 'ItemList',
+          itemListElement: itemUrls.map((url, idx) => ({ '@type': 'ListItem', position: idx + 1, url })),
+        } as const;
+        return (
+          <script
+            key="ld-itemlist"
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          />
+        );
+      })()}
       <div style={{ marginTop: 16 }}>
         {hasNextPage && (
           <button onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
