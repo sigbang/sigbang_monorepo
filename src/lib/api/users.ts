@@ -59,14 +59,22 @@ export async function getMyRecipes(params: { limit: number; cursor?: string }) {
   const { data } = await api.get('/users/me/recipes', {
     params: { limit: params.limit, ...(params.cursor ? { cursor: params.cursor } : {}) },
   });
-  return unwrap<PaginatedRecipes>(data);
+  const raw = unwrap<any>(data);
+  const inner = (raw && typeof raw === 'object' && 'data' in raw) ? (raw.data as any) : raw;
+  const recipes = (Array.isArray(inner?.recipes) ? inner.recipes : Array.isArray(inner?.items) ? inner.items : []) as Recipe[];
+  const nextCursor = (inner?.nextCursor ?? inner?.pageInfo?.nextCursor ?? null) as string | null;
+  return { recipes, nextCursor } as PaginatedRecipes;
 }
 
 export async function getMySavedRecipes(params: { limit: number; cursor?: string }) {
   const { data } = await api.get('/users/me/saved-recipes', {
     params: { limit: params.limit, ...(params.cursor ? { cursor: params.cursor } : {}) },
   });
-  return unwrap<PaginatedRecipes>(data);
+  const raw = unwrap<any>(data);
+  const inner = (raw && typeof raw === 'object' && 'data' in raw) ? (raw.data as any) : raw;
+  const recipes = (Array.isArray(inner?.recipes) ? inner.recipes : Array.isArray(inner?.items) ? inner.items : []) as Recipe[];
+  const nextCursor = (inner?.nextCursor ?? inner?.pageInfo?.nextCursor ?? null) as string | null;
+  return { recipes, nextCursor } as PaginatedRecipes;
 }
 
 // Public user profile (optional auth for relation flags)

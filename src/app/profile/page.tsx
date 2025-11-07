@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useFollowers, useFollowings, useMyFollowCounts, useMyProfile, useMyRecipes, useMySavedRecipes, useUpdateNickname } from "@/lib/hooks/users";
 import RecipeCard from "@/components/RecipeCard";
 import Topbar from "@/components/Topbar";
@@ -75,6 +75,20 @@ export default function ProfilePage() {
     tab === 'saved' ? saved.fetchNextPage :
     tab === 'followers' ? followers.fetchNextPage :
     followings.fetchNextPage;
+
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver((entries) => {
+      const entry = entries[0];
+      if (entry.isIntersecting && hasNextPage && !isFetchingNext) {
+        fetchMore();
+      }
+    }, { root: null, rootMargin: '200px', threshold: 0 });
+    observer.observe(el);
+    return () => observer.unobserve(el);
+  }, [hasNextPage, isFetchingNext, fetchMore, tab]);
 
   return (
     <div className="min-h-screen">
@@ -286,6 +300,7 @@ export default function ProfilePage() {
                     </button>
                   )}
                 </div>
+                <div ref={sentinelRef} className="h-10" />
               </div>
             </div>
           )}

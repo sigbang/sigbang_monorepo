@@ -109,6 +109,20 @@ export default function UserProfilePage() {
     tab === 'followers' ? followers.fetchNextPage :
     followings.fetchNextPage;
 
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver((entries) => {
+      const entry = entries[0];
+      if (entry.isIntersecting && hasNextPage && !isFetchingNext) {
+        fetchMore();
+      }
+    }, { root: null, rootMargin: '200px', threshold: 0 });
+    observer.observe(el);
+    return () => observer.unobserve(el);
+  }, [hasNextPage, isFetchingNext, fetchMore, tab]);
+
   return (
     <div className="min-h-screen">
       <Topbar />
@@ -231,6 +245,7 @@ export default function UserProfilePage() {
                   </button>
                 )}
               </div>
+              <div ref={sentinelRef} className="h-10" />
 
               {/* Note: 북마크 탭 없음. 다른 유저는 레시피/팔로잉/팔로워 탭 표시 */}
             </div>

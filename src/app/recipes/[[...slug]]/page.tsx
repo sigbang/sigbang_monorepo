@@ -23,8 +23,8 @@ async function fetchRecipeByParts(parts: string[] | undefined): Promise<RecipeDe
   return mapRecipeDetail(data);
 }
 
-export async function generateMetadata({ params }: { params: { slug?: string[] } }) {
-  const { slug } = params;
+export async function generateMetadata({ params }: { params: Promise<{ slug?: string[] }> }) {
+  const { slug } = await params;
   const recipe = await fetchRecipeByParts(slug);
   if (!recipe) return {} as any;
   const base = ENV.SITE_URL;
@@ -56,8 +56,8 @@ export async function generateMetadata({ params }: { params: { slug?: string[] }
   } as any;
 }
 
-export default async function Page({ params }: { params: { slug?: string[] } }) {
-  const { slug } = params;
+export default async function Page({ params }: { params: Promise<{ slug?: string[] }> }) {
+  const { slug } = await params;
   const recipe = await fetchRecipeByParts(slug);
   if (!recipe) notFound();
 
