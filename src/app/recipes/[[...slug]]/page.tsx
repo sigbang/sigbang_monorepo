@@ -1,35 +1,19 @@
-import { cookies, headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import RecipeDetailClient from '@/app/recipes/_client/RecipeDetailClient';
 import { mapRecipeDetail, type RecipeDetail } from '@/lib/api/recipes';
 import { ENV } from '@/lib/env';
 
 export const revalidate = 60;
+export const dynamic = 'force-static';
 
 async function fetchRecipeByParts(parts: string[] | undefined): Promise<RecipeDetail | null> {
   if (!parts || parts.length === 0) return null;
-  const jar = await cookies();
-  const cookieHeader = jar.getAll().map((c) => `${c.name}=${encodeURIComponent(c.value)}`).join('; ');
+  const apiBase = ENV.API_BASE_URL.replace(/\/+$/, '');
+  const url = parts.length === 1
+    ? `${apiBase}/recipes/by-slug/${encodeURIComponent(parts[0])}`
+    : `${apiBase}/recipes/by-slug/${encodeURIComponent(parts[0])}/${encodeURIComponent(parts.slice(1).join('/'))}`;
 
-  const hdrs = await headers();
-  const host = hdrs.get('x-forwarded-host') || hdrs.get('host') || 'localhost:3000';
-  const proto = hdrs.get('x-forwarded-proto') || (host.startsWith('localhost') ? 'http' : 'https');
-  const base = `${proto}://${host}`;
-
-  let url = '';
-  if (parts.length === 1) {
-    const slug = parts[0];
-    url = `${base}/api/proxy/recipes/by-slug/${encodeURIComponent(slug)}`;
-  } else {
-    const region = parts[0];
-    const slug = parts.slice(1).join('/');
-    url = `${base}/api/proxy/recipes/by-slug/${encodeURIComponent(region)}/${encodeURIComponent(slug)}`;
-  }
-
-  const res = await fetch(url, {
-    headers: cookieHeader ? { cookie: cookieHeader } : undefined,
-    next: { revalidate: 60 },
-  });
+  const res = await fetch(url, { next: { revalidate: 60 } });
   if (!res.ok) return null;
   const json: unknown = await res.json().catch(() => null);
   const data = json && typeof json === 'object' && json !== null && 'data' in (json as Record<string, unknown>)
@@ -39,8 +23,8 @@ async function fetchRecipeByParts(parts: string[] | undefined): Promise<RecipeDe
   return mapRecipeDetail(data);
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug?: string[] }> }) {
-  const { slug } = await params;
+export async function generateMetadata({ params }: { params: { slug?: string[] } }) {
+  const { slug } = params;
   const recipe = await fetchRecipeByParts(slug);
   if (!recipe) return {} as any;
   const base = ENV.SITE_URL;
@@ -72,8 +56,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug?: st
   } as any;
 }
 
-export default async function Page({ params }: { params: Promise<{ slug?: string[] }> }) {
-  const { slug } = await params;
+export default async function Page({ params }: { params: { slug?: string[] } }) {
+  const { slug } = params;
   const recipe = await fetchRecipeByParts(slug);
   if (!recipe) notFound();
 
@@ -119,6 +103,21 @@ export default async function Page({ params }: { params: Promise<{ slug?: string
       <RecipeDetailClient id={recipe.id} initial={recipe} />
     </>
   );
+}
+
+export async function generateStaticParams(): Promise<{ slug: string[] }[]> {
+  try {
+    const apiBase = ENV.API_BASE_URL.replace(/\/+$/, '');
+    const res = await fetch(`${apiBase}/feed/popular?limit=200`, { next: { revalidate: 3600 } });
+    if (!res.ok) return [];
+    const json: any = await res.json().catch(() => null);
+    const list = (json?.data?.recipes ?? json?.recipes ?? []) as any[];
+    return list
+      .map((r) => (r?.slugPath ? r.slugPath.split('/') : (r?.region && r?.slug ? [r.region, r.slug] : null)))
+      .filter(Boolean) as { slug: string[] }[];
+  } catch {
+    return [];
+  }
 }
 
 
