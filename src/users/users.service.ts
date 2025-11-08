@@ -131,6 +131,7 @@ export class UsersService {
       // Sharp로 이미지 처리: 회전, 리사이즈, WebP 변환
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const sharp = require('sharp');
+      try { sharp.concurrency?.(2); } catch {}
       const processed = await sharp(file.buffer)
         .rotate()
         .resize({ width: 800, height: 800, fit: 'cover', withoutEnlargement: true })

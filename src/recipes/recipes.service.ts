@@ -27,11 +27,13 @@ async function getSharp(): Promise<any> {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     // @ts-ignore
     _sharp = require('sharp');
+    try { _sharp.concurrency?.(2); } catch {}
     return _sharp;
   } catch (e: any) {
     if (e && (e.code === 'ERR_REQUIRE_ESM' || String(e).includes('ERR_REQUIRE_ESM'))) {
       const mod: any = await import('sharp');
       _sharp = mod?.default ?? mod;
+      try { _sharp.concurrency?.(2); } catch {}
       return _sharp;
     }
     throw e;
@@ -1693,10 +1695,14 @@ export class RecipesService {
     try {
       const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipes';
       const sharp = await getSharp();
+      const MAX_SIZE = 10 * 1024 * 1024;
       const now = Date.now();
       const cacheSeconds = 60 * 60 * 24 * 365; // 1년
 
-      const uploadPromises = files.map(async (file, index) => {
+      const processOne = async (file: Express.Multer.File, index: number) => {
+        if (file.size > MAX_SIZE) {
+          throw new BadRequestException('각 파일은 10MB를 초과할 수 없습니다.');
+        }
         // 이미지 타입 검증
         const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
         if (!allowedTypes.includes(file.mimetype.toLowerCase())) {
@@ -1717,9 +1723,16 @@ export class RecipesService {
         const data = await this.supabaseService.uploadFile(bucketName, path, processed, 'image/webp', cacheSeconds);
         const publicUrl = this.supabaseService.getPublicUrl(bucketName, data.path);
         return publicUrl;
-      });
+      };
 
-      const imageUrls = await Promise.all(uploadPromises);
+      // 동시 처리 개수 제한
+      const CONCURRENCY = 2;
+      const imageUrls: string[] = [];
+      for (let i = 0; i < files.length; i += CONCURRENCY) {
+        const chunk = files.slice(i, i + CONCURRENCY);
+        const results = await Promise.all(chunk.map((f, offset) => processOne(f, i + offset)));
+        imageUrls.push(...results);
+      }
       return { imageUrls };
     } catch (error) {
       this.logger.error(`이미지 업로드 실패: ${String((error as any)?.message || error)}`);
@@ -1742,6 +1755,10 @@ export class RecipesService {
     }
 
     try {
+      const MAX_SIZE = 10 * 1024 * 1024;
+      if (file.size > MAX_SIZE) {
+        throw new BadRequestException('파일 크기는 10MB를 초과할 수 없습니다.');
+      }
       // 이미지 타입 검증
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
       if (!allowedTypes.includes(file.mimetype.toLowerCase())) {
@@ -1808,6 +1825,10 @@ export class RecipesService {
   // 단일 스텝 이미지 업로드 (Flutter 편의용)
   async uploadStepImage(file: Express.Multer.File, userId: string) {
     try {
+      const MAX_SIZE = 10 * 1024 * 1024;
+      if (file.size > MAX_SIZE) {
+        throw new BadRequestException('파일 크기는 10MB를 초과할 수 없습니다.');
+      }
       // 이미지 타입 검증
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
       if (!allowedTypes.includes(file.mimetype.toLowerCase())) {

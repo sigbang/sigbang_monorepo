@@ -28,6 +28,7 @@ import { JwtAuthGuard } from '../common/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
 import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt.guard';
 import { UsersFollowsQueryDto } from './dto/users.dto';
+import { DegradeGuard } from '../common/guards/degrade.guard';
 
 @ApiTags('사용자')
 @Controller('users')
@@ -85,10 +86,10 @@ export class UsersController {
     return this.usersService.updateProfile(user.id, updateUserDto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(DegradeGuard, JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @Post('me/profile-image')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
   @ApiOperation({ summary: '프로필 이미지 업로드' })
   @ApiConsumes('multipart/form-data')
   @ApiResponse({

@@ -6,6 +6,9 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Graceful shutdown on SIGTERM/SIGINT
+  app.enableShutdownHooks();
+
   // CORS 설정
   app.enableCors({
     origin: true,

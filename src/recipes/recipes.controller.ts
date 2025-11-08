@@ -10,6 +10,7 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFiles,
+  UploadedFile,
   BadRequestException,
   ParseUUIDPipe,
   Res,
@@ -41,6 +42,7 @@ import {
 } from './dto/recipes.dto';
 import { JwtAuthGuard } from '../common/guards/jwt.guard';
 import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt.guard';
+import { DegradeGuard } from '../common/guards/degrade.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
 import { AiGenerateRecipeDto, AiRecipeGenerateResponseDto } from './dto/recipes.dto';
 import type { Response } from 'express';
@@ -466,9 +468,9 @@ export class RecipesController {
 
   // 대표 이미지 업로드
   @Post(':id/thumbnail')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(DegradeGuard, JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
-  @UseInterceptors(FilesInterceptor('file', 1))
+  @UseInterceptors(FilesInterceptor('file', 1, { limits: { fileSize: 10 * 1024 * 1024 } }))
   @ApiOperation({ 
     summary: '레시피 대표 이미지 업로드',
     description: '레시피의 대표 이미지(썸네일)를 업로드합니다.'
@@ -503,9 +505,9 @@ export class RecipesController {
 
   // 추가: 이미지 업로드 (단계별 이미지용)
   @Post('images')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(DegradeGuard, JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
-  @UseInterceptors(FilesInterceptor('files', 10))
+  @UseInterceptors(FilesInterceptor('files', 10, { limits: { fileSize: 10 * 1024 * 1024 } }))
   @ApiOperation({ 
     summary: '레시피 이미지 업로드',
     description: '레시피용 이미지를 업로드합니다. 단계별 이미지 등에 사용할 수 있습니다.'
@@ -533,9 +535,9 @@ export class RecipesController {
 
   // Flutter 단일 스텝 이미지 업로드 (form-data: file)
   @Post('images/step')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(DegradeGuard, JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
   @ApiOperation({
     summary: '단일 스텝 이미지 업로드',
     description: '요청 받은 파일을 Supabase Storage에 업로드하고 공개 URL을 반환합니다.'
@@ -545,7 +547,7 @@ export class RecipesController {
   @ApiResponse({ status: 400, description: '업로드 실패' })
   async uploadStepImage(
     @CurrentUser() user: any,
-    @UploadedFiles() file: Express.Multer.File,
+    @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) {
       throw new BadRequestException('파일이 제공되지 않았습니다.');
