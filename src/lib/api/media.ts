@@ -15,6 +15,11 @@ export async function fileToBytes(file: File) {
 }
 
 export async function uploadFile(file: File, opts?: { kind?: string }) {
+  if (file.size > 10 * 1024 * 1024) {
+    const err = new Error('이미지 파일은 최대 10MB까지 업로드할 수 있어요.');
+    (err as any).code = 'IMAGE_TOO_LARGE';
+    throw err;
+  }
   const contentType = file.type || 'application/octet-stream';
   const meta = await presign(contentType, opts);
 

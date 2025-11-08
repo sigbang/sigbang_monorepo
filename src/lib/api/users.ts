@@ -179,6 +179,11 @@ export async function setDefaultProfileImage(key: string): Promise<string | null
 }
 
 export async function uploadProfileImage(file: File): Promise<string | null> {
+  if (file.size > 10 * 1024 * 1024) {
+    const err = new Error('이미지 파일은 최대 10MB까지 업로드할 수 있어요.');
+    (err as any).code = 'IMAGE_TOO_LARGE';
+    throw err;
+  }
   const form = new FormData();
   form.append('file', file);
   const { data } = await api.post('/users/me/profile-image', form, {

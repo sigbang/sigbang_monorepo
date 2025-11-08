@@ -288,6 +288,11 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
               file={thumbnailFile}
               onFileChange={(f) => setThumbFile(f)}
               onCropChange={(crop: { x: number; y: number; width: number; height: number } | undefined) => setThumbCrop(crop)}
+              maxBytes={10 * 1024 * 1024}
+              onOversize={mode === 'edit' ? async (file) => {
+                const { resizeImageToMaxBytes } = await import('@/lib/image/resize');
+                return await resizeImageToMaxBytes(file, 10 * 1024 * 1024, { mimeType: 'image/jpeg' });
+              } : undefined}
               error={showStage1Errors ? stage1Errors.find((e) => e.field === 'thumbnail')?.message : undefined}
             />
             <div>
@@ -370,6 +375,11 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
             </div>
             <StepsEditor
               initial={steps}
+              maxBytes={10 * 1024 * 1024}
+              onOversize={mode === 'edit' ? async (file) => {
+                const { resizeImageToMaxBytes } = await import('@/lib/image/resize');
+                return await resizeImageToMaxBytes(file, 10 * 1024 * 1024, { mimeType: 'image/webp' });
+              } : undefined}
               onChange={(next) =>
                 setSteps(
                   next.map((s) => ({

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Cropper, { Area } from 'react-easy-crop';
 
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
+const DEFAULT_MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10MB
 
 export default function ImageUploader({
   value,
@@ -11,6 +12,8 @@ export default function ImageUploader({
   onCropChange,
   label = '대표 이미지',
   error,
+  maxBytes = DEFAULT_MAX_IMAGE_BYTES,
+  onOversize,
 }: {
   value?: string;
   file?: File | null;
@@ -18,6 +21,8 @@ export default function ImageUploader({
   onCropChange?: (cropPercent: { x: number; y: number; width: number; height: number } | undefined) => void;
   label?: string;
   error?: string;
+  maxBytes?: number;
+  onOversize?: (file: File) => Promise<File | undefined>;
 }) {
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -75,6 +80,35 @@ export default function ImageUploader({
     }
   }, [sourceUrl, cropSize, croppedAreaPixels, autoCropped]);
 
+  const acceptFile = useCallback(async (incoming: File) => {
+    let nextFile = incoming;
+    if (nextFile.size > maxBytes) {
+      if (onOversize) {
+        try {
+          const resized = await onOversize(nextFile);
+          if (!resized || resized.size > maxBytes) {
+            alert('이미지 파일은 최대 10MB까지 업로드할 수 있어요.');
+            return;
+          }
+          nextFile = resized;
+        } catch {
+          alert('이미지 파일은 최대 10MB까지 업로드할 수 있어요.');
+          return;
+        }
+      } else {
+        alert('이미지 파일은 최대 10MB까지 업로드할 수 있어요.');
+        return;
+      }
+    }
+    const url = URL.createObjectURL(nextFile);
+    setSourceUrl(url);
+    setCropPos({ x: 0, y: 0 });
+    setCroppedAreaPixels(undefined);
+    setAutoCropped(false);
+    onFileChange(nextFile);
+    if (onCropChange) onCropChange(undefined);
+  }, [maxBytes, onOversize, onFileChange, onCropChange]);
+
   const handleFiles = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     const nextFile = files[0];
@@ -82,16 +116,8 @@ export default function ImageUploader({
       alert('지원하지 않는 이미지 형식입니다. jpg, jpeg, png, webp만 가능합니다.');
       return;
     }
-    // Set crop source to the selected file's blob URL (keep this stable for quality)
-    const url = URL.createObjectURL(nextFile);
-    setSourceUrl(url);
-    setCropPos({ x: 0, y: 0 });
-    setCroppedAreaPixels(undefined);
-    setAutoCropped(false);
-    // Emit original file immediately; server will crop using percent from onCropComplete
-    onFileChange(nextFile);
-    if (onCropChange) onCropChange(undefined);
-  }, [onFileChange, onCropChange]);
+    await acceptFile(nextFile);
+  }, [acceptFile]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();

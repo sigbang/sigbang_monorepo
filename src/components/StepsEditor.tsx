@@ -6,9 +6,13 @@ type Step = { order: number; description: string; imagePath?: string | null; ima
 export default function StepsEditor({
   initial,
   onChange,
+  maxBytes = 10 * 1024 * 1024,
+  onOversize,
 }: {
   initial?: Step[];
   onChange: (steps: Step[]) => void;
+  maxBytes?: number;
+  onOversize?: (file: File) => Promise<File | undefined>;
 }) {
   const [steps, setSteps] = useState<Step[]>(initial ?? [{ order: 1, description: '' }]);
   const [uploading, setUploading] = useState<number | null>(null);
@@ -28,7 +32,26 @@ export default function StepsEditor({
     // Blob URL 미리보기만, 업로드는 제출 시
     setUploading(idx);
     try {
-      sync(steps.map((s, i) => (i === idx ? { ...s, imageFile: file } : s)));
+      let nextFile = file;
+      if (nextFile.size > maxBytes) {
+        if (onOversize) {
+          try {
+            const resized = await onOversize(nextFile);
+            if (!resized || resized.size > maxBytes) {
+              alert('이미지 파일은 최대 10MB까지 업로드할 수 있어요.');
+              return;
+            }
+            nextFile = resized;
+          } catch {
+            alert('이미지 파일은 최대 10MB까지 업로드할 수 있어요.');
+            return;
+          }
+        } else {
+          alert('이미지 파일은 최대 10MB까지 업로드할 수 있어요.');
+          return;
+        }
+      }
+      sync(steps.map((s, i) => (i === idx ? { ...s, imageFile: nextFile } : s)));
     } finally {
       setUploading(null);
     }
@@ -145,7 +168,11 @@ export default function StepsEditor({
               <input
                 type="file"
                 accept=".jpg,.jpeg,.png,.webp"
-                onChange={(e) => e.target.files?.[0] && setImg(i, e.target.files[0])}
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  await setImg(i, f);
+                }}
                 className="hidden"
               />
               <span className="inline-block px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-700 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800">
