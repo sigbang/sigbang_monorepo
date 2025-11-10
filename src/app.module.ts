@@ -15,6 +15,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { MediaModule } from './media/media.module';
 import { TrendCronModule } from './jobs/trend-cron.module';
 import { LoadWatchdog } from './common/services/load-watchdog.service';
+import { FeedbackModule } from './feedback/feedback.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { LoadWatchdog } from './common/services/load-watchdog.service';
     AdminModule,
     MediaModule,
     TrendCronModule,
+    FeedbackModule,
   ],
   controllers: [AppController],
   providers: [AppService, LoadWatchdog],
