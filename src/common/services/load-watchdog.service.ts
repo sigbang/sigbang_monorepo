@@ -12,7 +12,7 @@ try {
 
 @Injectable()
 export class LoadWatchdog implements OnModuleInit, OnModuleDestroy {
-  private timer?: NodeJS.Timer;
+  private timer?: NodeJS.Timeout;
   private prev = process.cpuUsage();
   private lastCheck = Date.now();
   private histogram: any | undefined = undefined;
