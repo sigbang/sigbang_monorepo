@@ -5,6 +5,7 @@ import {
   Ip,
   Post,
   Req,
+  UsePipes,
   UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
@@ -15,6 +16,7 @@ import { FeedbackService } from './feedback.service';
 import { CreateFeedbackDto } from './dto/create-feedback.dto';
 import { MailAttachment } from '../common/services/ses-mail.service';
 import { ApiConsumes, ApiTags } from '@nestjs/swagger';
+import { ValidationPipe } from '@nestjs/common';
 
 @ApiTags('피드백')
 @Controller('feedback')
@@ -30,6 +32,7 @@ export class FeedbackController {
       limits: { fileSize: 5 * 1024 * 1024 },
     }),
   )
+  @UsePipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: false }))
   async submit(
     @Body() dto: CreateFeedbackDto,
     @UploadedFiles() files: Express.Multer.File[] = [],

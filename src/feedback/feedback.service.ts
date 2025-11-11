@@ -31,7 +31,7 @@ export class FeedbackService {
       subject,
       html,
       text,
-      replyTo: ctx.userEmail,
+      replyTo: dto.email || ctx.userEmail,
       attachments: attachments.length > 0 ? attachments : undefined,
     });
 
@@ -46,7 +46,7 @@ export class FeedbackService {
         <pre style="white-space:pre-wrap;font:inherit;margin:0 0 8px;">${escapeHtml(dto.message)}</pre>
         <hr/>
         <table style="font-size:13px;color:#555">
-          ${dto.pageUrl ? `<tr><td style="padding:2px 8px;">Page</td><td><a href="${dto.pageUrl}">${dto.pageUrl}</a></td></tr>` : ''}
+          ${dto.email ? `<tr><td style="padding:2px 8px;">Email</td><td>${escapeHtml(dto.email)}</td></tr>` : ''}
           ${dto.appVersion ? `<tr><td style="padding:2px 8px;">App</td><td>${escapeHtml(dto.appVersion)}</td></tr>` : ''}
           ${ctx.userAgent ? `<tr><td style="padding:2px 8px;">UA</td><td>${escapeHtml(ctx.userAgent)}</td></tr>` : ''}
           ${ctx.ip ? `<tr><td style="padding:2px 8px;">IP</td><td>${escapeHtml(ctx.ip)}</td></tr>` : ''}
@@ -64,7 +64,7 @@ export class FeedbackService {
       `Type: ${dto.type}`,
       `Subject: ${dto.subject}`,
       `Message:\n${dto.message}`,
-      dto.pageUrl ? `Page: ${dto.pageUrl}` : '',
+      dto.email ? `Email: ${dto.email}` : '',
       dto.appVersion ? `App: ${dto.appVersion}` : '',
       ctx.userAgent ? `UA: ${ctx.userAgent}` : '',
       ctx.ip ? `IP: ${ctx.ip}` : '',
