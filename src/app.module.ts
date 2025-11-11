@@ -14,7 +14,7 @@ import { AdminModule } from './admin/admin.module';
 import { JwtModule } from '@nestjs/jwt';
 import { MediaModule } from './media/media.module';
 import { TrendCronModule } from './jobs/trend-cron.module';
-import { LoadWatchdog } from './common/services/load-watchdog.service';
+import { CommonModule } from './common/common.module';
 import { FeedbackModule } from './feedback/feedback.module';
 
 @Module({
@@ -43,9 +43,10 @@ import { FeedbackModule } from './feedback/feedback.module';
     AdminModule,
     MediaModule,
     TrendCronModule,
+    CommonModule,
     FeedbackModule,
   ],
   controllers: [AppController],
-  providers: [AppService, LoadWatchdog],
+  providers: [AppService],
 })
 export class AppModule {} 
