@@ -1,44 +1,43 @@
 import { NextResponse } from "next/server";
+import { ENV } from "@/lib/env";
+import { getAccessToken } from "@/lib/auth/cookies";
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const { category, subject, description, name, email, userAgent, path } = body || {};
+    // Expect multipart/form-data from client
+    const form = await req.formData();
 
-    if (!subject || !description) {
-      return NextResponse.json({ error: "Missing subject or description" }, { status: 400 });
-    }
+    // Device headers passthrough (optional but recommended)
+    const deviceId = req.headers.get("x-device-id") ?? "";
+    const deviceName = req.headers.get("x-device-name") ?? "";
 
-    const webhook = process.env.FEEDBACK_WEBHOOK_URL;
-    if (webhook) {
-      // Forward to webhook (e.g., Slack, Discord, or internal endpoint)
-      try {
-        await fetch(webhook, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "feedback",
-            category,
-            subject,
-            description,
-            name,
-            email,
-            userAgent,
-            path,
-            ts: new Date().toISOString(),
-          }),
-        });
-      } catch (e) {
-        // Ignore webhook errors; client will fallback to mailto if needed
-      }
-      return NextResponse.json({ ok: true });
-    }
+    // Optional auth
+    const at = await getAccessToken();
+    const headers: Record<string, string> = {
+      "x-device-id": deviceId,
+      "x-device-name": deviceName,
+      Accept: "application/json",
+    };
+    if (at) headers.Authorization = `Bearer ${at}`;
 
-    // If no webhook configured, accept but indicate noop
-    return NextResponse.json({ ok: true, forwarded: false });
+    // Forward to backend
+    const upstream = await fetch(`${ENV.API_BASE_URL}/feedback`, {
+      method: "POST",
+      headers,
+      body: form,
+      // Let fetch set the multipart boundary automatically
+    });
+
+    const contentType = upstream.headers.get("content-type") || "application/json";
+    const isJson = contentType.includes("application/json");
+    const body = isJson ? await upstream.json().catch(() => ({})) : await upstream.text();
+
+    return new NextResponse(isJson ? JSON.stringify(body) : body, {
+      status: upstream.status,
+      headers: { "content-type": contentType },
+    });
   } catch (e) {
-    return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to submit feedback" }, { status: 500 });
   }
 }
-
 

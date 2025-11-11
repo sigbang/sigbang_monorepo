@@ -22,9 +22,9 @@ export default function Footer() {
               <a
                 className="hover:underline"
                 href="/feedback"
-                aria-label="의견 및 버그 보내기"
+                aria-label="의견 보내기"
               >
-                의견 및 버그 보내기
+                의견 보내기
               </a>
               <a
                 className="hover:underline"

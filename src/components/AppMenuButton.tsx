@@ -109,7 +109,7 @@ export default function AppMenuButton({
             role="menuitem"
             onClick={() => setOpen(false)}
           >
-            의견 및 버그 보내기
+            의견 보내기
           </Link>
           <Link
             href="/download"
