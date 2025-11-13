@@ -13,10 +13,7 @@ permissions:
 jobs:
   terraform:
     name: Terraform Plan & Apply
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./infra  # Terraform 코드 폴더 경로
+    runs-on: ubuntu-latest    
 
     steps:
       - name: Checkout repository

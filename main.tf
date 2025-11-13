@@ -109,4 +109,12 @@ resource "aws_autoscaling_group" "api_asg" {
     value               = "${var.project_name}-instance"
     propagate_at_launch = true
   }
+
+  instance_refresh {
+    strategy = "Rolling"
+    preferences {
+      min_healthy_percentage = 90
+    }
+    triggers = ["launch_template"]
+  }
 }
