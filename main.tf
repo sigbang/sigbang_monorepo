@@ -98,9 +98,9 @@ resource "aws_ssm_parameter" "env_vars" {
     SES_REGION                = var.ses_region
   } : {}
 
-  name  = "/${local.ssm_base}/${each.key}"
-  type  = "SecureString"
-  value = each.value
+  name      = "/${local.ssm_base}/${each.key}"
+  type      = "SecureString"
+  value     = each.value
   overwrite = true
 }
 
@@ -109,7 +109,7 @@ resource "aws_ssm_parameter" "env_vars" {
 ##########################################
 
 resource "aws_iam_role" "api_ec2_role" {
-  name = "${var.project_name}-ec2-role"
+  name               = "${var.project_name}-ec2-role"
   assume_role_policy = data.aws_iam_policy_document.ec2_trust.json
 
   lifecycle {

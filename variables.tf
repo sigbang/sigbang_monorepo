@@ -3,8 +3,8 @@
 ##########################################
 
 variable "project_name" {
-  type        = string
-  default     = "sigbang-api"
+  type    = string
+  default = "sigbang-api"
 }
 
 variable "aws_region" {
@@ -159,7 +159,7 @@ variable "aws_account_id" {
 # Existing IAM instance profile name
 ##########################################
 variable "instance_profile_name" {
-  type = string
+  type        = string
   description = "Existing IAM instance profile to attach to EC2 instances"
 }
 
@@ -167,8 +167,8 @@ variable "instance_profile_name" {
 # Toggle SSM management in this run
 ##########################################
 variable "manage_ssm" {
-  type    = bool
-  default = true
+  type        = bool
+  default     = true
   description = "If false, skip creating/updating SSM parameters (useful in CI deploy runs)"
 }
 
