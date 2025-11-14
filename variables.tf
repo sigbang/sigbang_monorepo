@@ -163,4 +163,13 @@ variable "instance_profile_name" {
   description = "Existing IAM instance profile to attach to EC2 instances"
 }
 
+##########################################
+# Toggle SSM management in this run
+##########################################
+variable "manage_ssm" {
+  type    = bool
+  default = true
+  description = "If false, skip creating/updating SSM parameters (useful in CI deploy runs)"
+}
+
 

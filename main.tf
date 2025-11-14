@@ -75,7 +75,7 @@ locals {
 }
 
 resource "aws_ssm_parameter" "env_vars" {
-  for_each = {
+  for_each = var.manage_ssm ? {
     DATABASE_URL              = var.database_url
     DIRECT_URL                = var.direct_url
     SUPABASE_URL              = var.supabase_url
@@ -96,7 +96,7 @@ resource "aws_ssm_parameter" "env_vars" {
     AWS_ACCESS_KEY_ID         = var.aws_access_key_id
     AWS_SECRET_ACCESS_KEY     = var.aws_secret_access_key
     SES_REGION                = var.ses_region
-  }
+  } : {}
 
   name  = "/${local.ssm_base}/${each.key}"
   type  = "SecureString"

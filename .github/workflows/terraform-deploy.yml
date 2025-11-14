@@ -12,10 +12,12 @@ env:
   TF_IN_AUTOMATION: true
   AWS_REGION: ap-northeast-2
   TF_VAR_api_image: ${{ github.event.client_payload.image }}
+  TF_VAR_manage_ssm: "false"
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env: {}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
