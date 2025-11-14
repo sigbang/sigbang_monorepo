@@ -25,7 +25,7 @@ export interface SendMailParams {
 @Injectable()
 export class SesMailService {
   private readonly ses = new SESClient({
-    region: process.env.AWS_REGION,
+    region: process.env.SES_REGION,
   });
 
   async sendMail(params: SendMailParams) {
