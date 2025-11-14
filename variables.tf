@@ -132,4 +132,35 @@ variable "ses_region" {
   type = string
 }
 
+##########################################
+# Toggle for managing SG rules as separate resources
+##########################################
+variable "manage_sg_rules" {
+  type    = bool
+  default = false
+}
+
+##########################################
+# SSM base path
+##########################################
+variable "ssm_prefix" {
+  type = string
+  # e.g. "sigbang-api/production"
+}
+
+##########################################
+# AWS account id (for IAM policy ARNs)
+##########################################
+variable "aws_account_id" {
+  type = string
+}
+
+##########################################
+# Existing IAM instance profile name
+##########################################
+variable "instance_profile_name" {
+  type = string
+  description = "Existing IAM instance profile to attach to EC2 instances"
+}
+
 
