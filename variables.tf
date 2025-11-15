@@ -173,3 +173,16 @@ variable "manage_ssm" {
 }
 
 
+##########################################
+# GHCR credentials (optional, for private images)
+##########################################
+variable "ghcr_username" {
+  type        = string
+  description = "GitHub username for GHCR login (optional)"
+}
+
+variable "ghcr_token" {
+  type        = string
+  sensitive   = true
+  description = "GitHub PAT with read:packages (optional)"
+}

@@ -42,6 +42,17 @@ resource "aws_security_group_rule" "api_ssh" {
   security_group_id = aws_security_group.api_sg.id
 }
 
+resource "aws_security_group_rule" "api_ssh_eic" {
+  count             = var.manage_sg_rules ? 1 : 0
+  type              = "ingress"
+  description       = "SSH for EC2 Instance Connect"
+  protocol          = "tcp"
+  from_port         = 22
+  to_port           = 22
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.api_sg.id
+}
+
 resource "aws_security_group_rule" "api_http" {
   count             = var.manage_sg_rules ? 1 : 0
   type              = "ingress"
@@ -72,6 +83,32 @@ resource "aws_security_group_rule" "api_egress" {
 locals {
   # Use existing var.ssm_prefix as the full base path (e.g., "sigbang-api/production")
   ssm_base = var.ssm_prefix
+
+  # Fingerprint changes to env/tfvars to force LT user_data updates and trigger ASG refresh
+  refresh_fingerprint = md5(jsonencode({
+    database_url              = var.database_url
+    direct_url                = var.direct_url
+    supabase_url              = var.supabase_url
+    supabase_anon_key         = var.supabase_anon_key
+    supabase_service_role_key = var.supabase_service_role_key
+    supabase_storage_bucket   = var.supabase_storage_bucket
+    google_client_id          = var.google_client_id
+    jwt_secret                = var.jwt_secret
+    jwt_expires_in            = var.jwt_expires_in
+    openai_api_key            = var.openai_api_key
+    openai_recipe_model       = var.openai_recipe_model
+    public_base_url           = var.public_base_url
+    throttle_ttl              = var.throttle_ttl
+    throttle_limit            = var.throttle_limit
+    admin_job_secret          = var.admin_job_secret
+    ses_from_email            = var.ses_from_email
+    ses_to_email              = var.ses_to_email
+    aws_access_key_id         = var.aws_access_key_id
+    aws_secret_access_key     = var.aws_secret_access_key
+    ses_region                = var.ses_region
+    ghcr_username             = try(var.ghcr_username, "")
+    ghcr_token                = try(var.ghcr_token, "")
+  }))
 }
 
 resource "aws_ssm_parameter" "env_vars" {
@@ -96,6 +133,8 @@ resource "aws_ssm_parameter" "env_vars" {
     AWS_ACCESS_KEY_ID         = var.aws_access_key_id
     AWS_SECRET_ACCESS_KEY     = var.aws_secret_access_key
     SES_REGION                = var.ses_region
+    GHCR_USERNAME             = try(var.ghcr_username, null)
+    GHCR_TOKEN                = try(var.ghcr_token, null)
   } : {}
 
   name      = "/${local.ssm_base}/${each.key}"
@@ -134,13 +173,27 @@ resource "aws_iam_role_policy" "api_ssm_policy" {
   policy = data.aws_iam_policy_document.ssm_policy.json
 }
 
+resource "aws_iam_instance_profile" "api_instance_profile" {
+  name = var.instance_profile_name
+  role = aws_iam_role.api_ec2_role.name
+}
+
 data "aws_iam_policy_document" "ssm_policy" {
   statement {
     actions = [
       "ssm:GetParameter",
+      "ssm:GetParameters",
       "ssm:GetParametersByPath"
     ]
-    resources = ["arn:aws:ssm:${var.aws_region}:${var.aws_account_id}:parameter/${var.ssm_prefix}/*"]
+    resources = ["*"]
+  }
+
+  # Allow decrypting SSM SecureString values encrypted with AWS managed SSM key
+  statement {
+    actions = [
+      "kms:Decrypt"
+    ]
+    resources = ["*"]
   }
 }
 
@@ -200,7 +253,7 @@ resource "aws_launch_template" "api_lt" {
   key_name      = var.key_name
 
   iam_instance_profile {
-    name = var.instance_profile_name
+    name = aws_iam_instance_profile.api_instance_profile.name
   }
 
   network_interfaces {
@@ -212,6 +265,7 @@ resource "aws_launch_template" "api_lt" {
     ssm_prefix   = local.ssm_base
     region       = var.aws_region
     docker_image = var.api_image
+    refresh_fingerprint = local.refresh_fingerprint
   }))
 
   lifecycle {
@@ -233,7 +287,7 @@ resource "aws_autoscaling_group" "api_asg" {
 
   launch_template {
     id      = aws_launch_template.api_lt.id
-    version = "$Latest"
+    version = tostring(aws_launch_template.api_lt.latest_version)
   }
 
   instance_refresh {
