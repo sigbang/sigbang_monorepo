@@ -1,0 +1,506 @@
+import 'dart:io';
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:path_provider/path_provider.dart';
+import '../../domain/entities/recipe.dart';
+import '../../domain/entities/recipe_query.dart';
+import '../models/recipe_model.dart';
+import '../models/paginated_recipes_model.dart';
+import 'api_client.dart';
+
+class RecipeService {
+  final ApiClient _apiClient;
+
+  RecipeService(this._apiClient);
+
+  /// 피드 조회 (커서 기반)
+  Future<PaginatedRecipesModel> getFeed(
+      RecipeQuery query, String? userId) async {
+    if (kDebugMode) {
+      print(
+          '🍽️ Fetching recipe feed with query: ${query.toQueryParameters()}');
+    }
+
+    final response = await _apiClient.dio.get(
+      '/feed',
+      queryParameters: query.toQueryParameters(),
+    );
+
+    if (response.statusCode == 200) {
+      if (kDebugMode) {
+        final res = response.data is Map<String, dynamic>
+            ? response.data
+            : (response.data['data'] ?? response.data);
+        try {
+          print(
+              '✅ Feed loaded: ${(res['recipes'] as List<dynamic>?)?.length ?? 0} recipes');
+        } catch (_) {}
+      }
+      return PaginatedRecipesModel.fromJson(
+          response.data as Map<String, dynamic>);
+    } else {
+      throw Exception('피드 조회 실패: ${response.statusCode}');
+    }
+  }
+
+  /// 인기 레시피 조회 (커서 기반)
+  Future<PaginatedRecipesModel> getPopular(
+      {required int limit, String? cursor}) async {
+    if (kDebugMode) {
+      print('🔥 Fetching popular recipes: limit=$limit, cursor=$cursor');
+    }
+
+    final response = await _apiClient.dio.get(
+      '/feed/popular',
+      queryParameters: {
+        'limit': limit,
+        if (cursor != null) 'cursor': cursor,
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return PaginatedRecipesModel.fromJson(
+          response.data as Map<String, dynamic>);
+    }
+    throw Exception('인기 레시피 조회 실패: ${response.statusCode}');
+  }
+
+  /// 추천 레시피 조회 (커서 기반, 로그인/비로그인 공통)
+  Future<PaginatedRecipesModel> getRecommended(
+      {required int limit, String? cursor}) async {
+    if (kDebugMode) {
+      print('✨ Fetching recommended recipes: limit=$limit, cursor=$cursor');
+    }
+
+    final response = await _apiClient.dio.get(
+      '/feed/recommended',
+      queryParameters: {
+        'limit': limit,
+        if (cursor != null) 'cursor': cursor,
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return PaginatedRecipesModel.fromJson(
+          response.data as Map<String, dynamic>);
+    }
+    throw Exception('추천 레시피 조회 실패: ${response.statusCode}');
+  }
+
+  /// 레시피 상세 조회
+  Future<RecipeModel> getRecipe(String id, String? userId) async {
+    if (kDebugMode) {
+      print('📖 Fetching recipe detail: $id');
+    }
+
+    try {
+      final response = await _apiClient.dio.get('/recipes/$id');
+
+      if (response.statusCode == 200) {
+        final payload = response.data['data'] ?? response.data;
+        if (kDebugMode) {
+          try {
+            print('✅ Recipe loaded: ${payload['title']}');
+          } catch (_) {}
+        }
+        return RecipeModel.fromJson(payload as Map<String, dynamic>);
+      } else {
+        throw Exception('레시피 조회 실패: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        throw Exception('404 Not Found');
+      }
+      rethrow;
+    }
+  }
+
+  /// 내가 작성한 공개 레시피 목록 (커서 기반)
+  Future<PaginatedRecipesModel> getMyRecipes({
+    required int limit,
+    String? cursor,
+  }) async {
+    if (kDebugMode) {
+      print('👤 Fetching my recipes: limit=$limit, cursor=$cursor');
+    }
+
+    final response = await _apiClient.dio.get(
+      '/users/me/recipes',
+      queryParameters: {
+        'limit': limit,
+        if (cursor != null) 'cursor': cursor,
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return PaginatedRecipesModel.fromJson(
+          response.data as Map<String, dynamic>);
+    }
+    throw Exception('내 레시피 조회 실패: ${response.statusCode}');
+  }
+
+  /// 내가 저장한 레시피 목록 (커서 기반)
+  Future<PaginatedRecipesModel> getMySavedRecipes({
+    required int limit,
+    String? cursor,
+  }) async {
+    if (kDebugMode) {
+      print('🔖 Fetching my saved recipes: limit=$limit, cursor=$cursor');
+    }
+
+    final response = await _apiClient.dio.get(
+      '/users/me/saved-recipes',
+      queryParameters: {
+        'limit': limit,
+        if (cursor != null) 'cursor': cursor,
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return PaginatedRecipesModel.fromJson(
+          response.data as Map<String, dynamic>);
+    }
+    throw Exception('저장한 레시피 조회 실패: ${response.statusCode}');
+  }
+
+  /// 레시피 즉시 생성(공개)
+  Future<String> createRecipe(Recipe recipe) async {
+    if (kDebugMode) {
+      print('📝 Creating recipe (publish immediately): ${recipe.title}');
+    }
+
+    final createDto = _recipeToCreateDto(recipe);
+    final response = await _apiClient.dio.post(
+      '/recipes',
+      data: createDto,
+      options: Options(
+        sendTimeout: const Duration(minutes: 2),
+        receiveTimeout: const Duration(minutes: 2),
+      ),
+    );
+
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      final id = response.data['id'] as String?;
+      if (id == null || id.isEmpty) {
+        throw Exception('레시피 생성 응답에 id가 없습니다');
+      }
+      return id;
+    } else {
+      throw Exception('레시피 생성 실패: ${response.statusCode}');
+    }
+  }
+
+  /// 레시피 수정
+  Future<void> updateRecipe({
+    required String id,
+    required Recipe recipe,
+  }) async {
+    if (kDebugMode) {
+      print('✏️ Updating recipe: $id (${recipe.title})');
+    }
+
+    final updateDto = _recipeToUpdateDto(recipe);
+    final response = await _apiClient.dio.put(
+      '/recipes/$id',
+      data: updateDto,
+    );
+
+    if (response.statusCode == 200) {
+      if (kDebugMode) {
+        print('✅ Recipe updated: $id');
+      }
+    } else {
+      throw Exception('레시피 수정 실패: ${response.statusCode}');
+    }
+  }
+
+  /// 레시피 삭제
+  Future<void> deleteRecipe(String id, String userId) async {
+    if (kDebugMode) {
+      print('🗑️ Deleting recipe: $id');
+    }
+
+    final response = await _apiClient.dio.delete('/recipes/$id');
+
+    if (response.statusCode == 200 || response.statusCode == 204) {
+      if (kDebugMode) {
+        print('✅ Recipe deleted: $id');
+      }
+    } else {
+      throw Exception('레시피 삭제 실패: ${response.statusCode}');
+    }
+  }
+
+  /// 레시피 검색 (커서 기반)
+  Future<PaginatedRecipesModel> searchRecipes({
+    required String query,
+    required int limit,
+    String? cursor,
+  }) async {
+    if (kDebugMode) {
+      print('🔎 Searching recipes: q="$query", limit=$limit, cursor=$cursor');
+    }
+
+    final response = await _apiClient.dio.get(
+      '/recipes/search',
+      queryParameters: {
+        // 서버 스펙에 맞춘 파라미터 키
+        'q': query,
+        'limit': limit,
+        if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return PaginatedRecipesModel.fromJson(
+          response.data as Map<String, dynamic>);
+    }
+    throw Exception('레시피 검색 실패: ${response.statusCode}');
+  }
+
+  /// 서버에서 발급한 Supabase signed URL 정보를 사용해 업로드 후 경로 반환
+  Future<String> uploadImageWithPresign({
+    required String contentType,
+    required Uint8List bytes,
+  }) async {
+    // 1) 서버에서 Supabase 업로드용 path/token/bucket을 발급받음
+    final presignRes = await _apiClient.dio.post(
+      '/media/presign',
+      data: {'contentType': contentType},
+    );
+    if (presignRes.statusCode != 200 && presignRes.statusCode != 201) {
+      throw Exception('Presign failed: ${presignRes.statusCode}');
+    }
+    final data = presignRes.data is Map<String, dynamic>
+        ? presignRes.data
+        : (presignRes.data['data'] ?? presignRes.data);
+
+    // 서버 응답: { bucket, path, token } (권장)
+    // 하위호환: { uploadUrl/url, path/key } (기존 S3/PUT)
+    final bucket = data['bucket'] as String?;
+    final path = (data['path'] ?? data['key']) as String;
+    final token = data['token'] as String?;
+    final hasSupabase = bucket != null && token != null;
+
+    if (hasSupabase) {
+      // 2) Supabase SDK로 업로드
+      final supabase = Supabase.instance.client;
+      final storage = supabase.storage.from(bucket);
+      // Supabase uploadToSignedUrl는 File을 요구하므로 임시 파일 생성
+      final tempDir = await getTemporaryDirectory();
+      final tempPath =
+          '${tempDir.path}/sb_upload_${DateTime.now().millisecondsSinceEpoch}${_extFromContentType(contentType)}';
+      final tempFile = File(tempPath);
+      await tempFile.writeAsBytes(bytes, flush: true);
+      await storage.uploadToSignedUrl(path, token, tempFile);
+      try {
+        await tempFile.delete();
+      } catch (_) {}
+      return path;
+    }
+
+    // 3) Fallback: 기존 presigned PUT (uploadUrl)
+    final uploadUrl = (data['uploadUrl'] ?? data['url']) as String?;
+    if (uploadUrl == null) {
+      throw Exception('Presign response missing token/uploadUrl');
+    }
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 20),
+        receiveTimeout: const Duration(seconds: 60),
+        sendTimeout: const Duration(seconds: 60),
+        headers: {'Content-Type': contentType},
+      ),
+    );
+    await dio.put(
+      uploadUrl,
+      data: bytes,
+      options: Options(
+        followRedirects: false,
+        validateStatus: (code) => code != null && code >= 200 && code < 400,
+      ),
+    );
+    return path;
+  }
+
+  String _extFromContentType(String contentType) {
+    switch (contentType.toLowerCase()) {
+      case 'image/jpeg':
+      case 'image/jpg':
+        return '.jpg';
+      case 'image/png':
+        return '.png';
+      case 'image/webp':
+        return '.webp';
+      case 'image/gif':
+        return '.gif';
+      default:
+        return '';
+    }
+  }
+
+  /// 다중 이미지 presign 업로드 helper
+  Future<List<String>> uploadMultipleWithPresign({
+    required String contentType,
+    required List<Uint8List> images,
+  }) async {
+    final paths = <String>[];
+    for (final bytes in images) {
+      final path = await uploadImageWithPresign(
+        contentType: contentType,
+        bytes: bytes,
+      );
+      paths.add(path);
+    }
+    return paths;
+  }
+
+  /// 홈 화면 추천 레시피 조회 (신규 API)
+  Future<List<RecipeModel>> getRecommendedRecipes(String? userId) async {
+    try {
+      final result = await getRecommended(limit: 6);
+      return result.recipes.cast<RecipeModel>();
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️ Recommended API failed, falling back to mock: $e');
+      }
+      return _getMockRecommendedRecipes();
+    }
+  }
+
+  /// 레시피 좋아요/취소
+  Future<void> toggleLike(String recipeId, String userId) async {
+    if (kDebugMode) {
+      print('❤️ Toggle like for recipe: $recipeId by user: $userId');
+    }
+
+    final response = await _apiClient.dio.post('/recipes/$recipeId/like');
+    if (response.statusCode == 200 ||
+        response.statusCode == 201 ||
+        response.statusCode == 204) {
+      if (kDebugMode) {
+        print('✅ Like toggled successfully');
+      }
+      return;
+    }
+    throw Exception('좋아요 처리 실패: ${response.statusCode}');
+  }
+
+  /// 레시피 저장/취소
+  Future<void> toggleSave(String recipeId, String userId) async {
+    if (kDebugMode) {
+      print('💾 Toggle save for recipe: $recipeId by user: $userId');
+    }
+
+    final response = await _apiClient.dio.post('/recipes/$recipeId/save');
+    if (response.statusCode == 200 ||
+        response.statusCode == 201 ||
+        response.statusCode == 204) {
+      if (kDebugMode) {
+        print('✅ Save toggled successfully');
+      }
+      return;
+    }
+    throw Exception('저장 처리 실패: ${response.statusCode}');
+  }
+
+  /// Recipe to CreateDto 변환 (즉시 공개용 DTO와 서버의 CreateRecipeDto에 맞춤)
+  Map<String, dynamic> _recipeToCreateDto(Recipe recipe) {
+    return {
+      'title': recipe.title,
+      if (recipe.description.isNotEmpty) 'description': recipe.description,
+      if (recipe.ingredients != null && recipe.ingredients!.isNotEmpty)
+        'ingredients': recipe.ingredients,
+      if (recipe.cookingTime != null) 'cookingTime': recipe.cookingTime,
+      if (recipe.servings != null) 'servings': recipe.servings,
+      if (recipe.difficulty != null) 'difficulty': recipe.difficulty!.value,
+      if (recipe.thumbnailUrl != null) 'thumbnailPath': recipe.thumbnailUrl,
+      if (recipe.linkTitle != null && recipe.linkTitle!.isNotEmpty)
+        'linkTitle': recipe.linkTitle,
+      if (recipe.linkUrl != null && recipe.linkUrl!.isNotEmpty)
+        'linkUrl': recipe.linkUrl,
+      if (recipe.steps.isNotEmpty)
+        'steps': recipe.steps
+            .map((step) => {
+                  'order': step.order,
+                  'description': step.description,
+                  if (step.imageUrl != null) 'imagePath': step.imageUrl,
+                })
+            .toList(),
+      if (recipe.tags.isNotEmpty)
+        'tags': recipe.tags
+            .map((tag) => {
+                  'name': tag.name,
+                  if (tag.emoji != null) 'emoji': tag.emoji,
+                })
+            .toList(),
+    };
+  }
+
+  /// Recipe to UpdateDto 변환 (서버의 UpdateRecipeDto = PartialType(CreateRecipeDto))
+  Map<String, dynamic> _recipeToUpdateDto(Recipe recipe) {
+    // 현재는 전체 필드를 전송. 서버는 부분 업데이트를 지원하므로 비어있는 항목은 제외
+    return _recipeToCreateDto(recipe);
+  }
+
+  /// Mock 추천 레시피 데이터
+  List<RecipeModel> _getMockRecommendedRecipes() {
+    final now = DateTime.now();
+
+    return [
+      RecipeModel(
+        id: 'mock_rec_1',
+        title: '레몬 고소 부타',
+        description: '일본식 고소한 돼지고기 요리',
+        status: RecipeStatus.published,
+        createdAt: now.subtract(const Duration(days: 1)),
+        updatedAt: now.subtract(const Duration(days: 1)),
+        cookingTime: 30,
+        servings: 2,
+        difficulty: RecipeDifficulty.easy,
+        viewCount: 125,
+        likesCount: 24,
+        commentsCount: 8,
+        thumbnailUrl: 'assets/images/remon_pepper_porkloin_00.png',
+        author: const AuthorModel(
+          id: 'mock_author_1',
+          nickname: '요리사 미우',
+          profileImage: 'assets/images/miu_profile.png',
+        ),
+        tags: const [
+          RecipeTagModel(name: '오사카 요리', emoji: '🇯🇵'),
+          RecipeTagModel(name: '돼지고기', emoji: '🐷'),
+        ],
+        isLiked: false,
+        isSaved: false,
+      ),
+      RecipeModel(
+        id: 'mock_rec_2',
+        title: '크림 파스타',
+        description: '부드럽고 진한 크림 파스타',
+        status: RecipeStatus.published,
+        createdAt: now.subtract(const Duration(days: 2)),
+        updatedAt: now.subtract(const Duration(days: 2)),
+        cookingTime: 25,
+        servings: 2,
+        difficulty: RecipeDifficulty.medium,
+        viewCount: 89,
+        likesCount: 17,
+        commentsCount: 5,
+        thumbnailUrl: 'assets/images/03_pasta_00.png',
+        author: const AuthorModel(
+          id: 'mock_author_2',
+          nickname: '요리사 티모',
+          profileImage: 'assets/images/timo_profile.png',
+        ),
+        tags: const [
+          RecipeTagModel(name: '파스타', emoji: '🍝'),
+          RecipeTagModel(name: '크림', emoji: '🥛'),
+        ],
+        isLiked: false,
+        isSaved: false,
+      ),
+    ];
+  }
+}
