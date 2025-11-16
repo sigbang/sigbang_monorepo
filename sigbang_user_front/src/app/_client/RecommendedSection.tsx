@@ -25,8 +25,8 @@ export default function RecommendedSection() {
     authorId: r.author?.id,
     stepImages: ((r?.steps as any[]) || [])
       .map((s: any) => (s?.imageUrl || s?.imagePath) as string | undefined)
-      .filter(Boolean)
-      .map((u: string) => {
+      .filter((u): u is string => Boolean(u))
+      .map((u) => {
         if (/^https?:/i.test(u)) return u;
         const clean = u.startsWith('/') ? u.slice(1) : u;
         return `/media/${clean.startsWith('media/') ? clean.slice('media/'.length) : clean}`;

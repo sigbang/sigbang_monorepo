@@ -120,7 +120,7 @@ export class RecipesService {
       },
     });
 
-    let items = rows;
+    const items = rows;
     // 부족하면 기간 제한 없이 보강
     if (items.length <= limit) {
       const more = await this.prismaService.recipe.findMany({
@@ -822,7 +822,7 @@ export class RecipesService {
       }
 
       // 본문 필드 업데이트 + 슬러그 갱신(제목 변경 시)
-      let slugPatch: { slug?: string } = {};
+      const slugPatch: { slug?: string } = {};
       if (recipeData.title && recipeData.title !== recipe.title) {
         const newRaw = await generateSemanticRecipeSlug(recipeData.title);
         slugPatch.slug = await this.ensureUniqueRecipeSlug(newRaw);

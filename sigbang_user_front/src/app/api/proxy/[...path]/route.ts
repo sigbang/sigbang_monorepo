@@ -4,7 +4,7 @@ import { getAccessToken, getRefreshToken, clearTokens } from '@/lib/auth/cookies
 import { isExpired } from '@/lib/auth/jwt';
 import { refreshTokens } from '@/lib/auth/refresh';
 
-async function forward(req: NextRequest, at: string | undefined, body: Uint8Array | undefined) {
+async function forward(req: NextRequest, at: string | undefined, body: ArrayBuffer | undefined) {
   const url = new URL(req.url);
   const path = url.pathname.replace(/^\/api\/proxy/, '');
   const target = `${ENV.API_BASE_URL}${path}${url.search || ''}`;
@@ -58,10 +58,10 @@ export async function DELETE(req: NextRequest){ return handle(req); }
 
 async function handle(req: NextRequest) {
   const hasBody = req.method !== 'GET' && req.method !== 'HEAD';
-  let rawBody: Uint8Array | undefined = undefined;
+  let rawBody: ArrayBuffer | undefined = undefined;
   if (hasBody) {
     try {
-      rawBody = new Uint8Array(await req.arrayBuffer());
+      rawBody = await req.arrayBuffer();
     } catch (e) {
       if (process.env.NODE_ENV !== 'production') console.error('[proxy] failed to read request body', e);
     }
