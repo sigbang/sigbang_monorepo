@@ -1,0 +1,49 @@
+name: Terraform Deploy (API)
+
+on:
+  repository_dispatch:
+    types: [ deploy_api ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TF_IN_AUTOMATION: true
+  AWS_REGION: ap-northeast-2
+  TF_VAR_api_image: ${{ github.event.client_payload.image }}
+  TF_VAR_manage_ssm: "false"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env: {}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        run: terraform init -reconfigure -input=false
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan -input=false
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve -input=false
+
+
