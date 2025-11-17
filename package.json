@@ -1,0 +1,18 @@
+{
+  "name": "sigbang_monorepo",
+  "private": true,
+  "workspaces": [
+    "sigbang_api",
+    "sigbang_user_front"
+  ],
+  "scripts": {
+    "dev:api": "npm run -w sigbang_api start:dev",
+    "dev:web": "npm run -w sigbang_user_front dev",
+    "build:api": "npm run -w sigbang_api build",
+    "build:web": "npm run -w sigbang_user_front build",
+    "lint:api": "npm run -w sigbang_api lint",
+    "lint:web": "npm run -w sigbang_user_front lint",
+    "test:api": "npm run -w sigbang_api test"
+  }
+}
+

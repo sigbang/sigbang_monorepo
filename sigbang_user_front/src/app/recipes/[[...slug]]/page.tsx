@@ -77,7 +77,7 @@ export default async function Page({ params }: { params: Promise<{ slug?: string
       ? recipe.steps.map((s) => ({
           '@type': 'HowToStep',
           text: s.description,
-          image: toAbs(s.imagePath),
+          image: toAbs(s.imagePath ?? undefined),
         }))
       : undefined;
 

@@ -1,0 +1,37 @@
+# Node
+node_modules/
+npm-debug.log*
+dist/
+coverage/
+.next/
+out/
+build/
+
+# TypeScript
+*.tsbuildinfo
+
+# Env
+.env
+.env.*.local
+
+# Flutter
+sigbang_flutter/.dart_tool/
+sigbang_flutter/build/
+sigbang_flutter/ios/Pods/
+sigbang_flutter/.flutter-plugins*
+sigbang_flutter/.packages
+sigbang_flutter/pubspec.lock
+
+# Terraform
+sigbang_infra/.terraform/
+sigbang_infra/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+
+# OS/IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+

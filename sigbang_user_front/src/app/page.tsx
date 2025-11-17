@@ -7,6 +7,7 @@ import { ENV } from '@/lib/env';
 import RecommendedSection from './_client/RecommendedSection';
 
 export const revalidate = 300;
+export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: '식방 - 인기/추천 레시피',
