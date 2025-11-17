@@ -186,3 +186,11 @@ variable "ghcr_token" {
   sensitive   = true
   description = "GitHub PAT with read:packages (optional)"
 }
+
+##########################################
+# ACM certificate ARN for HTTPS listener
+##########################################
+variable "acm_certificate_arn" {
+  type        = string
+  description = "Existing ACM certificate ARN for api.sigbang.com in ap-northeast-2"
+}

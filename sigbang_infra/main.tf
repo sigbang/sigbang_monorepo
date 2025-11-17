@@ -28,6 +28,28 @@ resource "aws_security_group" "api_sg" {
 }
 
 ###########################################
+# Security Group (ALB 전용)
+###########################################
+
+resource "aws_security_group" "alb_sg" {
+  name        = "${var.project_name}-alb-sg"
+  description = "Allow 80/443 from internet to ALB"
+  vpc_id      = data.aws_vpc.default.id
+
+  # Egress all
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+###########################################
 # SG Rules (모두 분리)
 ###########################################
 
@@ -73,6 +95,42 @@ resource "aws_security_group_rule" "api_egress" {
   to_port           = 0
   cidr_blocks       = ["0.0.0.0/0"]
   security_group_id = aws_security_group.api_sg.id
+}
+
+###########################################
+# SG Rules (보안 강화 - ALB/APP 분리)
+###########################################
+
+# ALB: 80/443 인바운드 개방
+resource "aws_security_group_rule" "alb_http_80" {
+  type              = "ingress"
+  description       = "ALB HTTP 80"
+  protocol          = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.alb_sg.id
+}
+
+resource "aws_security_group_rule" "alb_https_443" {
+  type              = "ingress"
+  description       = "ALB HTTPS 443"
+  protocol          = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.alb_sg.id
+}
+
+# APP(EC2): 3000은 ALB에서만 접근 허용
+resource "aws_security_group_rule" "app_from_alb_3000" {
+  type                     = "ingress"
+  description              = "App 3000 from ALB SG"
+  protocol                 = "tcp"
+  from_port                = 3000
+  to_port                  = 3000
+  security_group_id        = aws_security_group.api_sg.id
+  source_security_group_id = aws_security_group.alb_sg.id
 }
 
 
@@ -207,7 +265,7 @@ resource "aws_lb" "api_alb" {
   name               = "${var.project_name}-alb"
   internal           = false
   load_balancer_type = "application"
-  security_groups    = [aws_security_group.api_sg.id]
+  security_groups    = [aws_security_group.alb_sg.id]
   subnets            = data.aws_subnets.default.ids
 
   lifecycle {
@@ -232,13 +290,32 @@ resource "aws_lb_target_group" "api_tg" {
   }
 }
 
+# HTTPS Listener (443)
+resource "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.api_alb.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  certificate_arn   = var.acm_certificate_arn
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.api_tg.arn
+  }
+}
+
+# HTTP → HTTPS Redirect (80)
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.api_alb.arn
   port              = 80
   protocol          = "HTTP"
   default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.api_tg.arn
+    type = "redirect"
+    redirect {
+      protocol   = "HTTPS"
+      port       = "443"
+      status_code = "HTTP_301"
+    }
   }
 }
 
@@ -284,6 +361,12 @@ resource "aws_autoscaling_group" "api_asg" {
   min_size            = 1
   desired_capacity    = 1
   target_group_arns   = [aws_lb_target_group.api_tg.arn]
+
+  tag {
+    key                 = "Name"
+    value               = "${var.project_name}-api"
+    propagate_at_launch = true
+  }
 
   launch_template {
     id      = aws_launch_template.api_lt.id
