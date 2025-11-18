@@ -120,14 +120,6 @@ variable "ses_to_email" {
   type = string
 }
 
-variable "aws_access_key_id" {
-  type = string
-}
-
-variable "aws_secret_access_key" {
-  type = string
-}
-
 variable "ses_region" {
   type = string
 }
@@ -193,4 +185,23 @@ variable "ghcr_token" {
 variable "acm_certificate_arn" {
   type        = string
   description = "Existing ACM certificate ARN for api.sigbang.com in ap-northeast-2"
+}
+
+##########################################
+# SES domain + Route53 (for domain identity/DKIM/MAIL FROM)
+##########################################
+variable "ses_domain" {
+  type        = string
+  description = "Domain to verify in SES (e.g., sigbang.com)"
+}
+
+variable "route53_zone_id" {
+  type        = string
+  description = "Route53 hosted zone ID for the SES domain"
+}
+
+variable "mail_from_subdomain" {
+  type        = string
+  default     = "mail"
+  description = "Subdomain for MAIL FROM (e.g., 'mail' -> mail.sigbang.com)"
 }

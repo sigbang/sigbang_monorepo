@@ -161,8 +161,6 @@ locals {
     admin_job_secret          = var.admin_job_secret
     ses_from_email            = var.ses_from_email
     ses_to_email              = var.ses_to_email
-    aws_access_key_id         = var.aws_access_key_id
-    aws_secret_access_key     = var.aws_secret_access_key
     ses_region                = var.ses_region
     ghcr_username             = try(var.ghcr_username, "")
     ghcr_token                = try(var.ghcr_token, "")
@@ -188,9 +186,8 @@ resource "aws_ssm_parameter" "env_vars" {
     ADMIN_JOB_SECRET          = var.admin_job_secret
     SES_FROM_EMAIL            = var.ses_from_email
     SES_TO_EMAIL              = var.ses_to_email
-    AWS_ACCESS_KEY_ID         = var.aws_access_key_id
-    AWS_SECRET_ACCESS_KEY     = var.aws_secret_access_key
     SES_REGION                = var.ses_region
+    SES_CONFIGURATION_SET     = "${var.project_name}-default"
     GHCR_USERNAME             = try(var.ghcr_username, null)
     GHCR_TOKEN                = try(var.ghcr_token, null)
   } : {}
@@ -229,6 +226,19 @@ resource "aws_iam_role_policy" "api_ssm_policy" {
   name   = "${var.project_name}-ssm-policy"
   role   = aws_iam_role.api_ec2_role.id
   policy = data.aws_iam_policy_document.ssm_policy.json
+}
+
+resource "aws_iam_role_policy" "api_ses_policy" {
+  name   = "${var.project_name}-ses-policy"
+  role   = aws_iam_role.api_ec2_role.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["ses:SendEmail", "ses:SendRawEmail"]
+      Resource = "*"
+    }]
+  })
 }
 
 resource "aws_iam_instance_profile" "api_instance_profile" {
@@ -385,6 +395,68 @@ resource "aws_autoscaling_group" "api_asg" {
   lifecycle {
     ignore_changes        = [desired_capacity]
     create_before_destroy = true
+  }
+}
+
+##########################################
+# SES Domain Identity, DKIM, MAIL FROM, Config Set
+##########################################
+
+resource "aws_ses_domain_identity" "ses_domain" {
+  domain = var.ses_domain
+}
+
+resource "aws_route53_record" "ses_verification" {
+  zone_id = var.route53_zone_id
+  name    = "_amazonses.${var.ses_domain}"
+  type    = "TXT"
+  ttl     = 600
+  records = [aws_ses_domain_identity.ses_domain.verification_token]
+}
+
+resource "aws_ses_domain_identity_verification" "ses_domain_verified" {
+  domain     = aws_ses_domain_identity.ses_domain.id
+  depends_on = [aws_route53_record.ses_verification]
+}
+
+resource "aws_ses_domain_dkim" "ses_dkim" {
+  domain = aws_ses_domain_identity.ses_domain.domain
+}
+
+resource "aws_route53_record" "ses_dkim_records" {
+  count   = 3
+  zone_id = var.route53_zone_id
+  name    = "${aws_ses_domain_dkim.ses_dkim.dkim_tokens[count.index]}._domainkey.${var.ses_domain}"
+  type    = "CNAME"
+  ttl     = 600
+  records = ["${aws_ses_domain_dkim.ses_dkim.dkim_tokens[count.index]}.dkim.amazonses.com"]
+}
+
+resource "aws_ses_domain_mail_from" "ses_mail_from" {
+  domain           = aws_ses_domain_identity.ses_domain.domain
+  mail_from_domain = "${var.mail_from_subdomain}.${var.ses_domain}"
+}
+
+resource "aws_route53_record" "ses_mail_from_mx" {
+  zone_id = var.route53_zone_id
+  name    = aws_ses_domain_mail_from.ses_mail_from.mail_from_domain
+  type    = "MX"
+  ttl     = 600
+  records = ["10 feedback-smtp.${var.ses_region}.amazonses.com"]
+}
+
+resource "aws_route53_record" "ses_mail_from_spf" {
+  zone_id = var.route53_zone_id
+  name    = aws_ses_domain_mail_from.ses_mail_from.mail_from_domain
+  type    = "TXT"
+  ttl     = 600
+  records = ["v=spf1 include:amazonses.com -all"]
+}
+
+resource "aws_sesv2_configuration_set" "ses_config_set" {
+  configuration_set_name = "${var.project_name}-default"
+  delivery_options {
+    tls_policy = "REQUIRE"
   }
 }
 
