@@ -1,0 +1,57 @@
+<svg width="880" height="760" viewBox="0 0 880 760" xmlns="http://www.w3.org/2000/svg">
+<style>
+    .box { stroke:#333; stroke-width:2; rx:10; ry:10; fill:#fff; }
+    .title { font-size:18px; font-weight:700; font-family:Inter, Pretendard, sans-serif; }
+    .text { font-size:14px; font-family:Inter, Pretendard, sans-serif; }
+</style>
+
+<!-- DNS -->
+<rect x="300" y="20" width="280" height="90" class="box"/>
+<text x="440" y="55" text-anchor="middle" class="title">GoDaddy DNS</text>
+<text x="440" y="85" text-anchor="middle" class="text">api.sigbang.com → CNAME → ALB DNS</text>
+
+<!-- Arrow -->
+<line x1="440" y1="110" x2="440" y2="150" stroke="#000" stroke-width="2" marker-end="url(#arrow)" />
+
+<!-- ALB -->
+<rect x="240" y="150" width="400" height="160" class="box"/>
+<text x="440" y="185" text-anchor="middle" class="title">AWS Application Load Balancer (ALB)</text>
+<text x="440" y="215" text-anchor="middle" class="text">Listener 80 → Redirect(301) → 443</text>
+<text x="440" y="240" text-anchor="middle" class="text">Listener 443 → Forward to Target Group</text>
+<text x="440" y="265" text-anchor="middle" class="text">SG: alb_sg (Allow 80/443 from Internet)</text>
+
+<!-- Arrow -->
+<line x1="440" y1="310" x2="440" y2="350" stroke="#000" stroke-width="2" marker-end="url(#arrow)" />
+
+<!-- Target Group -->
+<rect x="260" y="350" width="360" height="120" class="box"/>
+<text x="440" y="385" text-anchor="middle" class="title">Target Group</text>
+<text x="440" y="415" text-anchor="middle" class="text">Protocol: HTTP</text>
+<text x="440" y="440" text-anchor="middle" class="text">Port: 3000</text>
+
+<!-- Arrow -->
+<line x1="440" y1="470" x2="440" y2="520" stroke="#000" stroke-width="2" marker-end="url(#arrow)" />
+
+<!-- EC2 -->
+<rect x="240" y="520" width="400" height="160" class="box"/>
+<text x="440" y="555" text-anchor="middle" class="title">EC2 Application Server</text>
+<text x="440" y="585" text-anchor="middle" class="text">NestJS / Node.js (Port 3000)</text>
+<text x="440" y="610" text-anchor="middle" class="text">SG: ec2_sg (Allow 3000 only from alb_sg)</text>
+
+<!-- ACM (side block) -->
+<rect x="660" y="190" width="180" height="120" class="box"/>
+<text x="750" y="225" text-anchor="middle" class="title">ACM Certificate</text>
+<text x="750" y="255" text-anchor="middle" class="text">api.sigbang.com</text>
+<text x="750" y="280" text-anchor="middle" class="text">Attached to ALB 443</text>
+
+<!-- Arrow from ACM to ALB -->
+<line x1="660" y1="250" x2="640" y2="250" stroke="#000" stroke-width="2" marker-end="url(#arrow)" />
+
+<!-- Arrow marker -->
+<defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L6,3 z" fill="#000" />
+    </marker>
+</defs>
+
+</svg>
