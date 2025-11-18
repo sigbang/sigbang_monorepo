@@ -461,6 +461,34 @@ resource "aws_sesv2_configuration_set" "ses_config_set" {
 }
 
 ##########################################
+# Route53: api.<domain> → ALB
+##########################################
+
+resource "aws_route53_record" "api_a_alias" {
+  zone_id = var.route53_zone_id
+  name    = "api"
+  type    = "A"
+
+  alias {
+    name                   = aws_lb.api_alb.dns_name
+    zone_id                = aws_lb.api_alb.zone_id
+    evaluate_target_health = false
+  }
+}
+
+resource "aws_route53_record" "api_aaaa_alias" {
+  zone_id = var.route53_zone_id
+  name    = "api"
+  type    = "AAAA"
+
+  alias {
+    name                   = aws_lb.api_alb.dns_name
+    zone_id                = aws_lb.api_alb.zone_id
+    evaluate_target_health = false
+  }
+}
+
+##########################################
 # Output
 ##########################################
 
