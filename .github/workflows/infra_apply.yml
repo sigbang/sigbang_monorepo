@@ -1,0 +1,55 @@
+name: Infra Apply (API)
+
+on:
+  repository_dispatch:
+    types: [deploy_api]
+  workflow_dispatch:
+    inputs:
+      image:
+        description: 'Docker image (overrides terraform.tfvars api_image)'
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  terraform-apply:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sigbang_infra
+    env:
+      TF_IN_AUTOMATION: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Apply
+        env:
+          IMAGE_FROM_EVENT: ${{ github.event.client_payload.image }}
+          IMAGE_FROM_INPUT: ${{ inputs.image }}
+        run: |
+          IMAGE="${IMAGE_FROM_INPUT:-${IMAGE_FROM_EVENT}}"
+          if [ -n "$IMAGE" ]; then
+            terraform apply -auto-approve -var="api_image=$IMAGE" -var="manage_ssm=false"
+          else
+            terraform apply -auto-approve -var="manage_ssm=false"
+          fi
+
+

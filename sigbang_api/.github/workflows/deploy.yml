@@ -4,14 +4,14 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'src/**'
-      - 'prisma/**'
-      - 'Dockerfile'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'nest-cli.json'
-      - 'nginx.conf'
-      - '.github/workflows/deploy.yml'
+      - 'sigbang_api/src/**'
+      - 'sigbang_api/prisma/**'
+      - 'sigbang_api/Dockerfile'
+      - 'sigbang_api/package.json'
+      - 'sigbang_api/package-lock.json'
+      - 'sigbang_api/nest-cli.json'
+      - 'sigbang_api/nginx.conf'
+      - 'sigbang_api/.github/workflows/deploy.yml'
   workflow_dispatch:
 
 permissions:
@@ -19,13 +19,14 @@ permissions:
   packages: write
 
 env:
-  IMAGE_NAME: ghcr.io/${{ github.repository }}
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/sigbang_api-backend
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
     outputs:
       image: ${{ steps.meta.outputs.image }}
+      sha: ${{ steps.meta.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
 
@@ -52,8 +53,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: ./Dockerfile
+          context: ./sigbang_api
+          file: ./sigbang_api/Dockerfile
           push: true
           platforms: linux/amd64
           tags: |
@@ -66,11 +67,11 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-      - name: Dispatch to infra
+      - name: Dispatch infra apply in monorepo
         uses: peter-evans/repository-dispatch@v3
         with:
-          token: ${{ secrets.INFRA_REPO_TOKEN }}
-          repository: sigbang/sigbang_infra
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
           event-type: deploy_api
           client-payload: |
             { "image": "${{ needs.build-and-push.outputs.image }}" }
