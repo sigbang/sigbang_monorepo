@@ -103,6 +103,10 @@ variable "public_base_url" {
   type = string
 }
 
+variable "web_base_url" {
+  type = string
+}
+
 variable "throttle_ttl" {
   type = string
 }

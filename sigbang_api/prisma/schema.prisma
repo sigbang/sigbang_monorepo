@@ -22,6 +22,8 @@ model User {
   bio          String?
   status       UserStatus @default(ACTIVE)
   deletedAt    DateTime?
+  emailVerifiedAt DateTime?
+  lastPasswordChangedAt DateTime?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   
@@ -39,6 +41,8 @@ model User {
   reports      Report[] // 신고한 내역
   refreshTokens RefreshToken[] // JWT 리프레시 토큰
   lifecycleEvents UserLifecycleEvent[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens PasswordResetToken[]
   
   @@map("users")
 }
@@ -320,6 +324,36 @@ model UserLifecycleEvent {
 
   @@index([userId, createdAt])
   @@map("user_lifecycle_events")
+}
+
+// 이메일 인증 토큰
+model EmailVerificationToken {
+  id         String   @id @default(uuid())
+  userId     String
+  token      String   @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("email_verification_tokens")
+}
+
+// 비밀번호 재설정 토큰
+model PasswordResetToken {
+  id         String   @id @default(uuid())
+  userId     String
+  token      String   @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("password_reset_tokens")
 }
 
 // 열거형들

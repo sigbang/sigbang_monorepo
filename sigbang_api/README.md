@@ -66,6 +66,12 @@ POST   /auth/signup     # 회원가입
 POST   /auth/signin     # 로그인
 POST   /auth/refresh    # 토큰 갱신
 POST   /auth/signout    # 로그아웃
+POST   /auth/signout-all    # 모든 기기 로그아웃 🔒
+POST   /auth/email/resend   # 인증 메일 재발송
+POST   /auth/email/verify   # 이메일 인증 완료
+POST   /auth/password/forgot # 비밀번호 재설정 메일 발송
+POST   /auth/password/reset  # 비밀번호 재설정
+PATCH  /auth/password        # 비밀번호 변경 🔒
 ```
 
 ### 사용자 (/users)
@@ -199,6 +205,13 @@ SUPABASE_STORAGE_BUCKET="recipes"
 OPENAI_API_KEY="your_openai_api_key"
 # Optional: override default model for recipe generation
 OPENAI_RECIPE_MODEL="gpt-4o-mini"
+
+# Email (SES)
+SES_REGION="ap-northeast-2"
+SES_FROM_EMAIL="noreply@sigbang.com"
+
+# Web base URL for email links
+WEB_BASE_URL="https://sigbang.com"
 ```
 
 3. Prisma 설정

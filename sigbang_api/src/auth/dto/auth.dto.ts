@@ -120,3 +120,45 @@ export class RevokeSessionDto {
   @IsString()
   deviceId?: string;
 }
+
+export class VerifyEmailDto {
+  @ApiProperty({ description: '이메일 인증 토큰' })
+  @IsString()
+  token: string;
+}
+
+export class ResendVerificationDto {
+  @ApiProperty({ description: '인증 메일을 재발송할 이메일' })
+  @IsEmail()
+  email: string;
+}
+
+export class ForgotPasswordDto {
+  @ApiProperty({ description: '비밀번호 재설정 메일을 보낼 이메일' })
+  @IsEmail()
+  email: string;
+}
+
+export class ResetPasswordDto {
+  @ApiProperty({ description: '비밀번호 재설정 토큰' })
+  @IsString()
+  token: string;
+
+  @ApiProperty({ description: '새 비밀번호 (최소 8자, 영문/숫자/특수문자 포함)' })
+  @IsString()
+  @MinLength(8, { message: '비밀번호는 최소 8자 이상이어야 합니다.' })
+  @Matches(/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&]).+/, { message: '비밀번호는 영문, 숫자, 특수문자를 모두 포함해야 합니다.' })
+  newPassword: string;
+}
+
+export class ChangePasswordDto {
+  @ApiProperty({ description: '현재 비밀번호' })
+  @IsString()
+  currentPassword: string;
+
+  @ApiProperty({ description: '새 비밀번호 (최소 8자, 영문/숫자/특수문자 포함)' })
+  @IsString()
+  @MinLength(8, { message: '비밀번호는 최소 8자 이상이어야 합니다.' })
+  @Matches(/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&]).+/, { message: '비밀번호는 영문, 숫자, 특수문자를 모두 포함해야 합니다.' })
+  newPassword: string;
+}
