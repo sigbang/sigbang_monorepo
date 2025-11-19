@@ -1,5 +1,6 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   Headers,
   Ip,
@@ -51,9 +52,9 @@ export class FeedbackController {
         content: f.buffer,
       });
     }
-    // SES 전체 메일 10MB 제한(베이스64 오버헤드 포함) 보호차 9MB로 제한
-    if (totalBytes > 9 * 1024 * 1024) {
-      throw new Error('too large bytes (최대 약 9MB).');
+    // SES 전체 메일 10MB 제한(Base64 오버헤드 고려) → 안전하게 약 7MB로 제한
+    if (totalBytes > 7 * 1024 * 1024) {
+      throw new BadRequestException('첨부 파일 용량이 너무 큽니다(최대 약 7MB).');
     }
 
     return this.service.submit(
