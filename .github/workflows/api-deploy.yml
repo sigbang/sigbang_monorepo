@@ -54,17 +54,42 @@ jobs:
           cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:latest
           cache-to: type=inline
 
-  trigger-infra:
+  infra-apply:
     needs: build-and-push
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sigbang_infra
+    env:
+      TF_IN_AUTOMATION: true
+      AWS_REGION: ap-northeast-2
+      TF_VAR_api_image: ${{ needs.build-and-push.outputs.image }}
+      TF_VAR_manage_ssm: "false"
     steps:
-      - name: Dispatch infra apply
-        uses: peter-evans/repository-dispatch@v3
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          event-type: deploy_api
-          client-payload: |
-            { "image": "${{ needs.build-and-push.outputs.image }}" }
+          terraform_version: 1.9.8
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        run: terraform init -reconfigure -input=false
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan -input=false
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve -input=false
 
 
