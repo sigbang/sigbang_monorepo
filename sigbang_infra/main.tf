@@ -453,6 +453,17 @@ resource "aws_route53_record" "ses_mail_from_spf" {
   records = ["v=spf1 include:amazonses.com -all"]
 }
 
+# DMARC policy for the root domain
+resource "aws_route53_record" "ses_dmarc" {
+  zone_id = var.route53_zone_id
+  name    = "_dmarc.${var.ses_domain}"
+  type    = "TXT"
+  ttl     = 600
+  records = [
+    "v=DMARC1; p=none; rua=mailto:contact.aminity@gmail.com; ruf=mailto:contact.aminity@gmail.com; fo=1; adkim=r; aspf=r; sp=none"
+  ]
+}
+
 resource "aws_sesv2_configuration_set" "ses_config_set" {
   configuration_set_name = "${var.project_name}-default"
   delivery_options {

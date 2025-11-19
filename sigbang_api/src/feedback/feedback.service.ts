@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { SesMailService } from '../common/services/ses-mail.service';
 import { CreateFeedbackDto } from './dto/create-feedback.dto';
 import { MailAttachment } from '../common/services/ses-mail.service';
@@ -13,6 +13,7 @@ interface FeedbackContext {
 
 @Injectable()
 export class FeedbackService {
+  private readonly logger = new Logger(FeedbackService.name);
   constructor(private readonly mail: SesMailService) {}
 
   async submit(
@@ -20,6 +21,13 @@ export class FeedbackService {
     ctx: FeedbackContext,
     attachments: MailAttachment[] = [],
   ) {
+    this.logger.log(
+      `[Feedback] submit type=${dto.type} subject="${dto.subject.slice(
+        0,
+        120,
+      )}" attachments=${attachments.length}`,
+    );
+
     const to = process.env.SES_TO_EMAIL!;
     const subject = `[${dto.type.toUpperCase()}] ${dto.subject}`;
 

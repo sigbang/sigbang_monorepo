@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   SESClient,
   SendEmailCommand,
@@ -24,9 +24,14 @@ export interface SendMailParams {
 
 @Injectable()
 export class SesMailService {
+  private readonly logger = new Logger(SesMailService.name);
   private readonly ses = new SESClient({
     region: process.env.SES_REGION,
   });
+
+  private maskEmail(addr: string): string {
+    return addr.replace(/(.).+(@.+)/, '$1***$2');
+  }
 
   async sendMail(params: SendMailParams) {
     const {
@@ -47,6 +52,25 @@ export class SesMailService {
         : [replyTo]
       : undefined;
 
+    const attachmentsCount = attachments?.length ?? 0;
+    const attachmentsBytes =
+      attachments?.reduce((sum, a) => sum + (a.content?.length || 0), 0) ?? 0;
+
+    const maskedTo = toAddresses.map((a) => this.maskEmail(a)).join(', ');
+    const maskedReplyTo = replyToAddresses
+      ? replyToAddresses.map((a) => this.maskEmail(a)).join(', ')
+      : '';
+
+    this.logger.log(
+      `[SES] send start region=${process.env.SES_REGION} from=${this.maskEmail(
+        from,
+      )} toCount=${toAddresses.length} to=${maskedTo} replyTo=${
+        maskedReplyTo || '-'
+      } attachments=${attachmentsCount} attachmentsBytes=${attachmentsBytes} configSet=${
+        configurationSetName || '-'
+      } subj="${subject.slice(0, 120)}"`,
+    );
+
     if (attachments && attachments.length > 0) {
       const raw = this.buildMimeMessage({
         from,
@@ -54,6 +78,7 @@ export class SesMailService {
         subject,
         html,
         text,
+        replyTo: replyToAddresses,
         attachments,
       });
 
@@ -63,7 +88,19 @@ export class SesMailService {
         Destinations: toAddresses,
         ConfigurationSetName: configurationSetName || undefined,
       });
-      return this.ses.send(command);
+      try {
+        const res = await this.ses.send(command);
+        const msgId = (res as any).MessageId || '-';
+        const reqId = res?.$metadata?.requestId || '-';
+        this.logger.log(`[SES] send success (raw) messageId=${msgId} requestId=${reqId}`);
+        return res;
+      } catch (err: any) {
+        const code = err?.name || err?.code || '-';
+        const msg = err?.message || String(err);
+        const reqId = err?.$metadata?.requestId || '-';
+        this.logger.error(`[SES] send failed (raw) code=${code} requestId=${reqId} msg=${msg}`);
+        throw err;
+      }
     }
 
     const command = new SendEmailCommand({
@@ -79,7 +116,19 @@ export class SesMailService {
         },
       },
     });
-    return this.ses.send(command);
+    try {
+      const res = await this.ses.send(command);
+      const msgId = (res as any).MessageId || '-';
+      const reqId = res?.$metadata?.requestId || '-';
+      this.logger.log(`[SES] send success messageId=${msgId} requestId=${reqId}`);
+      return res;
+    } catch (err: any) {
+      const code = err?.name || err?.code || '-';
+      const msg = err?.message || String(err);
+      const reqId = err?.$metadata?.requestId || '-';
+      this.logger.error(`[SES] send failed code=${code} requestId=${reqId} msg=${msg}`);
+      throw err;
+    }
   }
 
   private buildMimeMessage(input: {
@@ -88,6 +137,7 @@ export class SesMailService {
     subject: string;
     html: string;
     text?: string;
+    replyTo?: string[];
     attachments: MailAttachment[];
   }): Buffer {
     const boundaryMixed = `mixed_${Date.now().toString(36)}`;
@@ -96,6 +146,9 @@ export class SesMailService {
     const headers = [
       `From: ${input.from}`,
       `To: ${input.to.join(', ')}`,
+      ...(input.replyTo && input.replyTo.length
+        ? [`Reply-To: ${input.replyTo.join(', ')}`]
+        : []),
       `Subject: ${this.encodeSubject(input.subject)}`,
       'MIME-Version: 1.0',
       `Content-Type: multipart/mixed; boundary="${boundaryMixed}"`,
