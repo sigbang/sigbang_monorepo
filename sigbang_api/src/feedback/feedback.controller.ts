@@ -53,7 +53,7 @@ export class FeedbackController {
     }
     // SES 전체 메일 10MB 제한(베이스64 오버헤드 포함) 보호차 9MB로 제한
     if (totalBytes > 9 * 1024 * 1024) {
-      throw new Error('첨부 파일 용량이 너무 큽니다(최대 약 9MB).');
+      throw new Error('too large bytes (최대 약 9MB).');
     }
 
     return this.service.submit(
