@@ -26,7 +26,10 @@ export interface SendMailParams {
 export class SesMailService {
   private readonly logger = new Logger(SesMailService.name);
   private readonly ses = new SESClient({
-    region: process.env.SES_REGION,
+    region:
+      process.env.SES_REGION ||
+      process.env.AWS_REGION ||
+      process.env.AWS_DEFAULT_REGION,
   });
 
   private maskEmail(addr: string): string {
