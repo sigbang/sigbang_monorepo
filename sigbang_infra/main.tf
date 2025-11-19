@@ -231,8 +231,8 @@ resource "aws_iam_role_policy" "api_ssm_policy" {
 }
 
 resource "aws_iam_role_policy" "api_ses_policy" {
-  name   = "${var.project_name}-ses-policy"
-  role   = aws_iam_role.api_ec2_role.id
+  name = "${var.project_name}-ses-policy"
+  role = aws_iam_role.api_ec2_role.id
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -266,8 +266,6 @@ data "aws_iam_policy_document" "ssm_policy" {
     resources = ["*"]
   }
 }
-
-
 
 ##########################################
 # ALB + Listener
@@ -324,8 +322,8 @@ resource "aws_lb_listener" "http" {
   default_action {
     type = "redirect"
     redirect {
-      protocol   = "HTTPS"
-      port       = "443"
+      protocol    = "HTTPS"
+      port        = "443"
       status_code = "HTTP_301"
     }
   }
@@ -351,9 +349,9 @@ resource "aws_launch_template" "api_lt" {
   }
 
   user_data = base64encode(templatefile("${path.module}/scripts/userdata.sh", {
-    ssm_prefix   = local.ssm_base
-    region       = var.aws_region
-    docker_image = var.api_image
+    ssm_prefix          = local.ssm_base
+    region              = var.aws_region
+    docker_image        = var.api_image
     refresh_fingerprint = local.refresh_fingerprint
   }))
 
