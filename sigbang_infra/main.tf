@@ -460,7 +460,7 @@ resource "aws_route53_record" "ses_dmarc" {
   type    = "TXT"
   ttl     = 600
   records = [
-    "v=DMARC1; p=none; rua=mailto:contact.aminity@gmail.com; ruf=mailto:contact.aminity@gmail.com; fo=1; adkim=r; aspf=r; sp=none"
+    "v=DMARC1; p=none; rua=mailto:support@${var.ses_domain}; ruf=mailto:support@${var.ses_domain}; fo=1; adkim=r; aspf=r; sp=none"
   ]
 }
 
@@ -469,6 +469,45 @@ resource "aws_sesv2_configuration_set" "ses_config_set" {
   delivery_options {
     tls_policy = "REQUIRE"
   }
+}
+
+##########################################
+# Route53: Root domain email records (Google Workspace)
+##########################################
+
+# Domain verification CNAME (Google Workspace)
+resource "aws_route53_record" "google_workspace_domain_verification" {
+  zone_id = var.route53_zone_id
+  name    = "jyuehr4qumgy"
+  type    = "CNAME"
+  ttl     = 600
+  records = ["gv-u2jznzj6k25fnz.dv.googlehosted.com."]
+}
+
+# Root MX for Google Workspace
+resource "aws_route53_record" "google_workspace_mx" {
+  zone_id = var.route53_zone_id
+  name    = var.ses_domain
+  type    = "MX"
+  ttl     = 600
+  records = [
+    "1 ASPMX.L.GOOGLE.COM.",
+    "5 ALT1.ASPMX.L.GOOGLE.COM.",
+    "5 ALT2.ASPMX.L.GOOGLE.COM.",
+    "10 ALT3.ASPMX.L.GOOGLE.COM.",
+    "10 ALT4.ASPMX.L.GOOGLE.COM."
+  ]
+}
+
+# Root SPF to allow Gmail and SES sending
+resource "aws_route53_record" "root_spf" {
+  zone_id = var.route53_zone_id
+  name    = var.ses_domain
+  type    = "TXT"
+  ttl     = 600
+  records = [
+    "v=spf1 include:_spf.google.com include:amazonses.com ~all"
+  ]
 }
 
 ##########################################
