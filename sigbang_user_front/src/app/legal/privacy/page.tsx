@@ -57,7 +57,7 @@ export default function PrivacyPolicyPage() {
           <h2 className="text-xl font-semibold mt-8">6. 이용자의 권리 및 행사 방법</h2>
           <ul className="list-disc pl-6 space-y-1">
             <li>개인정보 열람, 정정, 삭제 요청 가능</li>
-            <li>앱 내 고객센터 또는 이메일(<a className="text-sky-600 hover:underline" href="mailto:contact.aminity@gmail.com">contact.aminity@gmail.com</a>) 통해 요청 가능</li>
+            <li>앱 내 고객센터 또는 이메일(<a className="text-sky-600 hover:underline" href="mailto:support@sigbang.com">support@sigbang.com</a>) 통해 요청 가능</li>
           </ul>
 
           <h2 className="text-xl font-semibold mt-8">7. 개인정보의 파기절차 및 방법</h2>
@@ -69,7 +69,7 @@ export default function PrivacyPolicyPage() {
           <h2 className="text-xl font-semibold mt-8">8. 개인정보 보호책임자</h2>
           <ul className="list-disc pl-6 space-y-1">
             <li>책임자: 이효섭</li>
-            <li>이메일: <a className="text-sky-600 hover:underline" href="mailto:contact.aminity@gmail.com">contact.aminity@gmail.com</a></li>
+            <li>이메일: <a className="text-sky-600 hover:underline" href="mailto:support@sigbang.com">support@sigbang.com</a></li>
           </ul>
 
           <h2 className="text-xl font-semibold mt-8">9. 정책 변경</h2>

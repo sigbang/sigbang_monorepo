@@ -45,8 +45,8 @@ export default function Footer() {
                 Threads
               </a>
             </div>
-            <a className="hover:underline" href="mailto:contact.aminity@gmail.com">
-              contact.aminity@gmail.com
+            <a className="hover:underline" href="mailto:support@sigbang.com">
+              support@sigbang.com
             </a>
           </div>
         </div>
