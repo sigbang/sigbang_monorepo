@@ -74,8 +74,6 @@ jobs:
           TFVARS_PROD: ${{ secrets.TFVARS_PROD }}
         run: |
           echo "$TFVARS_PROD" > terraform.tfvars
-          echo "api_image = \"${{ needs.build-and-push.outputs.image }}\"" >> terraform.tfvars
-          echo "manage_ssm = false" >> terraform.tfvars
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -96,9 +94,9 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
-        run: terraform plan -input=false
+        run: terraform plan -input=false -var="api_image=${{ needs.build-and-push.outputs.image }}" -var="manage_ssm=false"
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve -input=false
+        run: terraform apply -auto-approve -input=false -var="api_image=${{ needs.build-and-push.outputs.image }}" -var="manage_ssm=false"
 
 
