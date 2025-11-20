@@ -22,7 +22,7 @@ export class FeedbackService {
     attachments: MailAttachment[] = [],
   ) {
     this.logger.log(
-      `[Feedback]  submit type=${dto.type} subject="${dto.subject.slice(
+      `[Feedback] submit type=${dto.type} subject="${dto.subject.slice(
         0,
         120,
       )}" attachments=${attachments.length}`,
