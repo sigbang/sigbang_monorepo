@@ -68,6 +68,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Write terraform.tfvars from secret
+        working-directory: sigbang_infra
+        env:
+          TFVARS_PROD: ${{ secrets.TFVARS_PROD }}
+        run: |
+          echo "$TFVARS_PROD" > terraform.tfvars
+          echo "api_image = \"${{ needs.build-and-push.outputs.image }}\"" >> terraform.tfvars
+          echo "manage_ssm = false" >> terraform.tfvars
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
