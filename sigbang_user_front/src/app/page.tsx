@@ -88,10 +88,10 @@ export default async function Home() {
   return (
     <div className="min-h-screen">
       <Topbar />
-      <div className="mx-auto max-w-[1200px] flex">
+      <div className="mx-auto max-w-[1200px] flex items-start">
         <Sidebar />
         <main id="main" className="flex-1 px-6 py-6" role="main" tabIndex={-1}>
-          <Section title="지금 인기" items={nowItems} />
+          <Section title="지금 인기 레시피" items={nowItems} />
           <div className="h-[24px]" />
           <RecommendedSection />
         </main>

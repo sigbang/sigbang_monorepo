@@ -314,7 +314,7 @@ const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
     }
   };
   const content = (
-    <div ref={ref} tabIndex={tabIndex} style={{ width: '100%' }} className={(active ? 'ring-6 ring-amber-200 ' : '') + 'rounded-[16px] focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white hover:ring-8 hover:ring-amber-200 hover:shadow-md transition-shadow'}>
+    <div ref={ref} tabIndex={tabIndex} style={{ width: '100%' }} className={(active ? 'ring-6 ring-amber-200 ' : '') + 'rounded-[20px] border border-[#ddd] focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white hover:ring-8 hover:ring-amber-200 hover:shadow-md transition-shadow'}>
       <div
         style={{ width: '100%', aspectRatio: '16 / 9', borderRadius: 12, overflow: 'hidden', background: '#eee', position: 'relative' }}
         onMouseEnter={() => setIsHovered(true)}
@@ -364,7 +364,7 @@ const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
           </div>
         )}
       </div>
-      <div className="px-1 pt-2 pb-1">
+      <div className="px-3 pt-2 pb-1">
         <div className="text-[16px] font-semibold text-[#223]">{title}</div>
         {description && (
           <div className="mt-1 text-[13px] text-[#6b7280] truncate">{description}</div>
@@ -384,7 +384,7 @@ const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
           </div>
         </div>
       </div>
-      <div className="px-1 pb-2 flex items-center justify-between">
+      <div className="px-3 pb-2 flex items-center justify-between">
         <div className="flex items-center gap-2 text-[12px] text-[#6b7280]">
           <span>좋아요 {formatCountShort(likeCount)}</span>
         </div>

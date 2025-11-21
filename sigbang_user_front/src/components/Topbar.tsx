@@ -43,7 +43,7 @@ export default function Topbar() {
   const userName = (session?.user as { name?: string } | undefined)?.name || '';
 
   return (
-    <header className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-[#eee]">
+    <header className="sticky top-0 z-10 bg-white/80 backdrop-blur">
       <div className="mx-auto max-w-[1040px] px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Link href="/" className="flex items-center gap-2" aria-label="식방 홈">
