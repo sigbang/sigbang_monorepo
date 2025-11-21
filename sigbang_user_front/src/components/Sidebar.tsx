@@ -16,7 +16,7 @@ export default function Sidebar() {
     return pathname === href || pathname.startsWith(href + '/');
   };
   return (
-    <aside className="hidden sm:flex sm:flex-col sm:w-[200px] sticky top-[56px] self-start h-[calc(100vh-160px)] px-4 pt-6 gap-6" aria-label="사이드바 내비게이션">      
+    <aside className="hidden sm:flex sm:flex-col sm:w-[200px] sticky top-[84px] self-start h-[calc(100vh-160px)] px-4 pt-6 gap-6" aria-label="사이드바 내비게이션">      
       <nav className="flex flex-col gap-3 text-[18px]">
         <Link className={`flex items-center gap-2 rounded text-[#6b7280] hover:text-black ${isActive('/') ? 'text-black' : ''}`} href="/" aria-current={isActive('/') ? 'page' : undefined}><HomeIcon size={24} filled={isActive('/')} />{t('nav.home')}</Link>
         <Link className={`flex items-center gap-2 rounded text-[#6b7280] hover:text-black ${isActive('/search') ? 'text-black' : ''}`} href="/search" aria-current={isActive('/search') ? 'page' : undefined}><SearchIcon size={24} filled={isActive('/search')} />{t('nav.search')}</Link>

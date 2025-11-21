@@ -90,9 +90,11 @@ export default function AppMenuButton({
         <div
           role="menu"
           className={
-            "absolute z-50 mt-2 w-[220px] rounded-2xl bg-white shadow-lg border border-[#eee] p-3 " +
+            "absolute z-50 w-[200px] rounded-2xl bg-white shadow-lg border border-[#eee] p-3 " +
             (menuPosition === "right" ? "right-0" : "left-0") +
-            " bottom-12 sm:bottom-auto"
+            " " +
+            // Sidebar(nav)와 Mobile에서는 버튼이 하단에 위치하므로 메뉴를 위로 띄운다
+            ((variant === "nav" || variant === "mobile") ? "bottom-[calc(100%+8px)]" : "top-full mt-2")
           }
         >
           <Link

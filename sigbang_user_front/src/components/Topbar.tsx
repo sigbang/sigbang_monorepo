@@ -44,15 +44,29 @@ export default function Topbar() {
 
   return (
     <header className="sticky top-0 z-10 bg-white/80 backdrop-blur">
-      <div className="mx-auto max-w-[1040px] px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="mx-auto max-w-[1040px] px-4 py-4 flex items-center gap-4">
+        <div className="flex items-center gap-2 shrink-0">
           <Link href="/" className="flex items-center gap-2" aria-label="식방 홈">
             <Image src="/logo.png" alt="식방" width={28} height={28} priority />
             <span className="sr-only">식방</span>
           </Link>
           <div className="text-[14px]">식방 Beta</div>
-        </div>        
-        <div className="relative" ref={menuRef}>
+        </div>
+
+        {/* Center banner (desktop/tablet only) */}
+        <div className="hidden sm:flex flex-1 justify-center">
+          <Link href="/feedback" className="w-2/3 group" aria-label="피드백 보내기 배너">
+            <div className="relative h-[44px] rounded-lg overflow-hidden bg-[#f5f5f5]">
+              {/* 준비된 이미지가 있을 경우 Image 사용 */}
+              {/* <Image src="/banners/top-feedback.png" alt="피드백 보내기" fill sizes="(max-width: 1040px) 33vw, 340px" className="object-cover transition-transform duration-300 group-hover:scale-[1.02]" priority /> */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-[13px] text-[#666]">피드백 배너 (이미지 준비 중)</span>
+              </div>
+            </div>
+          </Link>
+        </div>
+
+        <div className="relative shrink-0" ref={menuRef}>
           {isAuthed ? (
             <button
               aria-haspopup="menu"
@@ -113,6 +127,15 @@ export default function Topbar() {
             </div>
           )}
         </div>
+      </div>
+      {/* Mobile compact CTA below row */}
+      <div className="mx-auto max-w-[1040px] px-4 pb-2 w-full">
+        {/* Mobile compact CTA */}
+        <Link href="/feedback" className="sm:hidden block" aria-label="피드백 보내기">
+          <div className="mt-1 w-full rounded-lg bg-[#f5f5f5] text-center py-2 text-[13px] text-[#333]">
+            피드백 보내기
+          </div>
+        </Link>
       </div>
     </header>
   );

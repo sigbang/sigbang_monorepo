@@ -90,7 +90,7 @@ export default async function Home() {
       <Topbar />
       <div className="mx-auto max-w-[1200px] flex items-start">
         <Sidebar />
-        <main id="main" className="flex-1 px-6 py-6" role="main" tabIndex={-1}>
+        <main id="main" className="flex-1 px-6 py-6" role="main" tabIndex={-1}>          
           <Section title="지금 인기 레시피" items={nowItems} />
           <div className="h-[24px]" />
           <RecommendedSection />
