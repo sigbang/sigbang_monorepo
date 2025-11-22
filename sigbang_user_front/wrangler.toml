@@ -1,5 +1,6 @@
 name = "sigbang-user-front"
-main = ".open-next/worker/index.mjs"
+# OpenNext Cloudflare output paths
+main = ".open-next/server-functions/default/index.mjs"
 assets = { directory = ".open-next/assets" }
 compatibility_date = "2024-11-01"
 
