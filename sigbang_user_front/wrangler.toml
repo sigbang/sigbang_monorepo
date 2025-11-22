@@ -1,0 +1,10 @@
+name = "sigbang-user-front"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Note:
+# - This file is read by Cloudflare Pages build (beta) to set Worker compatibility.
+# - Keep the date reasonably current to use new runtime features safely.
+# - No Pages-specific fields are required here; next-on-pages handles the build output.
+
+
