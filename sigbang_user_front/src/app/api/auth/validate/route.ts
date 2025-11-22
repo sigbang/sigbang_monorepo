@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 import { NextResponse } from 'next/server';
 import { getAccessToken, getRefreshToken } from '@/lib/auth/cookies';
 import { refreshTokens } from '@/lib/auth/refresh';
