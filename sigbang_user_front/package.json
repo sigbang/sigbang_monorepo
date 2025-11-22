@@ -7,8 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "build:cf": "npx -y @cloudflare/next-on-pages@latest",
-    "dev:cf": "npx wrangler pages dev ."
+    "build:cf": "npx @opennextjs/cloudflare@latest build",
+    "deploy:cf": "npx wrangler deploy"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.58.0",
@@ -25,6 +25,8 @@
     "@eslint/eslintrc": "^3",
     "@next/bundle-analyzer": "^16.0.1",
     "@tailwindcss/postcss": "^4",
+    "@opennextjs/cloudflare": "latest",
+    "open-next": "latest",
     "wrangler": "^3.92.0",
     "@types/node": "^20",
     "@types/react": "^19",
