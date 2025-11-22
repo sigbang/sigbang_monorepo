@@ -2,7 +2,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { forwardRef, useEffect, useRef, useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession } from '@/lib/auth/session';
 import { IconClock, IconBookmark, IconHeart } from './icons';
 import { toggleLike, toggleSave, getRecipe } from '@/lib/api/recipes';
 import { useQueryClient } from '@tanstack/react-query';

@@ -6,7 +6,7 @@ import Topbar from "@/components/Topbar";
 import Sidebar from "@/components/Sidebar";
 import MobileNav from "@/components/MobileNav";
 import { deleteMe } from "@/lib/api/users";
-import { signOut, useSession } from "next-auth/react";
+import { signOut, useSession } from "@/lib/auth/session";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMyProfile } from "@/lib/hooks/users";
 import Image from "next/image";

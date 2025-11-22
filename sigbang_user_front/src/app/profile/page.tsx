@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth/session";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useFollowers, useFollowings, useMyFollowCounts, useMyProfile, useMyRecipes, useMySavedRecipes, useUpdateNickname } from "@/lib/hooks/users";
 import RecipeCard from "@/components/RecipeCard";

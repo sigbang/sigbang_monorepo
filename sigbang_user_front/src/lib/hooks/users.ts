@@ -1,6 +1,6 @@
 'use client';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSession } from 'next-auth/react';
+import { useSession } from '@/lib/auth/session';
 import {
   followUser,
   getFollowCounts,

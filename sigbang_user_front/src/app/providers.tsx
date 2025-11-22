@@ -1,7 +1,7 @@
 "use client";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode, useEffect, useState } from 'react';
-import { SessionProvider } from 'next-auth/react';
+import { SessionProvider } from '@/lib/auth/session';
 import { ensureDeviceCookie } from '@/lib/auth/device';
 import { useSessionKeepAlive } from '@/hooks/useSessionKeepAlive';
 import LoginModalHost from '@/components/LoginModalHost';

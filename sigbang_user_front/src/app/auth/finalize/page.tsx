@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getOrCreateDeviceId, getDeviceName } from '@/lib/auth/device';
-import { useSession, signOut } from 'next-auth/react';
+import { useSession, signOut } from '@/lib/auth/session';
 import { useRouter } from 'next/navigation';
 
 export default function FinalizeAuthPage() {

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useSession, signOut } from 'next-auth/react';
+import { useSession, signOut } from '@/lib/auth/session';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMyProfile } from '@/lib/hooks/users';
 

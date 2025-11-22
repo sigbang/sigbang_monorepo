@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMyProfile } from '@/lib/hooks/users';
 import { useRecipe, useToggleLike, useToggleSave } from '@/lib/hooks/recipes';
-import { useSession } from 'next-auth/react';
+import { useSession } from '@/lib/auth/session';
 import { IconArrowLeft, IconBookmark, IconClock, IconHeart } from '@/components/icons';
 import { deleteRecipe, reportRecipe, RecipeDetail } from '@/lib/api/recipes';
 

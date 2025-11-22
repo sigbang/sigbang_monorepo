@@ -1,6 +1,6 @@
 "use client";
 
-import { signIn, signOut, useSession } from "next-auth/react";
+import { signOut, useSession } from "@/lib/auth/session";
 
 export default function AuthButtons() {
   const { data: session, status } = useSession();
@@ -20,7 +20,7 @@ export default function AuthButtons() {
     );
   }
 
-  return <button onClick={() => signIn("google", { callbackUrl: "/auth/finalize" })}>Google로 로그인</button>;
+  return <button onClick={() => (window.location.href = "/login")}>Google로 로그인</button>;
 }
 
 
