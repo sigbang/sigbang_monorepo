@@ -26,7 +26,7 @@ jobs:
           cache-dependency-path: sigbang_user_front/package.json
 
       - name: Install
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Build (OpenNext Cloudflare)
         run: npm run build:cf
