@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "build:cf": "npx @opennextjs/cloudflare@latest build",
+    "build:cf": "npx @opennextjs/cloudflare@latest build --openNextConfigPath open-next.config.js",
     "deploy:cf": "npx wrangler deploy"
   },
   "dependencies": {
