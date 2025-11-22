@@ -13,7 +13,7 @@ export default function FeedbackPage() {
         <main id="main" className="flex-1 px-6 py-6" role="main" tabIndex={-1}>
           <div className="mx-auto max-w-[800px]">
             <h1 className="text-2xl font-semibold">의견 보내기</h1>
-            <p className="mt-2 text-gray-600 text-sm">서비스 개선을 위해 소중한 의견을 남겨 주세요.</p>
+            <p className="mt-2 text-gray-600 text-sm">서비스 개선을 위해 소중한 의견을 남겨 주시면</p>
             <FeedbackForm />
           </div>
         </main>
