@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState } from 'react';
 import { getOrCreateDeviceId, getDeviceName } from '@/lib/auth/device';
 import { useSession, signOut } from '@/lib/auth/session';

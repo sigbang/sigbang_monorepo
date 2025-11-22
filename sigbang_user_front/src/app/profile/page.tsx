@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { useSession } from "@/lib/auth/session";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useFollowers, useFollowings, useMyFollowCounts, useMyProfile, useMyRecipes, useMySavedRecipes, useUpdateNickname } from "@/lib/hooks/users";

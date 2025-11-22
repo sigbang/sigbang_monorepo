@@ -10,7 +10,7 @@ export const metadata = {
   openGraph: { type: 'website', url: '/about', title: '식방 소개', description: '세상의 모든 레시피를 발견하고 저장하는 공간', images: [{ url: '/og.png' }] },
 };
 
-export const dynamic = 'force-static';
+export const dynamic = 'force-dynamic';
 
 export default function AboutPage() {
   return (

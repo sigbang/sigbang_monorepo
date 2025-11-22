@@ -4,6 +4,8 @@ import Topbar from "@/components/Topbar";
 import Sidebar from "@/components/Sidebar";
 import MobileNav from "@/components/MobileNav";
 
+export const dynamic = 'force-dynamic';
+
 export default function AccountDeletedPage() {
   return (
     <div className="min-h-screen">

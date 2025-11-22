@@ -2,6 +2,8 @@ import Topbar from '@/components/Topbar';
 import Footer from '@/components/Footer';
 import MobileNav from '@/components/MobileNav';
 
+export const dynamic = 'force-dynamic';
+
 export default function PrivacyPolicyPage() {
   return (
     <div className="min-h-screen">

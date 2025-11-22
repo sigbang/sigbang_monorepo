@@ -3,6 +3,8 @@ import Sidebar from "@/components/Sidebar";
 import MobileNav from "@/components/MobileNav";
 import Footer from "@/components/Footer";
 
+export const dynamic = 'force-dynamic';
+
 export default function DownloadPage() {
   return (
     <div className="min-h-screen">

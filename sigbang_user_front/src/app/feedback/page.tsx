@@ -4,6 +4,8 @@ import MobileNav from '@/components/MobileNav';
 import FeedbackForm from '@/components/feedback/FeedbackForm';
 import Sidebar from '@/components/Sidebar';
 
+export const dynamic = 'force-dynamic';
+
 export default function FeedbackPage() {
   return (
     <div className="min-h-screen">
