@@ -14,11 +14,6 @@
     "lint:web": "npm run -w sigbang_user_front lint",
     "test:api": "npm run -w sigbang_api test"
   },
-  "devDependencies": {
-    "@cloudflare/next-on-pages": "1.14.1"
-  },
-  "overrides": {
-    "@cloudflare/next-on-pages": "1.14.1"
-  }
+  "devDependencies": {}
 }
 
