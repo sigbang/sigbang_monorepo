@@ -1,5 +1,8 @@
+// Some OpenNext loaders expect a `default` export on CJS modules.
 module.exports = {
-  outDir: ".open-next",
+  default: {
+    outDir: ".open-next",
+  },
 };
 
 
