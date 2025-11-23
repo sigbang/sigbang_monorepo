@@ -4,6 +4,9 @@ import Topbar from "@/components/Topbar";
 import Sidebar from "@/components/Sidebar";
 import MobileNav from "@/components/MobileNav";
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: '피드백 전송 완료 - 식방',
   description: '소중한 의견이 성공적으로 전달되었습니다.',
