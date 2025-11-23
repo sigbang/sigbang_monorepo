@@ -1,8 +1,14 @@
 export function parseJwt<T = any>(token: string): T | null {
   try {
     const payload = token.split('.')[1];
-    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
-    const json = Buffer.from(normalized, 'base64').toString('utf8');
+    // Base64url decode without using Node Buffer (Edge-safe)
+    let normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const pad = normalized.length % 4 ? 4 - (normalized.length % 4) : 0;
+    if (pad) normalized = normalized + '='.repeat(pad);
+    const binary = atob(normalized);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const json = new TextDecoder().decode(bytes);
     return JSON.parse(json);
   } catch {
     return null;
