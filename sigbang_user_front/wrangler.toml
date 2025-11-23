@@ -1,8 +1,9 @@
 name = "sigbang-user-front"
-# OpenNext Cloudflare output paths
-main = ".open-next/server-functions/default/index.mjs"
+# OpenNext Cloudflare output (module worker)
+main = ".open-next/worker/index.mjs"
 assets = { directory = ".open-next/assets" }
 compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
 
 # OpenNext Cloudflare (Workers) config:
 # - `build:cf` generates `.open-next/*`
