@@ -46,12 +46,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
       - name: Write TFVARS from secret
-        if: ${{ secrets.TFVARS_PROD != '' }}
         env:
           TFVARS_PROD: ${{ secrets.TFVARS_PROD }}
         run: |
-          echo "$TFVARS_PROD" > terraform.tfvars
-          echo "terraform.tfvars written from TFVARS_PROD secret"
+          if [ -n "$TFVARS_PROD" ]; then
+            printf "%s" "$TFVARS_PROD" > terraform.tfvars
+            echo "terraform.tfvars written from TFVARS_PROD secret"
+          else
+            echo "TFVARS_PROD is empty; skipping write"
+          fi
       - name: Terraform Init
         run: terraform init
       - name: Terraform Apply (web)

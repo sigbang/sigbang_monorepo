@@ -169,7 +169,7 @@ resource "aws_autoscaling_group" "web_asg" {
 
 # Route53 records for root and www -> ALB (optional, only if hostnames include these)
 resource "aws_route53_record" "root_a_alias" {
-  count  = contains(var.web_hostnames, var.ses_domain) ? 1 : 0
+  count = contains(var.web_hostnames, var.ses_domain) ? 1 : 0
   zone_id = var.route53_zone_id
   name    = var.ses_domain
   type    = "A"
@@ -181,7 +181,7 @@ resource "aws_route53_record" "root_a_alias" {
 }
 
 resource "aws_route53_record" "root_aaaa_alias" {
-  count  = contains(var.web_hostnames, var.ses_domain) ? 1 : 0
+  count = contains(var.web_hostnames, var.ses_domain) ? 1 : 0
   zone_id = var.route53_zone_id
   name    = var.ses_domain
   type    = "AAAA"
@@ -193,7 +193,7 @@ resource "aws_route53_record" "root_aaaa_alias" {
 }
 
 resource "aws_route53_record" "www_a_alias" {
-  count  = contains(var.web_hostnames, "www.${var.ses_domain}") ? 1 : 0
+  count = contains(var.web_hostnames, "www.${var.ses_domain}") ? 1 : 0
   zone_id = var.route53_zone_id
   name    = "www"
   type    = "A"
@@ -205,7 +205,7 @@ resource "aws_route53_record" "www_a_alias" {
 }
 
 resource "aws_route53_record" "www_aaaa_alias" {
-  count  = contains(var.web_hostnames, "www.${var.ses_domain}") ? 1 : 0
+  count = contains(var.web_hostnames, "www.${var.ses_domain}") ? 1 : 0
   zone_id = var.route53_zone_id
   name    = "www"
   type    = "AAAA"
