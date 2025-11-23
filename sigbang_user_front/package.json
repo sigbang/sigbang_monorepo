@@ -7,8 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "build:cf": "npx @opennextjs/cloudflare@1.13.1 build --openNextConfigPath ./open-next.config.cjs --skipWranglerConfigCheck",
-    "deploy:cf": "npx wrangler deploy"
+    "build:pages": "npx @cloudflare/next-on-pages@latest build",
+    "preview:pages": "npx wrangler pages dev .vercel/output/static --functions .vercel/output/functions --compatibility-date=2024-11-01"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.58.0",
@@ -25,9 +25,8 @@
     "@eslint/eslintrc": "^3",
     "@next/bundle-analyzer": "^16.0.1",
     "@tailwindcss/postcss": "^4",
-    "@opennextjs/cloudflare": "1.13.1",
-    "open-next": "latest",
-    "wrangler": "^4.49.1",
+    "@cloudflare/next-on-pages": "latest",
+    "wrangler": "^4.50.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
