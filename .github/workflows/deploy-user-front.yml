@@ -31,6 +31,17 @@ jobs:
       - name: Build (Cloudflare Pages - next-on-pages)
         run: npm run build:pages
 
+      - name: Verify Cloudflare auth and project
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_PAGES_PROJECT: ${{ secrets.CF_PAGES_PROJECT }}
+        run: |
+          npx wrangler --version
+          npx wrangler whoami
+          # Ensure the Pages project exists
+          npx wrangler pages project list | grep -i -w "$CF_PAGES_PROJECT" || { echo "Pages project '$CF_PAGES_PROJECT' not found in account $CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+
       - name: Deploy to Cloudflare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
