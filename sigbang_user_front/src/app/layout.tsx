@@ -7,7 +7,7 @@ import { I18nProvider } from "@/i18n/I18nProvider";
 import { loadDictionary } from "@/i18n";
 import { ENV } from "@/lib/env";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-static';
 export const runtime = 'edge';
 
 const geistSans = Geist({
