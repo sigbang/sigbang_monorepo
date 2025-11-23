@@ -55,7 +55,7 @@ jobs:
           ls -la .vercel/output/static || true
           ls -la .vercel/output/functions || true
           npx wrangler pages deploy \
-            .vercel/output \
+            .vercel/output/static \
             --project-name="${{ secrets.CF_PAGES_PROJECT }}" \
             --branch="${{ github.ref_name }}"
 
