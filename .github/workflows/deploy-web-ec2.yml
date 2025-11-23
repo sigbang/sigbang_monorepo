@@ -59,6 +59,10 @@ jobs:
             echo "TFVARS_PROD is empty; skipping write"
           fi
       - name: Terraform Init
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ap-northeast-2
         run: terraform init
       - name: Terraform Apply (web)
         env:
