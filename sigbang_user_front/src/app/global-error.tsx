@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 
 export default function GlobalError(props: { error: Error & { digest?: string }; reset: () => void }) {
   const { error, reset } = props;
@@ -16,9 +17,9 @@ export default function GlobalError(props: { error: Error & { digest?: string };
               >
                 새로고침
               </button>
-              <a href="/" className="px-4 py-2 rounded-md border border-[#ddd] text-[14px] text-[#111] hover:bg-[#fafafa]">
+              <Link href="/" className="px-4 py-2 rounded-md border border-[#ddd] text-[14px] text-[#111] hover:bg-[#fafafa]">
                 홈으로
-              </a>
+              </Link>
             </div>
             {process.env.NODE_ENV !== 'production' && (
               <pre className="mt-6 text-left text-[12px] text-[#a33] bg-[#fff5f5] border border-[#f1dada] rounded-md p-3 overflow-auto">

@@ -1,4 +1,4 @@
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 export const dynamic = 'force-static';
 
 export default function NotFound() {
