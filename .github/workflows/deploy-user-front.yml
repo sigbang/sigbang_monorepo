@@ -50,8 +50,9 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CF_PAGES_PROJECT: ${{ secrets.CF_PAGES_PROJECT }}
         run: |
+          cd .vercel/output
           npx wrangler pages deploy \
-            .vercel/output/static \
+            static \
             --project-name="${{ secrets.CF_PAGES_PROJECT }}" \
             --branch="${{ github.ref_name }}"
 
