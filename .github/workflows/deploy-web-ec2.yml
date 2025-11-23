@@ -21,8 +21,7 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: sigbang_user_front/package-lock.json
-      - run: npm ci --no-audit --no-fund
+      - run: npm install --no-audit --no-fund
       - name: Build Docker image
         run: docker build -t ghcr.io/${{ github.repository_owner }}/sigbang_user_front:${{ github.sha }} .
       - name: Login to GHCR
