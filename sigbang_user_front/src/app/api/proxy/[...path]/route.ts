@@ -1,4 +1,4 @@
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
 import { ENV } from '@/lib/env';
 import { getAccessToken, getRefreshToken, clearTokens } from '@/lib/auth/cookies';
@@ -8,7 +8,11 @@ import { refreshTokens } from '@/lib/auth/refresh';
 async function forward(req: NextRequest, at: string | undefined, body: ArrayBuffer | undefined) {
   const url = new URL(req.url);
   const path = url.pathname.replace(/^\/api\/proxy/, '');
-  const target = `${ENV.API_BASE_URL}${path}${url.search || ''}`;
+  // Runtime safety: ensure absolute HTTPS target even if env is missing at build time
+  const apiBase = (ENV.API_BASE_URL && /^https?:/i.test(ENV.API_BASE_URL))
+    ? ENV.API_BASE_URL
+    : 'https://api.sigbang.com';
+  const target = `${apiBase}${path}${url.search || ''}`;
 
   const headers = new Headers(req.headers);
   headers.delete('host');

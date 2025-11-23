@@ -56,6 +56,7 @@ variable "web_hostnames" {
 variable "web_acm_certificate_arn" {
   type        = string
   description = "ACM certificate ARN for the web hostnames (can be same ALB listener via additional certificate)"
+  default     = ""
 }
 
 variable "web_health_path" {
@@ -240,6 +241,7 @@ variable "ghcr_token" {
 variable "acm_certificate_arn" {
   type        = string
   description = "Existing ACM certificate ARN for api.sigbang.com in ap-northeast-2"
+  default     = ""
 }
 
 ##########################################
@@ -259,4 +261,13 @@ variable "mail_from_subdomain" {
   type        = string
   default     = "mail"
   description = "Subdomain for MAIL FROM (e.g., 'mail' -> mail.sigbang.com)"
+}
+
+##########################################
+# ACM management toggle
+##########################################
+variable "manage_acm" {
+  type        = bool
+  default     = false
+  description = "If true and ARN vars are empty, automatically provision ACM cert for root/www/api using DNS validation"
 }
