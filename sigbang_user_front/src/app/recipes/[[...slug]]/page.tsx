@@ -3,8 +3,7 @@ import RecipeDetailClient from '@/app/recipes/_client/RecipeDetailClient';
 import { mapRecipeDetail, type RecipeDetail } from '@/lib/api/recipes';
 import { ENV } from '@/lib/env';
 
-export const revalidate = 60;
-export const dynamic = 'force-static';
+export const dynamic = 'force-dynamic';
 
 async function fetchRecipeByParts(parts: string[] | undefined): Promise<RecipeDetail | null> {
   if (!parts || parts.length === 0) return null;
@@ -105,19 +104,6 @@ export default async function Page({ params }: { params: Promise<{ slug?: string
   );
 }
 
-export async function generateStaticParams(): Promise<{ slug: string[] }[]> {
-  try {
-    const apiBase = ENV.API_BASE_URL.replace(/\/+$/, '');
-    const res = await fetch(`${apiBase}/feed/popular?limit=200`, { next: { revalidate: 3600 } });
-    if (!res.ok) return [];
-    const json: any = await res.json().catch(() => null);
-    const list = (json?.data?.recipes ?? json?.recipes ?? []) as any[];
-    return list
-      .map((r) => (r?.slugPath ? r.slugPath.split('/') : (r?.region && r?.slug ? [r.region, r.slug] : null)))
-      .filter(Boolean) as { slug: string[] }[];
-  } catch {
-    return [];
-  }
-}
+
 
 

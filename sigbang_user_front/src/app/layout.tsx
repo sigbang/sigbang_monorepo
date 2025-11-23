@@ -8,6 +8,7 @@ import { loadDictionary } from "@/i18n";
 import { ENV } from "@/lib/env";
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
