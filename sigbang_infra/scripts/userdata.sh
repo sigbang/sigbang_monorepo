@@ -7,6 +7,9 @@ exec > >(tee -a /var/log/userdata.log) 2>&1
 SSM_PREFIX="${ssm_prefix}"
 AWS_REGION="${region}"
 DOCKER_IMAGE="${docker_image}"
+# Optional registry credentials injected by TF (fallback if SSM not present)
+GHCR_USERNAME_TF="${ghcr_username}"
+GHCR_TOKEN_TF="${ghcr_token}"
 
 # Fingerprint injected to ensure LT updates on tfvars changes (no-op usage)
 # refresh_fingerprint=${refresh_fingerprint}
@@ -54,10 +57,30 @@ if [ -f "$ENV_FILE" ]; then
   set +a
 fi
 
-# Optional: GHCR login if private image credentials are provided
-if [ -n "$${GHCR_USERNAME:-}" ] && [ -n "$${GHCR_TOKEN:-}" ]; then
-  echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
-fi
+# Login to container registry when credentials are available
+# Detect registry host from image (e.g., ghcr.io/owner/repo:tag)
+REGISTRY_HOST="$(echo "$${DOCKER_IMAGE}" | awk -F/ '{print $1}')"
+
+# Prefer SSM-provided creds; fallback to TF-injected
+GHCR_USER="$${GHCR_USERNAME:-$GHCR_USERNAME_TF}"
+GHCR_PASS="$${GHCR_TOKEN:-$GHCR_TOKEN_TF}"
+
+case "$REGISTRY_HOST" in
+  ghcr.io)
+    if [ -n "$GHCR_USER" ] && [ -n "$GHCR_PASS" ]; then
+      echo "$GHCR_PASS" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+    fi
+    ;;
+  docker.io|index.docker.io)
+    # Support optional Docker Hub creds if present in SSM (.env)
+    if [ -n "$${DOCKERHUB_USERNAME:-}" ] && [ -n "$${DOCKERHUB_TOKEN:-}" ]; then
+      echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+    fi
+    ;;
+  *)
+    : # no-op for public registries
+    ;;
+esac
 
 # Run container
 retry docker pull "$${DOCKER_IMAGE}"

@@ -165,6 +165,8 @@ locals {
     ses_region                = var.ses_region
     ghcr_username             = try(var.ghcr_username, "")
     ghcr_token                = try(var.ghcr_token, "")
+    dockerhub_username        = try(var.dockerhub_username, "")
+    dockerhub_token           = try(var.dockerhub_token, "")
   }))
 }
 
@@ -192,6 +194,8 @@ resource "aws_ssm_parameter" "env_vars" {
     SES_CONFIGURATION_SET     = "${var.project_name}-default"
     GHCR_USERNAME             = try(var.ghcr_username, null)
     GHCR_TOKEN                = try(var.ghcr_token, null)
+    DOCKERHUB_USERNAME        = try(var.dockerhub_username, null)
+    DOCKERHUB_TOKEN           = try(var.dockerhub_token, null)
   } : {}
 
   name      = "/${local.ssm_base}/${each.key}"
@@ -353,6 +357,8 @@ resource "aws_launch_template" "api_lt" {
     region              = var.aws_region
     docker_image        = var.api_image
     refresh_fingerprint = local.refresh_fingerprint
+    ghcr_username       = try(var.ghcr_username, "")
+    ghcr_token          = try(var.ghcr_token, "")
   }))
 
   lifecycle {

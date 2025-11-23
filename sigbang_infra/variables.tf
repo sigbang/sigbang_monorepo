@@ -236,6 +236,22 @@ variable "ghcr_token" {
 }
 
 ##########################################
+# Docker Hub credentials (optional)
+##########################################
+variable "dockerhub_username" {
+  type        = string
+  default     = ""
+  description = "Docker Hub username (optional)"
+}
+
+variable "dockerhub_token" {
+  type        = string
+  sensitive   = true
+  default     = ""
+  description = "Docker Hub access token or PAT (optional)"
+}
+
+##########################################
 # ACM certificate ARN for HTTPS listener
 ##########################################
 variable "acm_certificate_arn" {

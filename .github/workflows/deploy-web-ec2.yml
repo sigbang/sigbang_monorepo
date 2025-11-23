@@ -16,6 +16,8 @@ permissions:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.image.outputs.image }}
     defaults:
       run:
         working-directory: sigbang_user_front
