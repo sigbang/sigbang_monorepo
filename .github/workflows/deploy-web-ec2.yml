@@ -45,6 +45,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
+      - name: Write TFVARS from secret
+        if: ${{ secrets.TFVARS_PROD != '' }}
+        env:
+          TFVARS_PROD: ${{ secrets.TFVARS_PROD }}
+        run: |
+          echo "$TFVARS_PROD" > terraform.tfvars
+          echo "terraform.tfvars written from TFVARS_PROD secret"
       - name: Terraform Init
         run: terraform init
       - name: Terraform Apply (web)
@@ -55,12 +62,6 @@ jobs:
         run: |
           terraform apply -auto-approve \
             -var="web_image=${{ needs.build-and-push.outputs.image }}" \
-            -var="manage_ssm=false" \
-            -var="web_site_url=${{ secrets.WEB_SITE_URL }}" \
-            -var="web_api_base_url=${{ secrets.WEB_API_BASE_URL }}" \
-            -var="web_supabase_url=${{ secrets.WEB_SUPABASE_URL }}" \
-            -var="web_supabase_anon_key=${{ secrets.WEB_SUPABASE_ANON_KEY }}" \
-            -var="web_hostnames=${{ secrets.WEB_HOSTNAMES_JSON }}" \
-            -var="web_acm_certificate_arn=${{ secrets.WEB_ACM_CERT_ARN }}"
+            -var="manage_ssm=false"
 
 
