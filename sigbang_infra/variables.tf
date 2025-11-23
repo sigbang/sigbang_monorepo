@@ -34,6 +34,57 @@ variable "api_image" {
 }
 
 ##########################################
+# Web (Next.js) Deployment Variables
+##########################################
+
+variable "web_project_name" {
+  type    = string
+  default = "sigbang-web"
+}
+
+variable "web_image" {
+  type        = string
+  description = "Docker image for Next.js web"
+}
+
+variable "web_hostnames" {
+  type        = list(string)
+  description = "Hostnames that should route to the web app via ALB (e.g., [\"sigbang.com\",\"www.sigbang.com\"])"
+  default     = []
+}
+
+variable "web_acm_certificate_arn" {
+  type        = string
+  description = "ACM certificate ARN for the web hostnames (can be same ALB listener via additional certificate)"
+}
+
+variable "web_health_path" {
+  type    = string
+  default = "/robots.txt"
+}
+
+variable "web_site_url" {
+  type        = string
+  description = "Public site URL (e.g., https://sigbang.com)"
+}
+
+variable "web_api_base_url" {
+  type        = string
+  description = "Public API base URL (e.g., https://api.sigbang.com)"
+}
+
+variable "web_supabase_url" {
+  type        = string
+  description = "Supabase URL for frontend"
+}
+
+variable "web_supabase_anon_key" {
+  type        = string
+  sensitive   = true
+  description = "Supabase anon key for frontend"
+}
+
+##########################################
 # Environment Variables (SSM)
 ##########################################
 

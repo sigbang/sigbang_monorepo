@@ -1,0 +1,66 @@
+name: Deploy user front (EC2 + ALB)
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - "sigbang_user_front/**"
+      - ".github/workflows/deploy-web-ec2.yml"
+      - "sigbang_infra/**"
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sigbang_user_front
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: sigbang_user_front/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: Build Docker image
+        run: docker build -t ghcr.io/${{ github.repository_owner }}/sigbang_user_front:${{ github.sha }} .
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Push Docker image
+        run: |
+          docker tag ghcr.io/${{ github.repository_owner }}/sigbang_user_front:${{ github.sha }} ghcr.io/${{ github.repository_owner }}/sigbang_user_front:latest
+          docker push ghcr.io/${{ github.repository_owner }}/sigbang_user_front:${{ github.sha }}
+          docker push ghcr.io/${{ github.repository_owner }}/sigbang_user_front:latest
+      - name: Set image output
+        id: image
+        run: echo "image=ghcr.io/${{ github.repository_owner }}/sigbang_user_front:${{ github.sha }}" >> $GITHUB_OUTPUT
+
+  infra-apply:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sigbang_infra
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: Terraform Init
+        run: terraform init
+      - name: Terraform Apply (web)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ap-northeast-2
+        run: |
+          terraform apply -auto-approve \
+            -var="web_image=${{ needs.build-and-push.outputs.image }}" \
+            -var="manage_ssm=false" \
+            -var="web_site_url=${{ secrets.WEB_SITE_URL }}" \
+            -var="web_api_base_url=${{ secrets.WEB_API_BASE_URL }}" \
+            -var="web_supabase_url=${{ secrets.WEB_SUPABASE_URL }}" \
+            -var="web_supabase_anon_key=${{ secrets.WEB_SUPABASE_ANON_KEY }}" \
+            -var="web_hostnames=${{ secrets.WEB_HOSTNAMES_JSON }}" \
+            -var="web_acm_certificate_arn=${{ secrets.WEB_ACM_CERT_ARN }}"
+
+

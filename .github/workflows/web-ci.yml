@@ -23,7 +23,7 @@ jobs:
             package-lock.json
       - run: npm install --no-audit --no-fund
       - run: npm run lint
-      - name: Build (Cloudflare Pages - next-on-pages)
-        run: npm run build:pages
+      - name: Build (Next.js)
+        run: npm run build
 
 
