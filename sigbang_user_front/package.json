@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "build:pages": "npx @cloudflare/next-on-pages@latest build",
+    "build:pages": "npx @cloudflare/next-on-pages@latest",
     "preview:pages": "npx wrangler pages dev .vercel/output/static --functions .vercel/output/functions --compatibility-date=2024-11-01"
   },
   "dependencies": {
