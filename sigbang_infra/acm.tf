@@ -17,7 +17,8 @@ locals {
 }
 
 resource "aws_acm_certificate" "managed" {
-  count                     = local.use_managed_acm ? 1 : 0
+  count = local.use_managed_acm ? 1 : 0
+
   domain_name               = var.ses_domain
   subject_alternative_names = ["www.${var.ses_domain}", "api.${var.ses_domain}"]
   validation_method         = "DNS"
@@ -29,26 +30,23 @@ resource "aws_acm_certificate" "managed" {
 
 # Create DNS validation records for all requested names
 resource "aws_route53_record" "managed_validation" {
-  for_each = local.use_managed_acm ? {
-    for dvo in aws_acm_certificate.managed[0].domain_validation_options :
-    dvo.domain_name => {
-      name   = dvo.resource_record_name
-      type   = dvo.resource_record_type
-      record = dvo.resource_record_value
-    }
-  } : {}
+  for_each = local.use_managed_acm ? { for dvo in aws_acm_certificate.managed[0].domain_validation_options : dvo.domain_name => {
+    name   = dvo.resource_record_name
+    type   = dvo.resource_record_type
+    record = dvo.resource_record_value
+  } } : {}
 
-  zone_id = var.route53_zone_id
+  zone_id         = var.route53_zone_id
   allow_overwrite = true
-  name    = each.value.name
-  type    = each.value.type
-  ttl     = 60
-  records = [each.value.record]
+  name            = each.value.name
+  type            = each.value.type
+  ttl             = 60
+  records         = [each.value.record]
 }
 
 resource "aws_acm_certificate_validation" "managed" {
   count                   = local.use_managed_acm ? 1 : 0
-  certificate_arn        = aws_acm_certificate.managed[0].arn
+  certificate_arn         = aws_acm_certificate.managed[0].arn
   validation_record_fqdns = [for r in aws_route53_record.managed_validation : r.fqdn]
 }
 
