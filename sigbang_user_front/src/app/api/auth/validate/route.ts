@@ -11,11 +11,8 @@ export async function POST() {
     const rt = await getRefreshToken();
     
     if (!at && !rt) {
-      return NextResponse.json({ 
-        valid: false, 
-        needsRefresh: false,
-        error: 'no_tokens' 
-      }, { status: 401 });
+      // Treat unauthenticated as a non-error state to avoid noisy 401s
+      return NextResponse.json({ valid: false, needsRefresh: false }, { status: 200 });
     }
     
     // Check if access token is expired or will expire within proactive window
@@ -27,11 +24,7 @@ export async function POST() {
         const finalAt = await getAccessToken();
         
         if (!refreshed) {
-          return NextResponse.json({ 
-            valid: false, 
-            needsRefresh: true,
-            error: 'refresh_failed' 
-          }, { status: 401 });
+          return NextResponse.json({ valid: false, needsRefresh: true }, { status: 200 });
         }
         
         return NextResponse.json({ 
@@ -41,11 +34,7 @@ export async function POST() {
         });
       } catch (refreshError) {
         console.error('[auth/validate] refresh failed:', refreshError);
-        return NextResponse.json({ 
-          valid: false, 
-          needsRefresh: true,
-          error: 'refresh_error' 
-        }, { status: 401 });
+        return NextResponse.json({ valid: false, needsRefresh: true }, { status: 200 });
       }
     }
     
@@ -56,10 +45,6 @@ export async function POST() {
     });
   } catch (error) {
     console.error('[auth/validate] error:', error);
-    return NextResponse.json({ 
-      valid: false, 
-      needsRefresh: false,
-      error: 'validation_error' 
-    }, { status: 500 });
+    return NextResponse.json({ valid: false, needsRefresh: false }, { status: 200 });
   }
 }
