@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { NextRequest, NextResponse } from 'next/server';
 
 const API_BASE = process.env.FOOD_SAFETY_API_BASE ?? 'https://openapi.foodsafetykorea.go.kr/api';
