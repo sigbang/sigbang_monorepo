@@ -60,19 +60,32 @@ jobs:
           TARGET_NAME_TAG: sigbang-web
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          CONTAINER_NAME: sigbang-web
+          EXPOSE_PORT: "3000"
         run: |
+          echo "Listing target running instances for tag Name=${TARGET_NAME_TAG}"
+          aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=${TARGET_NAME_TAG}" "Name=instance-state-name,Values=running" \
+            --query "Reservations[].Instances[].{id:InstanceId,ip:PrivateIpAddress}" \
+            --output table \
+            --region "$AWS_REGION" || true
+
           cat > params.json <<JSON
           {
             "commands": [
               "set -euo pipefail",
+              "set -x",
               "IMAGE='${IMAGE}'",
               "ENV_FILE='/home/ubuntu/web.env'",
               "if echo \"$IMAGE\" | grep -q '^ghcr.io/'; then if [ -n \"${GHCR_USERNAME:-}\" ] && [ -n \"${GHCR_TOKEN:-}\" ]; then echo \"$GHCR_TOKEN\" | docker login ghcr.io -u \"$GHCR_USERNAME\" --password-stdin || true; fi; fi",
               "docker pull \"$IMAGE\"",
-              "docker rm -f sigbang-web || true",
-              "docker run -d --name sigbang-web --restart=always --env-file \"$ENV_FILE\" -p 3000:3000 \"$IMAGE\"",
+              "docker rm -f ${CONTAINER_NAME} || true",
+              "docker run -d --name ${CONTAINER_NAME} --restart=always --env-file \"$ENV_FILE\" -p ${EXPOSE_PORT}:3000 \"$IMAGE\"",
               "sleep 3",
-              "curl -fsS http://localhost:3000/robots.txt || exit 1"
+              "curl -fsS --retry 12 --retry-all-errors --max-time 5 http://localhost:${EXPOSE_PORT}/robots.txt || exit 1",
+              "docker ps -a",
+              "docker inspect -f 'Name={{.Name}} State={{.State.Status}} Image={{.Config.Image}}' ${CONTAINER_NAME} || true",
+              "docker logs --tail 100 ${CONTAINER_NAME} || true"
             ]
           }
           JSON
