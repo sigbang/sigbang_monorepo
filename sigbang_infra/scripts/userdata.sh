@@ -19,15 +19,18 @@ retry() { local n=0; until "$@"; do n=$((n+1)); [ $n -ge 5 ] && return 1; sleep 
 # Install deps
 if command -v apt >/dev/null 2>&1; then
   retry apt update -y
-  retry apt install -y awscli jq docker.io ec2-instance-connect
+  retry apt install -y awscli jq docker.io ec2-instance-connect amazon-ssm-agent || true
   systemctl enable docker
   systemctl start docker
   systemctl restart ssh || true
+  # Ensure SSM Agent is enabled and running (Ubuntu)
+  systemctl enable --now amazon-ssm-agent || snap start amazon-ssm-agent || true
 elif command -v yum >/dev/null 2>&1; then
-  retry yum install -y awscli jq docker ec2-instance-connect
+  retry yum install -y awscli jq docker ec2-instance-connect amazon-ssm-agent || true
   systemctl enable docker
   systemctl start docker
   systemctl restart sshd || true
+  systemctl enable --now amazon-ssm-agent || true
 fi
 
 # Build .env from SSM path

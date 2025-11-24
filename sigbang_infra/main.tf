@@ -247,6 +247,14 @@ resource "aws_iam_role_policy" "api_ses_policy" {
   })
 }
 
+##########################################
+# Attach AmazonSSMManagedInstanceCore to EC2 role (required for SSM managed instances)
+##########################################
+resource "aws_iam_role_policy_attachment" "api_ec2_ssm_core" {
+  role       = aws_iam_role.api_ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
 resource "aws_iam_instance_profile" "api_instance_profile" {
   name = var.instance_profile_name
   role = aws_iam_role.api_ec2_role.name

@@ -90,6 +90,19 @@ jobs:
             exit 1
           fi
 
+          # Ensure instances are SSM-managed and Online
+          MANAGED_IDS=$(aws ssm describe-instance-information \
+            --filters "Key=InstanceIds,Values=${INSTANCE_IDS}" \
+            --query "InstanceInformationList[?PingStatus=='Online'].InstanceId" \
+            --output text \
+            --region "$AWS_REGION" || true)
+          echo "SSM Online MANAGED_IDS: $MANAGED_IDS"
+          if [ -z "$MANAGED_IDS" ]; then
+            echo "No SSM Online managed instances found among: $INSTANCE_IDS"
+            echo "Please ensure: (1) IAM role with AmazonSSMManagedInstanceCore is attached, (2) amazon-ssm-agent is installed and running, (3) region is correct ($AWS_REGION)."
+            exit 1
+          fi
+
           cat > params.json <<JSON
           {
             "commands": [
@@ -124,7 +137,7 @@ jobs:
           CMD_ID=$(aws ssm send-command \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy Web ${IMAGE}" \
-            --instance-ids $INSTANCE_IDS \
+            --instance-ids $MANAGED_IDS \
             --parameters file://params.json \
             --timeout-seconds 600 \
             --max-concurrency "100%" \
