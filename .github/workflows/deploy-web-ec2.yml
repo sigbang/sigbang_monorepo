@@ -78,6 +78,18 @@ jobs:
             --output table \
             --region "$AWS_REGION" || true
 
+          # Resolve exact instance-ids to target (avoid tag mis-targeting)
+          INSTANCE_IDS=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=${TARGET_NAME_TAG}" "Name=instance-state-name,Values=running" \
+            --query "Reservations[].Instances[].InstanceId" \
+            --output text \
+            --region "$AWS_REGION")
+          echo "Target INSTANCE_IDS: $INSTANCE_IDS"
+          if [ -z "$INSTANCE_IDS" ]; then
+            echo "No running instances found for tag Name=${TARGET_NAME_TAG}"
+            exit 1
+          fi
+
           cat > params.json <<JSON
           {
             "commands": [
@@ -112,7 +124,7 @@ jobs:
           CMD_ID=$(aws ssm send-command \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy Web ${IMAGE}" \
-            --targets "Key=tag:Name,Values=${TARGET_NAME_TAG}" \
+            --instance-ids $INSTANCE_IDS \
             --parameters file://params.json \
             --timeout-seconds 600 \
             --max-concurrency "100%" \
