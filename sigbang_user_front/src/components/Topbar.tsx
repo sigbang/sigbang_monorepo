@@ -53,15 +53,18 @@ export default function Topbar() {
           <div className="text-[14px]">식방 Beta</div>
         </div>
 
-        {/* Center banner (desktop/tablet only) */}
-        <div className="hidden sm:flex flex-1 justify-center">
-          <Link href="/feedback" className="w-2/3 group" aria-label="피드백 보내기 배너">
-            <div className="relative h-[44px] rounded-lg overflow-hidden bg-[#f5f5f5]">
-              {/* 준비된 이미지가 있을 경우 Image 사용 */}
-              {/* <Image src="/banners/top-feedback.png" alt="피드백 보내기" fill sizes="(max-width: 1040px) 33vw, 340px" className="object-cover transition-transform duration-300 group-hover:scale-[1.02]" priority /> */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-[13px] text-[#666]">피드백 배너 (이미지 준비 중)</span>
-              </div>
+        {/* Center banner */}
+        <div className="flex flex-1 justify-center">
+          <Link href="/feedback" className="w-full max-w-[240px] sm:max-w-[420px] group" aria-label="피드백 보내기 배너">
+            <div className="relative rounded-lg overflow-hidden bg-[#f5f5f5]" style={{ aspectRatio: '21 / 4' }}>              
+              <Image
+                src="/banners/top-feedback.jpg"
+                alt="피드백 배너"
+                fill
+                sizes="(max-width: 640px) 60vw, (max-width: 1040px) 42vw, 420px"
+                className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                priority
+              />
             </div>
           </Link>
         </div>
@@ -128,14 +131,9 @@ export default function Topbar() {
           )}
         </div>
       </div>
-      {/* Mobile compact CTA below row */}
+      {/* Mobile compact CTA below row (hidden; banner shown in header on mobile) */}
       <div className="mx-auto max-w-[1040px] px-4 pb-2 w-full">
-        {/* Mobile compact CTA */}
-        <Link href="/feedback" className="sm:hidden block" aria-label="피드백 보내기">
-          <div className="mt-1 w-full rounded-lg bg-[#f5f5f5] text-center py-2 text-[13px] text-[#333]">
-            피드백 보내기
-          </div>
-        </Link>
+        <Link href="/feedback" className="hidden" aria-label="피드백 보내기" />
       </div>
     </header>
   );
