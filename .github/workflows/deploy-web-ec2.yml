@@ -58,6 +58,8 @@ jobs:
           AWS_REGION: ap-northeast-2
           # ASG Name tag value for Web instances (from Terraform): var.web_project_name => "sigbang-web"
           TARGET_NAME_TAG: sigbang-web
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
         run: |
           cat > params.json <<JSON
           {
@@ -74,7 +76,7 @@ jobs:
             ]
           }
           JSON
-          aws ssm send-command \
+          CMD_ID=$(aws ssm send-command \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy Web ${IMAGE}" \
             --targets "Key=tag:Name,Values=${TARGET_NAME_TAG}" \
@@ -82,6 +84,41 @@ jobs:
             --timeout-seconds 600 \
             --max-concurrency "100%" \
             --max-errors "0" \
-            --region "$AWS_REGION"
+            --region "$AWS_REGION" \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "SSM CommandId: $CMD_ID"
+
+          # Wait for all command invocations to complete and fail fast on errors
+          ATTEMPTS=0
+          MAX_ATTEMPTS=120   # up to ~10 minutes (120 * 5s)
+          while true; do
+            STATUSES=$(aws ssm list-command-invocations \
+              --command-id "$CMD_ID" \
+              --details \
+              --query "CommandInvocations[].Status" \
+              --output text \
+              --region "$AWS_REGION" || true)
+
+            # When there are multiple instances, statuses are space-separated
+            if echo "$STATUSES" | grep -Eq "(Failed|Cancelled|TimedOut)"; then
+              echo "One or more SSM command invocations failed: $STATUSES"
+              exit 1
+            fi
+
+            # If there are no pending statuses, we're done
+            if ! echo "$STATUSES" | grep -Eq "(Pending|InProgress|Delayed)"; then
+              echo "All SSM command invocations completed successfully: $STATUSES"
+              break
+            fi
+
+            ATTEMPTS=$((ATTEMPTS+1))
+            if [ "$ATTEMPTS" -ge "$MAX_ATTEMPTS" ]; then
+              echo "Timed out waiting for SSM command to complete"
+              exit 1
+            fi
+            sleep 5
+          done
 
 
