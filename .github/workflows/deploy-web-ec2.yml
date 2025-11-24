@@ -147,4 +147,41 @@ jobs:
             sleep 5
           done
 
+          echo "Fetching SSM command outputs from targets..."
+          INSTANCE_IDS=$(aws ssm list-command-invocations \
+            --command-id "$CMD_ID" \
+            --details \
+            --query "CommandInvocations[].InstanceId" \
+            --output text \
+            --region "$AWS_REGION" || true)
+
+          for IID in $INSTANCE_IDS; do
+            echo "==== SSM Output for instance: $IID ===="
+            aws ssm get-command-invocation \
+              --command-id "$CMD_ID" \
+              --instance-id "$IID" \
+              --plugin-name "aws:runShellScript" \
+              --region "$AWS_REGION" \
+              --query "{Status:Status,StatusDetails:StatusDetails,ResponseCode:ResponseCode}" \
+              --output table || true
+
+            echo "--- STDOUT ($IID) ---"
+            aws ssm get-command-invocation \
+              --command-id "$CMD_ID" \
+              --instance-id "$IID" \
+              --plugin-name "aws:runShellScript" \
+              --region "$AWS_REGION" \
+              --query "StandardOutputContent" \
+              --output text || true
+
+            echo "--- STDERR ($IID) ---"
+            aws ssm get-command-invocation \
+              --command-id "$CMD_ID" \
+              --instance-id "$IID" \
+              --plugin-name "aws:runShellScript" \
+              --region "$AWS_REGION" \
+              --query "StandardErrorContent" \
+              --output text || true
+          done
+
 
