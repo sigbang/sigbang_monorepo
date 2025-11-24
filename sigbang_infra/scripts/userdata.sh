@@ -23,8 +23,21 @@ if command -v apt >/dev/null 2>&1; then
   systemctl enable docker
   systemctl start docker
   systemctl restart ssh || true
-  # Ensure SSM Agent is enabled and running (Ubuntu)
-  systemctl enable --now amazon-ssm-agent || snap start amazon-ssm-agent || true
+  # Ensure SSM Agent is installed, enabled and running (Ubuntu)
+  if ! systemctl is-active --quiet amazon-ssm-agent && ! systemctl is-active --quiet snap.amazon-ssm-agent.amazon-ssm-agent.service; then
+    if command -v snap >/dev/null 2>&1; then
+      snap install amazon-ssm-agent --classic || true
+      systemctl enable --now snap.amazon-ssm-agent.amazon-ssm-agent.service || snap start amazon-ssm-agent || true
+    fi
+    if ! systemctl is-active --quiet amazon-ssm-agent && ! systemctl is-active --quiet snap.amazon-ssm-agent.amazon-ssm-agent.service; then
+      AGENT_DEB_URL="https://s3.${AWS_REGION}.amazonaws.com/amazon-ssm-${AWS_REGION}/latest/debian_amd64/amazon-ssm-agent.deb"
+      retry curl -fsSL -o /tmp/amazon-ssm-agent.deb "$AGENT_DEB_URL" || true
+      if [ -s /tmp/amazon-ssm-agent.deb ]; then
+        dpkg -i /tmp/amazon-ssm-agent.deb || true
+        systemctl enable --now amazon-ssm-agent || true
+      fi
+    fi
+  fi
 elif command -v yum >/dev/null 2>&1; then
   retry yum install -y awscli jq docker ec2-instance-connect amazon-ssm-agent || true
   systemctl enable docker
