@@ -8,6 +8,10 @@ on:
       image:
         description: 'Docker image (overrides terraform.tfvars api_image)'
         required: false
+      manage_ssm:
+        description: 'Update SSM parameters from TFVARS_PROD during this apply'
+        required: false
+        default: 'false'
 
 permissions:
   contents: read
@@ -34,6 +38,17 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-2
 
+      - name: Write TFVARS from secret
+        env:
+          TFVARS_PROD: ${{ secrets.TFVARS_PROD }}
+        run: |
+          if [ -n "$TFVARS_PROD" ]; then
+            printf "%s" "$TFVARS_PROD" > terraform.tfvars
+            echo "terraform.tfvars written from TFVARS_PROD secret"
+          else
+            echo "TFVARS_PROD is empty; skipping write"
+          fi
+
       - name: Terraform Init
         run: terraform init
 
@@ -44,12 +59,12 @@ jobs:
         env:
           IMAGE_FROM_EVENT: ${{ github.event.client_payload.image }}
           IMAGE_FROM_INPUT: ${{ inputs.image }}
+          MANAGE_SSM_INPUT: ${{ inputs.manage_ssm }}
         run: |
           IMAGE="${IMAGE_FROM_INPUT:-${IMAGE_FROM_EVENT}}"
-          if [ -n "$IMAGE" ]; then
-            terraform apply -auto-approve -var="api_image=$IMAGE" -var="manage_ssm=false"
-          else
-            terraform apply -auto-approve -var="manage_ssm=false"
-          fi
+          MANAGE_SSM="${MANAGE_SSM_INPUT:-false}"
+          ARGS=(-auto-approve -var="manage_ssm=$MANAGE_SSM")
+          if [ -n "$IMAGE" ]; then ARGS+=(-var="api_image=$IMAGE"); fi
+          terraform apply "${ARGS[@]}"
 
 
