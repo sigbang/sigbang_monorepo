@@ -84,7 +84,7 @@ jobs:
               "set -euo pipefail",
               "set -x",
               "IMAGE='${IMAGE}'",
-              "echo Using IMAGE=\\\"$IMAGE\\\"",
+              "echo Using IMAGE=$IMAGE",
               "if echo \"$IMAGE\" | grep -q '^ghcr.io/'; then if [ -n \"${GHCR_USERNAME:-}\" ] && [ -n \"${GHCR_TOKEN:-}\" ]; then echo \"$GHCR_TOKEN\" | docker login ghcr.io -u \"$GHCR_USERNAME\" --password-stdin || true; fi; fi",
               "docker pull \"$IMAGE\"",
               "docker image inspect \"$IMAGE\" --format 'RepoDigests={{json .RepoDigests}}' || true",
