@@ -41,39 +41,47 @@ jobs:
         id: image
         run: echo "image=ghcr.io/${{ github.repository_owner }}/sigbang_user_front:${{ github.sha }}" >> $GITHUB_OUTPUT
 
-  infra-apply:
+  deploy-web-ssm:
     needs: build-and-push
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: sigbang_infra
     steps:
       - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
-      - name: Write TFVARS from secret
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
+      - name: Deploy Web via SSM (restart containers)
         env:
-          TFVARS_PROD: ${{ secrets.TFVARS_PROD }}
+          IMAGE: ${{ needs.build-and-push.outputs.image }}
+          AWS_REGION: ap-northeast-2
+          # ASG Name tag value for Web instances (from Terraform): var.web_project_name => "sigbang-web"
+          TARGET_NAME_TAG: sigbang-web
         run: |
-          if [ -n "$TFVARS_PROD" ]; then
-            printf "%s" "$TFVARS_PROD" > terraform.tfvars
-            echo "terraform.tfvars written from TFVARS_PROD secret"
-          else
-            echo "TFVARS_PROD is empty; skipping write"
-          fi
-      - name: Terraform Init
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ap-northeast-2
-        run: terraform init
-      - name: Terraform Apply (web)
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ap-northeast-2
-        run: |
-          terraform apply -auto-approve \
-            -var="web_image=${{ needs.build-and-push.outputs.image }}" \
-            -var="manage_ssm=false"
+          cat > params.json <<JSON
+          {
+            "commands": [
+              "set -euo pipefail",
+              "IMAGE='${IMAGE}'",
+              "ENV_FILE='/home/ubuntu/web.env'",
+              "if echo \"$IMAGE\" | grep -q '^ghcr.io/'; then if [ -n \"${GHCR_USERNAME:-}\" ] && [ -n \"${GHCR_TOKEN:-}\" ]; then echo \"$GHCR_TOKEN\" | docker login ghcr.io -u \"$GHCR_USERNAME\" --password-stdin || true; fi; fi",
+              "docker pull \"$IMAGE\"",
+              "docker rm -f sigbang-web || true",
+              "docker run -d --name sigbang-web --restart=always --env-file \"$ENV_FILE\" -p 3000:3000 \"$IMAGE\"",
+              "sleep 3",
+              "curl -fsS http://localhost:3000/robots.txt || exit 1"
+            ]
+          }
+          JSON
+          aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy Web ${IMAGE}" \
+            --targets "Key=tag:Name,Values=${TARGET_NAME_TAG}" \
+            --parameters file://params.json \
+            --timeout-seconds 600 \
+            --max-concurrency "100%" \
+            --max-errors "0" \
+            --region "$AWS_REGION"
 
 

@@ -19,15 +19,27 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
       - name: Terraform Format
         run: terraform fmt -check -recursive
+      - name: Write TFVARS from secret (if available)
+        env:
+          TFVARS_PROD: ${{ secrets.TFVARS_PROD }}
+        run: |
+          if [ -n "$TFVARS_PROD" ]; then
+            printf "%s" "$TFVARS_PROD" > terraform.tfvars
+            echo "terraform.tfvars written from TFVARS_PROD secret"
+          else
+            echo "TFVARS_PROD is empty; proceeding without tfvars"
+          fi
+      - name: Configure AWS credentials for plan
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
       - name: Terraform Init
-        run: terraform init -backend=false
+        run: terraform init -reconfigure -input=false
       - name: Terraform Validate
         run: terraform validate
-      # - name: Terraform Plan (requires AWS creds)
-      #   env:
-      #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      #     AWS_DEFAULT_REGION: ap-northeast-2
-      #   run: terraform plan -input=false
+      - name: Terraform Plan
+        run: terraform plan -input=false -no-color
 
 

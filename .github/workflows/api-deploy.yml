@@ -54,49 +54,51 @@ jobs:
           cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:latest
           cache-to: type=inline
 
-  infra-apply:
+  deploy-api-ssm:
     needs: build-and-push
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: sigbang_infra
-    env:
-      TF_IN_AUTOMATION: true
-      AWS_REGION: ap-northeast-2
-      TF_VAR_api_image: ${{ needs.build-and-push.outputs.image }}
-      TF_VAR_manage_ssm: "false"
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
-
-      - name: Write terraform.tfvars from secret
-        working-directory: sigbang_infra
-        env:
-          TFVARS_PROD: ${{ secrets.TFVARS_PROD }}
-        run: |
-          echo "$TFVARS_PROD" > terraform.tfvars
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.9.8
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Terraform Init
-        run: terraform init -reconfigure -input=false
-
-      - name: Terraform Validate
-        run: terraform validate
-
-      - name: Terraform Plan
-        run: terraform plan -input=false -var="api_image=${{ needs.build-and-push.outputs.image }}" -var="manage_ssm=false"
-
-      - name: Terraform Apply
-        run: terraform apply -auto-approve -input=false -var="api_image=${{ needs.build-and-push.outputs.image }}" -var="manage_ssm=false"
+          aws-region: ap-northeast-2
+      - name: Deploy API via SSM (restart containers)
+        env:
+          IMAGE: ${{ needs.build-and-push.outputs.image }}
+          AWS_REGION: ap-northeast-2
+          # ASG Name tag value for API instances (from Terraform): "${var.project_name}-api" => "sigbang-api-api"
+          TARGET_NAME_TAG: sigbang-api-api
+        run: |
+          cat > params.json <<JSON
+          {
+            "commands": [
+              "set -euo pipefail",
+              "IMAGE='${IMAGE}'",
+              "ENV_FILE='/home/ubuntu/.env'",
+              "if [ -f \"$ENV_FILE\" ]; then set -a; . \"$ENV_FILE\"; set +a; fi",
+              "if echo \"$IMAGE\" | grep -q '^ghcr.io/'; then if [ -n \"${GHCR_USERNAME:-}\" ] && [ -n \"${GHCR_TOKEN:-}\" ]; then echo \"$GHCR_TOKEN\" | docker login ghcr.io -u \"$GHCR_USERNAME\" --password-stdin || true; fi; fi",
+              "docker pull \"$IMAGE\"",
+              "docker rm -f sigbang-api || true",
+              "docker run -d --name sigbang-api --restart=always --env-file \"$ENV_FILE\" -p 3000:3000 \"$IMAGE\"",
+              "sleep 3",
+              "curl -fsS http://localhost:3000/health || exit 1"
+            ]
+          }
+          JSON
+          aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy API ${IMAGE}" \
+            --targets "Key=tag:Name,Values=${TARGET_NAME_TAG}" \
+            --parameters file://params.json \
+            --timeout-seconds 600 \
+            --max-concurrency "100%" \
+            --max-errors "0" \
+            --region "$AWS_REGION"
 
 
