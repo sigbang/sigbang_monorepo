@@ -46,6 +46,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Resolve image to deploy
+        id: resolve
+        run: |
+          IMAGE_OUT="${{ needs.build-and-push.outputs.image }}"
+          if [ -z "$IMAGE_OUT" ]; then
+            IMAGE_OUT="ghcr.io/${{ github.repository_owner }}/sigbang_user_front:${{ github.sha }}"
+          fi
+          echo "image=$IMAGE_OUT" >> $GITHUB_OUTPUT
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -54,7 +62,7 @@ jobs:
           aws-region: ap-northeast-2
       - name: Deploy Web via SSM (restart containers)
         env:
-          IMAGE: ${{ needs.build-and-push.outputs.image }}
+          IMAGE: ${{ steps.resolve.outputs.image }}
           AWS_REGION: ap-northeast-2
           # ASG Name tag value for Web instances (from Terraform): var.web_project_name => "sigbang-web"
           TARGET_NAME_TAG: sigbang-web
@@ -76,16 +84,21 @@ jobs:
               "set -euo pipefail",
               "set -x",
               "IMAGE='${IMAGE}'",
+              "echo Using IMAGE=\\\"$IMAGE\\\"",
               "ENV_FILE='/home/ubuntu/web.env'",
               "if echo \"$IMAGE\" | grep -q '^ghcr.io/'; then if [ -n \"${GHCR_USERNAME:-}\" ] && [ -n \"${GHCR_TOKEN:-}\" ]; then echo \"$GHCR_TOKEN\" | docker login ghcr.io -u \"$GHCR_USERNAME\" --password-stdin || true; fi; fi",
               "docker pull \"$IMAGE\"",
+              "docker image inspect \"$IMAGE\" --format 'RepoDigests={{json .RepoDigests}}' || true",
               "docker rm -f ${CONTAINER_NAME} || true",
-              "docker run -d --name ${CONTAINER_NAME} --restart=always --env-file \"$ENV_FILE\" -p ${EXPOSE_PORT}:3000 \"$IMAGE\"",
+              "docker run --pull=always -d --name ${CONTAINER_NAME} --restart=always --env-file \"$ENV_FILE\" -p ${EXPOSE_PORT}:3000 \"$IMAGE\"",
               "sleep 3",
               "curl -fsS --retry 12 --retry-all-errors --max-time 5 http://localhost:${EXPOSE_PORT}/robots.txt || exit 1",
               "docker ps -a",
               "docker inspect -f 'Name={{.Name}} State={{.State.Status}} Image={{.Config.Image}}' ${CONTAINER_NAME} || true",
-              "docker logs --tail 100 ${CONTAINER_NAME} || true"
+              "docker image inspect \"$IMAGE\" --format 'Id={{.Id}} RepoTags={{json .RepoTags}} RepoDigests={{json .RepoDigests}}' || true",
+              "docker logs --tail 200 ${CONTAINER_NAME} || true",
+              "echo '=== Sample HTML ==='",
+              "curl -fsS http://localhost:${EXPOSE_PORT}/ | head -n 40 || true"
             ]
           }
           JSON
