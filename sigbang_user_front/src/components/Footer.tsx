@@ -18,14 +18,7 @@ export default function Footer() {
           </div>
 
           <div className="space-y-2">
-            <div className="flex gap-4">
-              <a
-                className="hover:underline"
-                href="/feedback"
-                aria-label="의견 보내기"
-              >
-                의견 보내기
-              </a>
+            <div className="flex gap-4">              
               <a
                 className="hover:underline"
                 href="https://www.instagram.com/sig.bang"

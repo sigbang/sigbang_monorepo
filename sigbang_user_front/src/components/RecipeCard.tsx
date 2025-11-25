@@ -314,7 +314,7 @@ const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
     }
   };
   const content = (
-    <div ref={ref} tabIndex={tabIndex} style={{ width: '100%' }} className={(active ? 'ring-6 ring-amber-200 ' : '') + 'rounded-[20px] border border-[#ddd] focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white hover:ring-8 hover:ring-amber-200 hover:shadow-md transition-shadow'}>
+    <div ref={ref} tabIndex={tabIndex} style={{ width: '100%' }} className={(active ? 'ring-6 ring-amber-200 ' : '') + 'w-full min-w-0 rounded-[20px] border border-[#ddd] focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white hover:ring-8 hover:ring-amber-200 hover:shadow-md transition-shadow'}>
       <div
         style={{ width: '100%', aspectRatio: '16 / 9', borderRadius: 12, overflow: 'hidden', background: '#eee', position: 'relative' }}
         onMouseEnter={() => setIsHovered(true)}
@@ -409,7 +409,7 @@ const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
     </div>
   );
   return href ? (
-    <Link href={href} className="block" aria-label={`${title} 상세 보기`}>
+    <Link href={href} className="block min-w-0" aria-label={`${title} 상세 보기`}>
       {content}
     </Link>
   ) : (

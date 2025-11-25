@@ -39,7 +39,7 @@ export default function RecommendedSection() {
   }));
 
   return (
-    <Section title="추천" items={items} loading={recommended.status === 'pending'} />
+    <Section title="추천 레시피" items={items} loading={recommended.status === 'pending'} />
   );
 }
 

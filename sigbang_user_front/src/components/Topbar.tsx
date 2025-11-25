@@ -44,24 +44,24 @@ export default function Topbar() {
 
   return (
     <header className="sticky top-0 z-10 bg-white/80 backdrop-blur">
-      <div className="mx-auto max-w-[1040px] px-4 py-4 flex items-center gap-4">
+      <div className="mx-auto max-w-[1040px] px-4 py-4 flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2 shrink-0">
           <Link href="/" className="flex items-center gap-2" aria-label="식방 홈">
-            <Image src="/logo.png" alt="식방" width={28} height={28} priority />
+            <Image src="/logo.png" alt="식방" width={32} height={32} priority />
             <span className="sr-only">식방</span>
           </Link>
-          <div className="text-[14px]">식방 Beta</div>
+          <div className="text-[16px]">식방 Beta</div>
         </div>
 
         {/* Center banner */}
-        <div className="flex flex-1 justify-center">
-          <Link href="/feedback" className="w-full max-w-[240px] sm:max-w-[420px] group" aria-label="피드백 보내기 배너">
+        <div className="w-full order-3 mt-2 flex justify-center md:order-none md:mt-0 md:flex-1">
+          <Link href="/feedback" className="w-full max-w-[280px] sm:max-w-[420px] group" aria-label="피드백 보내기 배너">
             <div className="relative rounded-lg overflow-hidden bg-[#f5f5f5]" style={{ aspectRatio: '21 / 4' }}>              
               <Image
                 src="/banners/top-feedback.jpg"
                 alt="피드백 배너"
                 fill
-                sizes="(max-width: 640px) 60vw, (max-width: 1040px) 42vw, 420px"
+                sizes="(max-width: 640px) 60vw, (max-width: 1040px) 42vw, 520px"
                 className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
                 priority
               />
@@ -69,25 +69,25 @@ export default function Topbar() {
           </Link>
         </div>
 
-        <div className="relative shrink-0" ref={menuRef}>
+        <div className="relative shrink-0 ml-auto order-2 md:order-none" ref={menuRef}>
           {isAuthed ? (
             <button
               aria-haspopup="menu"
               aria-expanded={isMenuOpen}
               onClick={() => setIsMenuOpen((v) => !v)}
-              className="w-8 h-8 rounded-full overflow-hidden border border-[#ddd] focus:outline-none focus:ring-2 focus:ring-sky-400"
+              className="w-10 h-10 rounded-full overflow-hidden border border-[#ddd] focus:outline-none focus:ring-2 focus:ring-sky-400"
               title={userEmail || '프로필'}
             >
               {userImageUrl ? (
                 <span className="relative block w-full h-full">
-                  <Image src={userImageUrl} alt="프로필" fill sizes="32px" style={{ objectFit: 'cover' }} />
+                  <Image src={userImageUrl} alt="프로필" fill sizes="36px" style={{ objectFit: 'cover' }} />
                 </span>
               ) : (
                 <div className="w-full h-full bg-[#ddd]" />
               )}
             </button>
           ) : (
-            <Link href="/login" className="text-[14px] text-[#111] hover:underline">
+            <Link href="/login" className="text-[16px] text-[#111] hover:underline">
               로그인
             </Link>
           )}

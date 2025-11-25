@@ -34,7 +34,7 @@ export default function RecipeDetailClient({ id, initial }: { id: string; initia
       <Topbar />
       <div className="mx-auto max-w-[1200px] flex">
         <Sidebar />
-        <main id="main" className="flex-1 px-6 py-6" role="main">
+        <main id="main" className="flex-1 px-6 pt-6 pb-32" role="main">
           {status === 'pending' && <div>로딩...</div>}
           {status === 'error' && <div>오류가 발생했습니다</div>}
           {status === 'success' && recipe && (
@@ -101,7 +101,7 @@ export default function RecipeDetailClient({ id, initial }: { id: string; initia
                       </div>
                     )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 ml-auto">
                       <button
                         onClick={() => {
                           if (session.status !== 'authenticated') {

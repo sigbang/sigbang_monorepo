@@ -278,7 +278,7 @@ export default function FeedbackForm() {
   return (
     <form onSubmit={onSubmit} className="mt-6 space-y-5">
       <div>
-        <label className="block text-sm font-medium text-gray-700">제목</label>
+        <label className="block text-sm font-medium text-gray-700">* 제목</label>
         <input
           className="mt-1 block w-full rounded border border-gray-300 px-3 py-2"
           type="text"
@@ -304,7 +304,7 @@ export default function FeedbackForm() {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">이메일 (선택)</label>
+          <label className="block text-sm font-medium text-gray-700">이메일</label>
           <input
             className="mt-1 block w-full rounded border border-gray-300 px-3 py-2"
             type="email"
@@ -319,7 +319,7 @@ export default function FeedbackForm() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700">내용</label>
+        <label className="block text-sm font-medium text-gray-700">* 내용</label>
         <textarea
           className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 h-40"
           value={message}
