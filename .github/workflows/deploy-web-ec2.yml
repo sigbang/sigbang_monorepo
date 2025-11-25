@@ -41,7 +41,7 @@ jobs:
         id: image
         run: echo "image=ghcr.io/${{ github.repository_owner }}/sigbang_user_front:${{ github.sha }}" >> $GITHUB_OUTPUT
 
-  deploy-web-ssm:
+  deploy-web-eic:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
@@ -60,7 +60,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-2
-      - name: Deploy Web via SSM (restart containers)
+      - name: Deploy Web via EC2 Instance Connect (SSH)
         env:
           IMAGE: ${{ steps.resolve.outputs.image }}
           AWS_REGION: ap-northeast-2
@@ -71,149 +71,43 @@ jobs:
           CONTAINER_NAME: sigbang-web
           EXPOSE_PORT: "3000"
         run: |
-          echo "Listing target running instances for tag Name=${TARGET_NAME_TAG}"
-          aws ec2 describe-instances \
+          echo "Resolving target instance by tag Name=${TARGET_NAME_TAG}"
+          IID=$(aws ec2 describe-instances \
             --filters "Name=tag:Name,Values=${TARGET_NAME_TAG}" "Name=instance-state-name,Values=running" \
-            --query "Reservations[].Instances[].{id:InstanceId,ip:PrivateIpAddress}" \
-            --output table \
-            --region "$AWS_REGION" || true
-
-          # Resolve exact instance-ids to target (avoid tag mis-targeting)
-          INSTANCE_IDS=$(aws ec2 describe-instances \
-            --filters "Name=tag:Name,Values=${TARGET_NAME_TAG}" "Name=instance-state-name,Values=running" \
-            --query "Reservations[].Instances[].InstanceId" \
-            --output text \
-            --region "$AWS_REGION")
-          echo "Target INSTANCE_IDS: $INSTANCE_IDS"
-          if [ -z "$INSTANCE_IDS" ]; then
-            echo "No running instances found for tag Name=${TARGET_NAME_TAG}"
+            --query "Reservations[].Instances[].InstanceId" --output text --region "$AWS_REGION")
+          if [ -z "$IID" ]; then
+            echo "No running instance found with Name=${TARGET_NAME_TAG}"
             exit 1
           fi
+          AZ=$(aws ec2 describe-instances --instance-ids "$IID" \
+            --query "Reservations[0].Instances[0].Placement.AvailabilityZone" --output text --region "$AWS_REGION")
+          PUBIP=$(aws ec2 describe-instances --instance-ids "$IID" \
+            --query "Reservations[0].Instances[0].PublicIpAddress" --output text --region "$AWS_REGION")
+          echo "Target: $IID ($AZ) public-ip=$PUBIP"
 
-          # Ensure instances are SSM-managed and Online
-          MANAGED_IDS=$(aws ssm describe-instance-information \
-            --filters "Key=InstanceIds,Values=${INSTANCE_IDS}" \
-            --query "InstanceInformationList[?PingStatus=='Online'].InstanceId" \
-            --output text \
-            --region "$AWS_REGION" || true)
-          echo "SSM Online MANAGED_IDS: $MANAGED_IDS"
-          if [ -z "$MANAGED_IDS" ]; then
-            echo "No SSM Online managed instances found among: $INSTANCE_IDS"
-            echo "Please ensure: (1) IAM role with AmazonSSMManagedInstanceCore is attached, (2) amazon-ssm-agent is installed and running, (3) region is correct ($AWS_REGION)."
-            exit 1
-          fi
+          ssh-keygen -t ed25519 -N "" -f id_ed25519
+          aws ec2-instance-connect send-ssh-public-key \
+            --instance-id "$IID" --availability-zone "$AZ" \
+            --instance-os-user ubuntu --ssh-public-key file://id_ed25519.pub \
+            --region "$AWS_REGION" >/dev/null
 
-          cat > params.json <<JSON
-          {
-            "commands": [
-              "set -euo pipefail",
-              "set -x",
-              "IMAGE='${IMAGE}'",
-              "echo Using IMAGE=$IMAGE",
-              "LOG_DIR=/var/log/sigbang-web",
-              "mkdir -p \"$LOG_DIR\" || true",
-              "LOG_TS=$(date +%Y%m%dT%H%M%S%z)",
-              "LOG_FILE=$LOG_DIR/deploy-$LOG_TS.log",
-              "echo \"=== Deploy start: $(date -Is) ===\" | tee -a \"$LOG_FILE\"",
-              "echo \"IMAGE=$IMAGE CONTAINER=${CONTAINER_NAME} PORT=${EXPOSE_PORT}\" | tee -a \"$LOG_FILE\"",
-              "if echo \"$IMAGE\" | grep -q '^ghcr.io/'; then if [ -n \"${GHCR_USERNAME:-}\" ] && [ -n \"${GHCR_TOKEN:-}\" ]; then echo \"$GHCR_TOKEN\" | docker login ghcr.io -u \"$GHCR_USERNAME\" --password-stdin || true; fi; fi",
-              "docker pull \"$IMAGE\" 2>&1 | tee -a \"$LOG_FILE\"",
-              "docker image inspect \"$IMAGE\" --format 'RepoDigests={{json .RepoDigests}}' 2>&1 | tee -a \"$LOG_FILE\" || true",
-              "docker ps --filter \"publish=${EXPOSE_PORT}\" -q | xargs -r docker rm -f 2>&1 | tee -a \"$LOG_FILE\" || true",
-              "docker rm -f ${CONTAINER_NAME} 2>&1 | tee -a \"$LOG_FILE\" || true",
-              "[ -f /home/ubuntu/web.env ] && ENV_FILE_ARG='--env-file /home/ubuntu/web.env' || ENV_FILE_ARG=''; docker run --pull=always -d --name ${CONTAINER_NAME} --restart=always $ENV_FILE_ARG -p ${EXPOSE_PORT}:3000 \"$IMAGE\" 2>&1 | tee -a \"$LOG_FILE\"",
-              "sleep 3",
-              "curl -fsS --retry 12 --retry-all-errors --max-time 5 http://localhost:${EXPOSE_PORT}/robots.txt 2>&1 | tee -a \"$LOG_FILE\" || exit 1",
-              "docker ps -a 2>&1 | tee -a \"$LOG_FILE\"",
-              "docker inspect -f 'Name={{.Name}} State={{.State.Status}} Image={{.Config.Image}}' ${CONTAINER_NAME} 2>&1 | tee -a \"$LOG_FILE\" || true",
-              "docker image inspect \"$IMAGE\" --format 'Id={{.Id}} RepoTags={{json .RepoTags}} RepoDigests={{json .RepoDigests}}' 2>&1 | tee -a \"$LOG_FILE\" || true",
-              "docker logs --tail 200 ${CONTAINER_NAME} 2>&1 | tee -a \"$LOG_FILE\" || true",
-              "echo '=== Sample HTML ===' | tee -a \"$LOG_FILE\"",
-              "curl -fsS http://localhost:${EXPOSE_PORT}/ | head -n 40 2>&1 | tee -a \"$LOG_FILE\" || true",
-              "echo \"=== Deploy end: $(date -Is) ===\" | tee -a \"$LOG_FILE\""
-            ]
-          }
-          JSON
-          CMD_ID=$(aws ssm send-command \
-            --document-name "AWS-RunShellScript" \
-            --comment "Deploy Web ${IMAGE}" \
-            --instance-ids $MANAGED_IDS \
-            --parameters file://params.json \
-            --timeout-seconds 600 \
-            --max-concurrency "100%" \
-            --max-errors "0" \
-            --region "$AWS_REGION" \
-            --query "Command.CommandId" \
-            --output text)
-
-          echo "SSM CommandId: $CMD_ID"
-
-          # Wait for all command invocations to complete and fail fast on errors
-          ATTEMPTS=0
-          MAX_ATTEMPTS=120   # up to ~10 minutes (120 * 5s)
-          while true; do
-            STATUSES=$(aws ssm list-command-invocations \
-              --command-id "$CMD_ID" \
-              --details \
-              --query "CommandInvocations[].Status" \
-              --output text \
-              --region "$AWS_REGION" || true)
-
-            # When there are multiple instances, statuses are space-separated
-            if echo "$STATUSES" | grep -Eq "(Failed|Cancelled|TimedOut)"; then
-              echo "One or more SSM command invocations failed: $STATUSES"
-              exit 1
+          ssh -o StrictHostKeyChecking=no -i id_ed25519 ubuntu@"$PUBIP" bash -lc "
+            set -euo pipefail
+            IMAGE='${IMAGE}'
+            EXPOSE_PORT=${EXPOSE_PORT}
+            CONTAINER_NAME='${CONTAINER_NAME}'
+            if echo \"\$IMAGE\" | grep -q '^ghcr.io/' && [ -n '${GHCR_USERNAME}' ] && [ -n '${GHCR_TOKEN}' ]; then
+              echo '${GHCR_TOKEN}' | sudo docker login ghcr.io -u '${GHCR_USERNAME}' --password-stdin || true
             fi
-
-            # If there are no pending statuses, we're done
-            if ! echo "$STATUSES" | grep -Eq "(Pending|InProgress|Delayed)"; then
-              echo "All SSM command invocations completed successfully: $STATUSES"
-              break
-            fi
-
-            ATTEMPTS=$((ATTEMPTS+1))
-            if [ "$ATTEMPTS" -ge "$MAX_ATTEMPTS" ]; then
-              echo "Timed out waiting for SSM command to complete"
-              exit 1
-            fi
-            sleep 5
-          done
-
-          echo "Fetching SSM command outputs from targets..."
-          INSTANCE_IDS=$(aws ssm list-command-invocations \
-            --command-id "$CMD_ID" \
-            --details \
-            --query "CommandInvocations[].InstanceId" \
-            --output text \
-            --region "$AWS_REGION" || true)
-
-          for IID in $INSTANCE_IDS; do
-            echo "==== SSM Output for instance: $IID ===="
-            aws ssm get-command-invocation \
-              --command-id "$CMD_ID" \
-              --instance-id "$IID" \
-              --plugin-name "aws:runShellScript" \
-              --region "$AWS_REGION" \
-              --query "{Status:Status,StatusDetails:StatusDetails,ResponseCode:ResponseCode}" \
-              --output table || true
-
-            echo "--- STDOUT ($IID) ---"
-            aws ssm get-command-invocation \
-              --command-id "$CMD_ID" \
-              --instance-id "$IID" \
-              --plugin-name "aws:runShellScript" \
-              --region "$AWS_REGION" \
-              --query "StandardOutputContent" \
-              --output text || true
-
-            echo "--- STDERR ($IID) ---"
-            aws ssm get-command-invocation \
-              --command-id "$CMD_ID" \
-              --instance-id "$IID" \
-              --plugin-name "aws:runShellScript" \
-              --region "$AWS_REGION" \
-              --query "StandardErrorContent" \
-              --output text || true
-          done
+            sudo docker pull \"\$IMAGE\"
+            sudo docker ps --filter \"publish=\$EXPOSE_PORT\" -q | xargs -r sudo docker rm -f || true
+            sudo docker rm -f \"\$CONTAINER_NAME\" || true
+            [ -f /home/ubuntu/web.env ] && ENV_FILE_ARG='--env-file /home/ubuntu/web.env' || ENV_FILE_ARG=''
+            sudo docker run --pull=always -d --name \"\$CONTAINER_NAME\" --restart=always \$ENV_FILE_ARG -p \$EXPOSE_PORT:3000 \"\$IMAGE\"
+            sleep 3
+            curl -fsS http://localhost:\$EXPOSE_PORT/robots.txt >/dev/null
+            sudo docker ps -a | sed -n '1p;/sigbang-web/p'
+            sudo docker inspect -f 'Image={{.Config.Image}} State={{.State.Status}}' sigbang-web
+          "
 
 

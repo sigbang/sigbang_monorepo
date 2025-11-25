@@ -54,7 +54,7 @@ jobs:
           cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:latest
           cache-to: type=inline
 
-  deploy-api-ssm:
+  deploy-api-eic:
     needs: build-and-push
     runs-on: ubuntu-latest
     permissions:
@@ -62,43 +62,75 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+
+      - name: Resolve image to deploy
+        id: resolve
+        run: |
+          IMAGE_OUT="${{ needs.build-and-push.outputs.image }}"
+          if [ -z "$IMAGE_OUT" ]; then
+            IMAGE_OUT="${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          fi
+          echo "image=$IMAGE_OUT" >> $GITHUB_OUTPUT
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-2
-      - name: Deploy API via SSM (restart containers)
+
+      - name: Deploy API via EC2 Instance Connect (SSH)
         env:
-          IMAGE: ${{ needs.build-and-push.outputs.image }}
+          IMAGE: ${{ steps.resolve.outputs.image }}
           AWS_REGION: ap-northeast-2
-          # ASG Name tag value for API instances (from Terraform): "${var.project_name}-api" => "sigbang-api-api"
+          # From Terraform: Name tag is "${var.project_name}-api" -> "sigbang-api-api"
           TARGET_NAME_TAG: sigbang-api-api
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          CONTAINER_NAME: sigbang-api
+          EXPOSE_PORT: "3000"
         run: |
-          cat > params.json <<JSON
-          {
-            "commands": [
-              "set -euo pipefail",
-              "IMAGE='${IMAGE}'",
-              "ENV_FILE='/home/ubuntu/.env'",
-              "if [ -f \"$ENV_FILE\" ]; then set -a; . \"$ENV_FILE\"; set +a; fi",
-              "if echo \"$IMAGE\" | grep -q '^ghcr.io/'; then if [ -n \"${GHCR_USERNAME:-}\" ] && [ -n \"${GHCR_TOKEN:-}\" ]; then echo \"$GHCR_TOKEN\" | docker login ghcr.io -u \"$GHCR_USERNAME\" --password-stdin || true; fi; fi",
-              "docker pull \"$IMAGE\"",
-              "docker rm -f sigbang-api || true",
-              "docker run -d --name sigbang-api --restart=always --env-file \"$ENV_FILE\" -p 3000:3000 \"$IMAGE\"",
-              "sleep 3",
-              "curl -fsS http://localhost:3000/health || exit 1"
-            ]
-          }
-          JSON
-          aws ssm send-command \
-            --document-name "AWS-RunShellScript" \
-            --comment "Deploy API ${IMAGE}" \
-            --targets "Key=tag:Name,Values=${TARGET_NAME_TAG}" \
-            --parameters file://params.json \
-            --timeout-seconds 600 \
-            --max-concurrency "100%" \
-            --max-errors "0" \
-            --region "$AWS_REGION"
+          set -euo pipefail
+          echo "Resolving API instance by tag Name=${TARGET_NAME_TAG}"
+          IID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=${TARGET_NAME_TAG}" "Name=instance-state-name,Values=running" \
+            --query "Reservations[].Instances[].InstanceId" --output text --region "$AWS_REGION")
+          if [ -z "$IID" ]; then
+            echo "No running instance found with Name=${TARGET_NAME_TAG}"
+            exit 1
+          fi
+          AZ=$(aws ec2 describe-instances --instance-ids "$IID" \
+            --query "Reservations[0].Instances[0].Placement.AvailabilityZone" --output text --region "$AWS_REGION")
+          PUBIP=$(aws ec2 describe-instances --instance-ids "$IID" \
+            --query "Reservations[0].Instances[0].PublicIpAddress" --output text --region "$AWS_REGION")
+          echo "Target: $IID ($AZ) public-ip=$PUBIP"
+
+          # EC2 Instance Connect: push one-time SSH key
+          ssh-keygen -t ed25519 -N "" -f id_ed25519
+          aws ec2-instance-connect send-ssh-public-key \
+            --instance-id "$IID" --availability-zone "$AZ" \
+            --instance-os-user ubuntu --ssh-public-key file://id_ed25519.pub \
+            --region "$AWS_REGION" >/dev/null
+
+          # Remote replacement of API container
+          ssh -o StrictHostKeyChecking=no -i id_ed25519 ubuntu@"$PUBIP" bash -lc "
+            set -euo pipefail
+            IMAGE='${IMAGE}'
+            EXPOSE_PORT=${EXPOSE_PORT}
+            CONTAINER_NAME='${CONTAINER_NAME}'
+            if echo \"\$IMAGE\" | grep -q '^ghcr.io/' && [ -n '${GHCR_USERNAME}' ] && [ -n '${GHCR_TOKEN}' ]; then
+              echo '${GHCR_TOKEN}' | sudo docker login ghcr.io -u '${GHCR_USERNAME}' --password-stdin || true
+            fi
+            ENV_FILE='/home/ubuntu/.env'
+            sudo docker pull \"\$IMAGE\"
+            sudo docker ps --filter \"publish=\$EXPOSE_PORT\" -q | xargs -r sudo docker rm -f || true
+            sudo docker rm -f \"\$CONTAINER_NAME\" || true
+            [ -f \"\$ENV_FILE\" ] && ENV_FILE_ARG='--env-file '\$ENV_FILE'' || ENV_FILE_ARG=''
+            sudo docker run --pull=always -d --name \"\$CONTAINER_NAME\" --restart=always \$ENV_FILE_ARG -p \$EXPOSE_PORT:3000 \"\$IMAGE\"
+            sleep 3
+            curl -fsS http://localhost:\$EXPOSE_PORT/health >/dev/null
+            sudo docker ps -a | sed -n '1p;/sigbang-api/p'
+            sudo docker inspect -f 'Image={{.Config.Image}} State={{.State.Status}}' sigbang-api
+          "
 
 
