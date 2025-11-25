@@ -120,3 +120,23 @@ export class RevokeSessionDto {
   @IsString()
   deviceId?: string;
 }
+
+export class GoogleCodeDto {
+  @ApiProperty({ description: 'Authorization code' })
+  @IsString()
+  code: string;
+
+  @ApiProperty({ description: '프론트엔드에서 사용한 redirect_uri와 동일해야 함' })
+  @IsString()
+  redirectUri: string;
+
+  @ApiPropertyOptional({ description: '클라이언트 단말 식별자 (선택)' })
+  @IsOptional()
+  @IsString()
+  deviceId?: string;
+
+  @ApiPropertyOptional({ description: '클라이언트 표시명 (선택)' })
+  @IsOptional()
+  @IsString()
+  deviceName?: string;
+}

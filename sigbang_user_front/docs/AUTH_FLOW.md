@@ -1,50 +1,58 @@
-# 🔐 Auth Flow – Google Login → NextAuth → Sigbang API
+# 🔐 Auth Flow – Google OAuth Redirect → Sigbang API
 
 ## Overview
 
-이 문서는 Google OAuth 로그인부터 NextAuth 세션 관리,  
+이 문서는 Google OAuth 로그인부터
 백엔드 토큰 교환, 프록시 인증 검증, 쿠키 정책, 로그아웃 처리까지의  
 전체 인증 시퀀스를 설명합니다.
 
 ---
 
-## 1. Google 로그인 → NextAuth 세션
+## 1. Google 로그인 → Redirect → Callback
 
 ### Flow
-1. 사용자가 **Google OAuth 로그인** 수행  
-2. `NextAuth`의 `jwt/session` 콜백에서 **Google id_token**을 세션에 포함  
-3. 로그인 완료 후 클라이언트는 `/auth/finalize`로 이동  
-4. 세션의 `id_token`을 이용해 **토큰 교환** 단계로 진입
+1. 사용자가 로그인 페이지의 **커스텀 Google 버튼** 클릭  
+2. 프론트엔드 라우트 `/api/auth/google/redirect`가 Google OAuth 2.0 인증 페이지로 302 리다이렉트 (새 페이지)  
+3. 로그인 완료 시 Google이 `code`와 `state`로 `/api/auth/google/callback` 호출  
+4. 콜백 라우트가 백엔드 `POST /auth/google/exchange`에 `code`와 `redirectUri`로 교환 요청  
+5. 백엔드는 `id_token`을 검증하고 자체 `accessToken/refreshToken` 발급  
+6. 프론트엔드가 `sb_at/sb_rt`를 httpOnly 쿠키로 설정 후 `/`로 리다이렉트
 
 ```mermaid
 sequenceDiagram
   participant User
-  participant NextAuth
-  participant Session
+  participant FE as Frontend
+  participant Google
+  participant BE as Backend
 
-  User->>NextAuth: Google OAuth Login
-  NextAuth->>Session: store Google id_token
-  User->>NextAuth: Redirect /auth/finalize
+  User->>FE: Click "Continue with Google"
+  FE->>Google: 302 to accounts.google.com (auth request)
+  Google-->>FE: GET /api/auth/google/callback?code=...&state=...
+  FE->>BE: POST /auth/google/exchange { code, redirectUri }
+  BE->>Google: Exchange code → tokens
+  Google-->>BE: id_token (+ access_token)
+  BE->>BE: verify id_token, upsert user, mint AT/RT
+  BE-->>FE: { accessToken, refreshToken, user }
+  FE->>FE: setCookie(sb_at, sb_rt)
+  FE-->>User: 302 /
 ```
 
 ---
 
-## 2. 토큰 교환 (/api/auth/google)
+## 2. 콜백 → 코드 교환 (/auth/google/exchange)
 
 ### Flow
-- 클라이언트는 `id_token` + `deviceId/deviceName`을 `/api/auth/google`에 POST  
-- 서버가 **백엔드 `/auth/google`**에 요청  
-- 응답으로 받은 `accessToken` / `refreshToken`을 파싱  
-- 다음과 같이 httpOnly 쿠키로 저장:
+- 콜백(`/api/auth/google/callback`)에서 `code/state`를 검증  
+- 백엔드 **`POST /auth/google/exchange`**로 `code`와 `redirectUri`를 전송  
+- 응답의 `accessToken` / `refreshToken`을 httpOnly 쿠키로 저장:
   - `sb_at`: Access Token (exp 기반 만료)
   - `sb_rt`: Refresh Token (30일 유효)
 
 ```bash
-POST /api/auth/google
+POST /auth/google/exchange
 body: {
-  id_token: "<google_id_token>",
-  deviceId: "<device_uuid>",
-  deviceName: "<device_label>"
+  code: "<oauth_code>",
+  redirectUri: "https://<site-origin>/api/auth/google/callback"
 }
 ```
 
@@ -151,13 +159,14 @@ clearCookies(sb_at, sb_rt)
 
 ```mermaid
 flowchart LR
-A[Google OAuth Login] --> B[NextAuth Session (id_token)]
-B --> C[/auth/finalize]
-C --> D[/api/auth/google → Backend /auth/google]
-D --> E[Set-Cookie sb_at/sb_rt]
-E --> F[/api/proxy Request]
-F --> G[ensureAtBeforeRequest → refresh if expired]
-G --> H[Backend API]
-H -->|401| I[Refresh once → clear cookies if fail]
-I --> J[Client redirect /login]
+A[Click Google Button] --> B[/api/auth/google/redirect]
+B --> C[Google Login Page]
+C --> D[/api/auth/google/callback?code&state]
+D --> E[POST /auth/google/exchange]
+E --> F[Set-Cookie sb_at/sb_rt]
+F --> G[/api/proxy Request]
+G --> H[ensureAtBeforeRequest → refresh if expired]
+H --> I[Backend API]
+I -->|401| J[Refresh once → clear cookies if fail]
+J --> K[Client redirect /login]
 ```

@@ -2,20 +2,14 @@
 
 import Image from "next/image";
 import { useCallback } from "react";
-import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  const router = useRouter();
-
   const handleGoogle = useCallback(async () => {
-    try {
-      // Use Google One Tap / Credential via frontend, then post to our API
-      // For now, redirect to native finalize flow which handles token handoff
-      router.push('/auth/finalize');
-    } catch {
-      router.push('/auth/finalize');
+    // Full-page redirect to OAuth redirect endpoint (no popup/One Tap/FedCM)
+    if (typeof window !== 'undefined') {
+      window.location.assign(`${window.location.origin}/api/auth/google/redirect`);
     }
-  }, [router]);
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col items-center">

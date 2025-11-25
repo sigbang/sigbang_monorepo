@@ -17,7 +17,7 @@ import {
 } from '@nestjs/swagger';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
-import { SignUpDto, SignInDto, RefreshTokenDto, GoogleOAuthDto, SignOutDto, RevokeSessionDto } from './dto/auth.dto';
+import { SignUpDto, SignInDto, RefreshTokenDto, GoogleOAuthDto, SignOutDto, RevokeSessionDto, GoogleCodeDto } from './dto/auth.dto';
 import { JwtAuthGuard } from '../common/guards/jwt.guard';
 import { JwtFastGuard } from '../common/guards/jwt-fast.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
@@ -187,6 +187,26 @@ export class AuthController {
       userAgent,
       ip,
     });
+  }
+
+  @Post('google/exchange')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Google OAuth code 교환' })
+  async googleExchange(
+    @Body() dto: GoogleCodeDto,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-forwarded-for') xff?: string,
+  ) {
+    const ip = typeof xff === 'string' ? xff.split(',')[0]?.trim() : undefined;
+    return this.authService.exchangeGoogleCode(
+      { code: dto.code, redirectUri: dto.redirectUri },
+      {
+        deviceId: dto.deviceId,
+        deviceName: dto.deviceName,
+        userAgent,
+        ip,
+      },
+    );
   }
 
   @Get('validate')

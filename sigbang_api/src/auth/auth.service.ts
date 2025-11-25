@@ -7,6 +7,7 @@ import { TokenService, TokenPair, DeviceContext } from './token.service';
 
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 
 @Injectable()
 export class AuthService {
@@ -322,6 +323,34 @@ export class AuthService {
   }
 
   // 이메일 관련/비밀번호 재설정 관련 메서드 제거 (롤백)
+
+  async exchangeGoogleCode(
+    dto: { code: string; redirectUri: string },
+    device?: DeviceContext,
+  ) {
+    if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+      throw new UnauthorizedException('Google OAuth client is not configured');
+    }
+
+    // Authorization Code -> Tokens (incl. id_token)
+    const oauthClient = new OAuth2Client(
+      GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET,
+      dto.redirectUri,
+    );
+
+    const result = await oauthClient.getToken({
+      code: dto.code,
+      redirect_uri: dto.redirectUri,
+    } as any);
+
+    const idToken = result.tokens?.id_token;
+    if (!idToken) {
+      throw new UnauthorizedException('Missing id_token from Google');
+    }
+
+    return this.validateGoogleUser(idToken, device);
+  }
 
   async validateGoogleUser(idToken: string, device?: DeviceContext) {
     const ticket = await this.client.verifyIdToken({
