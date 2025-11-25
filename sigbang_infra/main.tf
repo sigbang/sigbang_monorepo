@@ -156,7 +156,6 @@ locals {
     openai_api_key            = var.openai_api_key
     openai_recipe_model       = var.openai_recipe_model
     public_base_url           = var.public_base_url
-    web_base_url              = var.web_base_url
     throttle_ttl              = var.throttle_ttl
     throttle_limit            = var.throttle_limit
     admin_job_secret          = var.admin_job_secret
@@ -184,7 +183,6 @@ resource "aws_ssm_parameter" "env_vars" {
     OPENAI_API_KEY            = var.openai_api_key
     OPENAI_RECIPE_MODEL       = var.openai_recipe_model
     PUBLIC_BASE_URL           = var.public_base_url
-    WEB_BASE_URL              = var.web_base_url
     THROTTLE_TTL              = var.throttle_ttl
     THROTTLE_LIMIT            = var.throttle_limit
     ADMIN_JOB_SECRET          = var.admin_job_secret

@@ -7,7 +7,6 @@ import {
   HttpStatus,
   UseGuards,
   Headers,
-  Patch,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,7 +17,7 @@ import {
 } from '@nestjs/swagger';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
-import { SignUpDto, SignInDto, RefreshTokenDto, GoogleOAuthDto, SignOutDto, RevokeSessionDto, VerifyEmailDto, ResendVerificationDto, ForgotPasswordDto, ResetPasswordDto, ChangePasswordDto } from './dto/auth.dto';
+import { SignUpDto, SignInDto, RefreshTokenDto, GoogleOAuthDto, SignOutDto, RevokeSessionDto } from './dto/auth.dto';
 import { JwtAuthGuard } from '../common/guards/jwt.guard';
 import { JwtFastGuard } from '../common/guards/jwt-fast.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
@@ -32,15 +31,7 @@ export class AuthController {
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: '회원가입' })
-  @ApiResponse({
-    status: 201,
-    description: '회원가입 성공 (인증 메일 발송)',
-    schema: {
-      example: {
-        message: '인증 메일을 보냈습니다. 메일함을 확인해주세요.',
-      },
-    },
-  })
+  @ApiResponse({ status: 201, description: '회원가입 성공' })
   @ApiResponse({ status: 409, description: '이미 존재하는 사용자' })
   async signUp(
     @Body() signUpDto: SignUpDto,
@@ -87,42 +78,7 @@ export class AuthController {
     });
   }
 
-  @Post('email/resend')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: '이메일 인증 메일 재발송' })
-  async resendVerification(@Body() dto: ResendVerificationDto) {
-    return this.authService.resendVerification(dto);
-  }
-
-  @Post('email/verify')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: '이메일 인증 완료' })
-  async verifyEmail(@Body() dto: VerifyEmailDto) {
-    return this.authService.verifyEmail(dto);
-  }
-
-  @Post('password/forgot')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: '비밀번호 재설정 메일 발송' })
-  async forgotPassword(@Body() dto: ForgotPasswordDto) {
-    return this.authService.forgotPassword(dto);
-  }
-
-  @Post('password/reset')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: '비밀번호 재설정' })
-  async resetPassword(@Body() dto: ResetPasswordDto) {
-    return this.authService.resetPassword(dto);
-  }
-
-  @Patch('password')
-  @HttpCode(HttpStatus.OK)
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: '비밀번호 변경 (로그인 상태)' })
-  async changePassword(@CurrentUser() user: any, @Body() dto: ChangePasswordDto) {
-    return this.authService.changePassword(user.id, dto);
-  }
+  // 이메일 인증/비밀번호 변경 관련 엔드포인트 제거 (롤백)
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
