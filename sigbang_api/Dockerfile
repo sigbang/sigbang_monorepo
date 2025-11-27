@@ -5,7 +5,7 @@ WORKDIR /app
 # Install deps (dev 포함)
 COPY package*.json ./
 COPY prisma ./prisma/
-RUN npm ci && npm cache clean --force
+RUN npm install && npm cache clean --force
 
 # Build
 COPY . .
@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends dumb-init opens
 
 # 프로덕션 의존성만 설치
 COPY package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm install --omit=dev && npm cache clean --force
 
 # 앱 산출물/스키마 복사
 COPY --from=builder /app/dist ./dist
