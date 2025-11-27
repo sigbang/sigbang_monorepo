@@ -56,7 +56,7 @@ export class TrendCronService {
       )
       FROM recipes r
       LEFT JOIN editorial_boosts eb
-        ON eb."recipeId" = c."recipeId"
+        ON eb."recipeId" = r.id
         AND (eb."expiresAt" IS NULL OR eb."expiresAt" > now())
       WHERE r.id = c."recipeId";
     `;
