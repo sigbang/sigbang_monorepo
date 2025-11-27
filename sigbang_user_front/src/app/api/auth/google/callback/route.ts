@@ -8,18 +8,18 @@ const STATE_COOKIE = 'g_oauth_state';
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const origin = url.origin;
+  const siteOrigin = ENV.SITE_URL.endsWith('/') ? ENV.SITE_URL.slice(0, -1) : ENV.SITE_URL;
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
   const cookie = req.headers.get('cookie') || '';
   const stateCookie = cookie.match(/(?:^|; )g_oauth_state=([^;]+)/)?.[1] || '';
 
   if (!code) {
-    return NextResponse.redirect(`${origin}/login?error=oauth_code`, 302);
+    return NextResponse.redirect(`${siteOrigin}/login?error=oauth_code`, 302);
   }
 
   if (!state || !stateCookie || state !== stateCookie) {
-    const res = NextResponse.redirect(`${origin}/login?error=oauth_state`, 302);
+    const res = NextResponse.redirect(`${siteOrigin}/login?error=oauth_state`, 302);
     res.headers.append('Set-Cookie', `${STATE_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure`);
     return res;
   }
@@ -31,18 +31,18 @@ export async function GET(req: Request) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         code,
-        redirectUri: `${origin}/api/auth/google/callback`,
+        redirectUri: `${siteOrigin}/api/auth/google/callback`,
       }),
       cache: 'no-store',
     });
   } catch {
-    const res = NextResponse.redirect(`${origin}/login?error=network`, 302);
+    const res = NextResponse.redirect(`${siteOrigin}/login?error=network`, 302);
     res.headers.append('Set-Cookie', `${STATE_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure`);
     return res;
   }
 
   if (!upstream.ok) {
-    const res = NextResponse.redirect(`${origin}/login?error=exchange_failed`, 302);
+    const res = NextResponse.redirect(`${siteOrigin}/login?error=exchange_failed`, 302);
     res.headers.append('Set-Cookie', `${STATE_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure`);
     return res;
   }

@@ -125,6 +125,7 @@ resource "aws_launch_template" "web_lt" {
     web_api_base_url      = var.web_api_base_url
     web_supabase_url      = var.web_supabase_url
     web_supabase_anon_key = var.web_supabase_anon_key
+    web_google_client_id  = var.web_google_client_id
   }))
 
   lifecycle {

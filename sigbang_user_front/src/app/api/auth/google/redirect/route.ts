@@ -11,8 +11,8 @@ function randomState() {
 }
 
 export async function GET(req: Request) {
-  const origin = new URL(req.url).origin;
-  const redirectUri = `${origin}/api/auth/google/callback`;
+  const siteOrigin = ENV.SITE_URL.endsWith('/') ? ENV.SITE_URL.slice(0, -1) : ENV.SITE_URL;
+  const redirectUri = `${siteOrigin}/api/auth/google/callback`;
   const state = randomState();
 
   const params = new URLSearchParams({

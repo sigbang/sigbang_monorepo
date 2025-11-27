@@ -85,6 +85,12 @@ variable "web_supabase_anon_key" {
   description = "Supabase anon key for frontend"
 }
 
+variable "web_google_client_id" {
+  type        = string
+  description = "Google OAuth Client ID for frontend (NEXT_PUBLIC_GOOGLE_CLIENT_ID)"
+  default     = ""
+}
+
 ##########################################
 # Environment Variables (SSM)
 ##########################################
