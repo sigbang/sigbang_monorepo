@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useCallback } from "react";
+import Link from "next/link";
 
 export default function LoginPage() {
   const handleGoogle = useCallback(async () => {
@@ -13,28 +14,52 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center">
-      <header className="w-full max-w-[1040px] px-4 py-4 flex items-center justify-center">
-        <div className="flex items-center gap-2">
-          <Image src="/logo.png" alt="식방" width={36} height={36} />
+      <main className="flex-1 w-full flex flex-col items-center justify-start mt-24 px-4">
+        <div className="w-full">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+            <div className="hidden md:block">
+              <div className="mx-16 relative w-full rounded-2xl overflow-hidden bg-[#f0f0f0]" style={{ aspectRatio: '4 / 3' }}>
+                <Image
+                  src="/login/hero_login.jpg"
+                  alt="식방 소개 이미지"
+                  fill
+                  sizes="(min-width: 1040px) 520px, (min-width: 768px) 50vw, 0px"
+                  className="object-cover"
+                  priority
+                />
+              </div>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="h-4 md:h-8" />
+              <Image src="/logo.png" alt="식방" width={52} height={52} />
+              <div className="h-6 md:h-8" />
+              <h1 className="text-[28px] md:text-[32px] font-bold text-left">나만의 레시피를 발견하세요.</h1>
+              <h2 className="text-[16px] md:text-[18px] text-left">세상의 모든 레시피 식방</h2>
+              <div className="h-4 md:h-6" />
+              <div className="w-full max-w-[420px] rounded-2xl bg-[#f6f6f6] p-6">
+                <button
+                  onClick={handleGoogle}
+                  className="w-full h-[56px] rounded-md bg-white border border-neutral-500 text-black flex items-center justify-center gap-3 text-[18px] transition-all hover:bg-neutral-50 hover:border-neutral-600 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-neutral-300 active:translate-y-px"
+                >
+                  <Image src="/login/google_login.png" alt="Google" width={22} height={22} />
+                  <span>Google로 계속하기</span>
+                </button>
+                <button
+                  onClick={() => alert('준비중입니다.')}
+                  className="mt-4 w-full h-[56px] rounded-md bg-white border border-neutral-500 text-black flex items-center justify-center gap-3 text-[18px] transition-all hover:bg-neutral-50 hover:border-neutral-600 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-neutral-300 active:translate-y-px"
+                >
+                  <Image src="/login/email_login.png" alt="Google" width={22} height={22} />
+                  <span>메일로 계속하기 (준비중)</span>
+                </button>
+              </div>
+            </div>            
+          </div>
         </div>
-      </header>
-      <main className="flex-1 w-full flex flex-col items-center justify-start mt-10 px-4">
-        <h1 className="text-[28px] font-bold">로그인</h1>
-        <div className="mt-8 w-full max-w-[420px] rounded-2xl bg-[#f6f6f6] p-6">
-          <button
-            onClick={handleGoogle}
-            className="w-full h-[56px] rounded-md bg-black text-white flex items-center justify-center gap-3 text-[18px]"
-          >
-            <span>Google로 계속하기</span>
-          </button>
-          <button
-            disabled
-            className="mt-4 w-full h-[56px] rounded-md bg-[#222] text-white/70 flex items-center justify-center gap-3 text-[18px] cursor-not-allowed"
-          >
-            <span>Apple로 계속하기</span>
-          </button>
+        <div className="mt-10 mb-24 text-[16px] text-[#777]">
+          <Link href="/legal/terms" className="hover:underline">서비스 약관</Link>
+          <span className="mx-2">·</span>
+          <Link href="/legal/privacy" className="hover:underline">개인정보처리 방침</Link>
         </div>
-        <div className="mt-10 text-[12px] text-[#777]">서비스 약관 및 개인정보처리 방침</div>
       </main>
     </div>
   );
