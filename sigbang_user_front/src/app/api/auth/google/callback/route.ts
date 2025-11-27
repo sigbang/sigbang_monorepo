@@ -52,14 +52,14 @@ export async function GET(req: Request) {
   const refreshToken = raw?.refreshToken as string | undefined;
 
   if (!accessToken || !refreshToken) {
-    const res = NextResponse.redirect(`${origin}/login?error=missing_tokens`, 302);
+    const res = NextResponse.redirect(`${siteOrigin}/login?error=missing_tokens`, 302);
     res.headers.append('Set-Cookie', `${STATE_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure`);
     return res;
   }
 
   await setTokens({ accessToken, refreshToken, accessExp: getExp(accessToken) });
 
-  const res = NextResponse.redirect(`${origin}/`, 302);
+  const res = NextResponse.redirect(`${siteOrigin}/`, 302);
   res.headers.append('Set-Cookie', `${STATE_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure`);
   return res;
 }
