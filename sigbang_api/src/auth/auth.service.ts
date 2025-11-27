@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, UnauthorizedException, Logger } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { SupabaseService } from '../database/supabase.service';
 import { SignUpDto, SignInDto, RevokeSessionDto } from './dto/auth.dto';
@@ -13,6 +13,7 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 export class AuthService {
 
   private client = new OAuth2Client(GOOGLE_CLIENT_ID);
+  private readonly logger = new Logger(AuthService.name);
 
   constructor(
     private prismaService: PrismaService,
@@ -329,8 +330,11 @@ export class AuthService {
     device?: DeviceContext,
   ) {
     if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+      this.logger.warn(`Google OAuth env missing: hasClientId=${!!GOOGLE_CLIENT_ID} hasSecret=${!!GOOGLE_CLIENT_SECRET}`);
       throw new UnauthorizedException('Google OAuth client is not configured');
     }
+
+    this.logger.log(`exchangeGoogleCode start redirectUri=${dto.redirectUri} codeLen=${dto.code?.length ?? 0}`);
 
     // Authorization Code -> Tokens (incl. id_token)
     const oauthClient = new OAuth2Client(
@@ -339,13 +343,20 @@ export class AuthService {
       dto.redirectUri,
     );
 
-    const result = await oauthClient.getToken({
-      code: dto.code,
-      redirect_uri: dto.redirectUri,
-    } as any);
+    let result;
+    try {
+      result = await oauthClient.getToken({
+        code: dto.code,
+        redirect_uri: dto.redirectUri,
+      } as any);
+    } catch (err: any) {
+      this.logger.error(`Google getToken failed: ${err?.message || err}`, err?.stack);
+      throw err;
+    }
 
     const idToken = result.tokens?.id_token;
     if (!idToken) {
+      this.logger.error('Google token exchange succeeded but id_token is missing');
       throw new UnauthorizedException('Missing id_token from Google');
     }
 
@@ -353,13 +364,21 @@ export class AuthService {
   }
 
   async validateGoogleUser(idToken: string, device?: DeviceContext) {
-    const ticket = await this.client.verifyIdToken({
-      idToken,
-      audience: GOOGLE_CLIENT_ID,
-    });
+    this.logger.log('validateGoogleUser start');
+    let ticket;
+    try {
+      ticket = await this.client.verifyIdToken({
+        idToken,
+        audience: GOOGLE_CLIENT_ID,
+      });
+    } catch (err: any) {
+      this.logger.error(`verifyIdToken failed: ${err?.message || err}`, err?.stack);
+      throw err;
+    }
 
     const payload = ticket.getPayload();
     if (!payload?.email) throw new UnauthorizedException();
+    this.logger.log(`validateGoogleUser ok email=${payload.email}`);
 
     // 유저 DB에 저장 또는 조회
     let user = await this.prismaService.user.findUnique({
