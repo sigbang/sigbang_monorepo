@@ -151,6 +151,7 @@ locals {
     supabase_service_role_key = var.supabase_service_role_key
     supabase_storage_bucket   = var.supabase_storage_bucket
     google_client_id          = var.google_client_id
+    google_client_secret      = var.google_client_secret
     jwt_secret                = var.jwt_secret
     jwt_expires_in            = var.jwt_expires_in
     openai_api_key            = var.openai_api_key
@@ -178,6 +179,7 @@ resource "aws_ssm_parameter" "env_vars" {
     SUPABASE_SERVICE_ROLE_KEY = var.supabase_service_role_key
     SUPABASE_STORAGE_BUCKET   = var.supabase_storage_bucket
     GOOGLE_CLIENT_ID          = var.google_client_id
+    GOOGLE_CLIENT_SECRET      = var.google_client_secret
     JWT_SECRET                = var.jwt_secret
     JWT_EXPIRES_IN            = var.jwt_expires_in
     OPENAI_API_KEY            = var.openai_api_key
