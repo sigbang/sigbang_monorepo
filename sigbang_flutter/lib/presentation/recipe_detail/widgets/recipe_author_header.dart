@@ -3,10 +3,12 @@ import '../../../domain/entities/recipe.dart';
 
 class RecipeAuthorHeader extends StatelessWidget {
   final Author author;
+  final bool showFollowButton;
 
   const RecipeAuthorHeader({
     super.key,
     required this.author,
+    this.showFollowButton = true,
   });
 
   @override
@@ -40,17 +42,18 @@ class RecipeAuthorHeader extends StatelessWidget {
             ],
           ),
         ),
-        TextButton(
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('프로필 화면은 곧 제공될 예정입니다'),
-                duration: Duration(seconds: 1),
-              ),
-            );
-          },
-          child: const Text('팔로우'),
-        )
+        if (showFollowButton)
+          TextButton(
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('프로필 화면은 곧 제공될 예정입니다'),
+                  duration: Duration(seconds: 1),
+                ),
+              );
+            },
+            child: const Text('팔로우'),
+          )
       ],
     );
   }

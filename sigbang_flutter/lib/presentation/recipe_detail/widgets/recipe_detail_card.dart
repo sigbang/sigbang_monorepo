@@ -5,11 +5,11 @@ import 'recipe_meta_row.dart';
 import 'recipe_author_header.dart';
 import 'recipe_ingredients.dart';
 import 'recipe_steps.dart';
-import 'recipe_actions.dart';
 
 class RecipeDetailCard extends StatelessWidget {
   final Recipe recipe;
   final bool isLoggedIn;
+  final String? currentUserId;
   final VoidCallback? onLikeTap;
   final VoidCallback? onSaveTap;
   final VoidCallback? onShareTap;
@@ -18,6 +18,7 @@ class RecipeDetailCard extends StatelessWidget {
     super.key,
     required this.recipe,
     required this.isLoggedIn,
+    this.currentUserId,
     this.onLikeTap,
     this.onSaveTap,
     this.onShareTap,
@@ -39,11 +40,17 @@ class RecipeDetailCard extends StatelessWidget {
                   if (recipe.author != null)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                      child: RecipeAuthorHeader(author: recipe.author!),
+                      child: RecipeAuthorHeader(
+                        author: recipe.author!,
+                        showFollowButton: !(currentUserId != null &&
+                            recipe.author?.id == currentUserId),
+                      ),
                     ),
 
+                  const SizedBox(height: 6),
                   // 이미지 갤러리
                   RecipeImageGallery(recipe: recipe),
+                  const SizedBox(height: 6),
 
                   // 레시피 기본 정보
                   Padding(
@@ -85,6 +92,7 @@ class RecipeDetailCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 16),
                         ],
+                        const SizedBox(height: 12),
 
                         // 외부 링크 섹션 (자료 구입/참고 링크)
                         if ((recipe.linkTitle ?? recipe.linkUrl) != null) ...[

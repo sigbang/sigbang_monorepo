@@ -199,6 +199,7 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
       return RecipeDetailCard(
         recipe: recipe,
         isLoggedIn: state.isLoggedIn,
+        currentUserId: state.currentUserId,
         onLikeTap: () => context.read<RecipeDetailCubit>().toggleLike(),
         onSaveTap: () => context.read<RecipeDetailCubit>().toggleSave(),
         onShareTap: () => _shareRecipe(context, state),

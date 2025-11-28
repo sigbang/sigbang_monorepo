@@ -219,33 +219,6 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
                   error: state.errors['thumbnail'],
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  '대표사진을 추가하면 AI로 레시피를 생성할 수 있습니다.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: state.thumbnailPath != null
-                        ? () =>
-                            context.read<RecipeCreateCubit>().generateWithAi()
-                        : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.amber,
-                      disabledBackgroundColor: Colors.amber.shade50,
-                      foregroundColor: Colors.black,
-                      disabledForegroundColor: Colors.black45,
-                      shape: const StadiumBorder(),
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 14, horizontal: 24),
-                    ),
-                    child: const Text('AI로 레시피 생성'),
-                  ),
-                ),
-                const SizedBox(height: 16),
               ],
               const SizedBox(height: 16),
 

@@ -22,7 +22,7 @@ class RecipeSteps extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 32),
         if (steps.isEmpty)
           Container(
             padding: const EdgeInsets.all(16),
@@ -49,17 +49,17 @@ class RecipeSteps extends StatelessWidget {
                   children: [
                     // 단계 번호
                     Container(
-                      width: 32,
-                      height: 32,
+                      width: 24,
+                      height: 24,
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary,
+                        color: Theme.of(context).colorScheme.secondary,
                         shape: BoxShape.circle,
                       ),
                       child: Center(
                         child: Text(
                           '${step.order}',
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onPrimary,
+                            color: Theme.of(context).colorScheme.onSecondary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -107,6 +107,7 @@ class RecipeSteps extends StatelessWidget {
                                       height: 1.5,
                                     ),
                           ),
+                          const SizedBox(height: 16),
                         ],
                       ),
                     ),

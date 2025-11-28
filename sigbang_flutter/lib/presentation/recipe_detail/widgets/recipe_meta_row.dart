@@ -30,7 +30,7 @@ class RecipeMetaRow extends StatelessWidget {
             sessionState.user?.status, ActionType.saveRecipe);
 
         return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
             // 시간
             Row(
@@ -47,88 +47,82 @@ class RecipeMetaRow extends StatelessWidget {
                 ),
               ],
             ),
+            const Spacer(),
 
-            // 좋아요 카운트
-            InkWell(
-              onTap: canLike
-                  ? onLikeTap
-                  : () {
-                      if (!canLike && sessionState.user != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text(ActionGuard.getRestrictionMessage(
-                                  ActionType.likeRecipe))),
-                        );
-                      }
-                    },
-              borderRadius: BorderRadius.circular(6),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                child: Row(
-                  children: [
-                    Icon(
-                      recipe.isLiked ? Icons.favorite : Icons.favorite_border,
-                      size: 24,
-                      color: !canLike
-                          ? Theme.of(context).disabledColor
-                          : iconColor,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _formatCount(recipe.likesCount),
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: !canLike
-                                ? Theme.of(context).disabledColor
-                                : subtleColor,
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // 저장 버튼 (아이콘만)
-            InkWell(
-              onTap: canSave
-                  ? onSaveTap
-                  : () {
-                      if (!canSave && sessionState.user != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text(ActionGuard.getRestrictionMessage(
-                                  ActionType.saveRecipe))),
-                        );
-                      }
-                    },
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: recipe.isSaved && canSave
-                      ? Colors.amber
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                  border: recipe.isSaved
-                      ? null
-                      : Border.all(
-                          color: !canSave
+            // 우측 정렬: 좋아요 + 저장
+            Row(
+              children: [
+                // 좋아요 카운트
+                InkWell(
+                  onTap: canLike
+                      ? onLikeTap
+                      : () {
+                          if (!canLike && sessionState.user != null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text(
+                                      ActionGuard.getRestrictionMessage(
+                                          ActionType.likeRecipe))),
+                            );
+                          }
+                        },
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    child: Row(
+                      children: [
+                        Icon(
+                          recipe.isLiked
+                              ? Icons.favorite
+                              : Icons.favorite_border,
+                          size: 24,
+                          color: !canLike
                               ? Theme.of(context).disabledColor
-                              : colorScheme.onSurface,
-                          width: 1.2,
+                              : Colors.red,
                         ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _formatCount(recipe.likesCount),
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: !canLike
+                                        ? Theme.of(context).disabledColor
+                                        : subtleColor,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                child: Icon(
-                  recipe.isSaved ? Icons.bookmark : Icons.bookmark_border,
-                  size: 20,
-                  color: recipe.isSaved && canSave
-                      ? Colors.black
-                      : (!canSave
-                          ? Theme.of(context).disabledColor
-                          : iconColor),
+
+                const SizedBox(width: 12),
+
+                // 저장 버튼 (아이콘만)
+                InkWell(
+                  onTap: canSave
+                      ? onSaveTap
+                      : () {
+                          if (!canSave && sessionState.user != null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text(
+                                      ActionGuard.getRestrictionMessage(
+                                          ActionType.saveRecipe))),
+                            );
+                          }
+                        },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Icon(
+                    recipe.isSaved ? Icons.bookmark : Icons.bookmark_border,
+                    size: 24,
+                    color: !canSave
+                        ? Theme.of(context).disabledColor
+                        : Colors.black,
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
         );
