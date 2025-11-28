@@ -14,6 +14,17 @@ class RecipeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final titleStyle = Theme.of(context).textTheme.titleSmall?.copyWith(
+          fontWeight: FontWeight.bold,
+        );
+    final titleLineHeight =
+        (titleStyle?.fontSize ?? 14) * (titleStyle?.height ?? 1.2);
+    final String? profileImage = recipe.author?.profileImage;
+    final String? resolvedProfileUrl = profileImage == null
+        ? null
+        : (profileImage.startsWith('http')
+            ? profileImage
+            : _joinUrl(EnvConfig.baseUrl, profileImage));
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -47,31 +58,40 @@ class RecipeCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // 제목
-                    Text(
-                      recipe.title,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    SizedBox(
+                      height: titleLineHeight,
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: Text(
+                          recipe.title,
+                          style: titleStyle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 4),
-                    // 작성자
-                    if (recipe.author != null) ...[
-                      Text(
-                        recipe.author!.nickname,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.grey[600],
-                            ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                    // 통계 정보
+                    // 설명 (제목 아래 1줄 고정)
+                    Text(
+                      recipe.description,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.grey[700],
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    // 작성자 아바타 + 좋아요 (4번째 줄)
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
+                        if (resolvedProfileUrl != null)
+                          CircleAvatar(
+                            radius: 10,
+                            backgroundImage: NetworkImage(resolvedProfileUrl),
+                            backgroundColor: Colors.transparent,
+                          ),
+                        const Spacer(),
                         Icon(
                           Icons.favorite,
                           size: 14,
@@ -82,30 +102,6 @@ class RecipeCard extends StatelessWidget {
                           '${recipe.likesCount}',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
-                        const SizedBox(width: 12),
-                        const Icon(
-                          Icons.visibility,
-                          size: 14,
-                          color: Colors.grey,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${recipe.viewCount}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        const Spacer(),
-                        if (recipe.cookingTime != null) ...[
-                          const Icon(
-                            Icons.schedule,
-                            size: 14,
-                            color: Colors.grey,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${recipe.cookingTime}분',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
                       ],
                     ),
                   ],

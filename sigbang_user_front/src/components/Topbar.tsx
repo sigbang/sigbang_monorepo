@@ -47,7 +47,7 @@ export default function Topbar() {
       <div className="mx-auto max-w-[1040px] px-4 py-4 flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2 shrink-0">
           <Link href="/" className="flex items-center gap-2" aria-label="식방 홈">
-            <Image src="/logo.png" alt="식방" width={32} height={32} priority />
+            <Image src="/logo.png" alt="식방" width={36} height={36} priority />
             <span className="sr-only">식방</span>
           </Link>
           <div className="text-[16px]">식방 Beta</div>
