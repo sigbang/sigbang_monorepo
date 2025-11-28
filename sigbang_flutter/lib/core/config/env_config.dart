@@ -14,6 +14,13 @@ class EnvConfig {
     return dotenv.env['SUPABASE_ANON_KEY'] ?? '';
   }
 
+  static String get siteUrl {
+    // 우선순위: SITE_URL > PUBLIC_BASE_URL > 기본값
+    return dotenv.env['SITE_URL'] ??
+        dotenv.env['PUBLIC_BASE_URL'] ??
+        'https://sigbang.com';
+  }
+
   static bool get isProduction {
     return kReleaseMode;
   }

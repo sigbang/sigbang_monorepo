@@ -75,6 +75,7 @@ class RecipeDetailCard extends StatelessWidget {
                           recipe: recipe,
                           onLikeTap: onLikeTap,
                           onSaveTap: onSaveTap,
+                          onShareTap: onShareTap,
                         ),
 
                         // 설명

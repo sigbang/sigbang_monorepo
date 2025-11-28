@@ -8,12 +8,14 @@ class RecipeMetaRow extends StatelessWidget {
   final Recipe recipe;
   final VoidCallback? onLikeTap;
   final VoidCallback? onSaveTap;
+  final VoidCallback? onShareTap;
 
   const RecipeMetaRow({
     super.key,
     required this.recipe,
     this.onLikeTap,
     this.onSaveTap,
+    this.onShareTap,
   });
 
   @override
@@ -49,7 +51,7 @@ class RecipeMetaRow extends StatelessWidget {
             ),
             const Spacer(),
 
-            // 우측 정렬: 좋아요 + 저장
+            // 우측 정렬: 좋아요 + 저장 + 공유
             Row(
               children: [
                 // 좋아요 카운트
@@ -120,6 +122,18 @@ class RecipeMetaRow extends StatelessWidget {
                     color: !canSave
                         ? Theme.of(context).disabledColor
                         : Colors.black,
+                  ),
+                ),
+
+                const SizedBox(width: 12),
+
+                // 공유 버튼
+                InkWell(
+                  onTap: onShareTap,
+                  borderRadius: BorderRadius.circular(8),
+                  child: const Icon(
+                    Icons.ios_share,
+                    size: 24,
                   ),
                 ),
               ],
