@@ -305,26 +305,20 @@ class AuthService {
   /// 서버에서 현재 사용자 정보를 가져옵니다.
   Future<UserModel?> getCurrentUser() async {
     try {
-      // 먼저 로컬에 저장된 사용자 정보 확인
-      final userInfo = await SecureStorageService.getUserInfo();
-      if (userInfo != null) {
-        try {
-          final userJson = json.decode(userInfo);
-          return UserModel.fromJson(userJson);
-        } catch (e) {
-          if (kDebugMode) {
-            print('⚠️ Invalid local user data, fetching from server...');
-          }
-        }
-      }
-
-      // 로컬에 없으면 서버에서 가져오기
+      // 토큰이 있어야 서버 조회 가능
       final token = await getAccessToken();
       if (token == null) {
         return null;
       }
 
-      final response = await _apiClient.dio.get('/users/me');
+      // 서버에서 최신 사용자 정보 조회 (캐시 우회 헤더 추가)
+      final response = await _apiClient.dio.get(
+        '/users/me',
+        options: Options(headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        }),
+      );
 
       if (response.statusCode == 200) {
         final data = response.data is Map<String, dynamic>
@@ -338,6 +332,12 @@ class AuthService {
 
         return userModel;
       } else {
+        // 서버 비정상 응답 시 로컬 정보라도 반환
+        final userInfo = await SecureStorageService.getUserInfo();
+        if (userInfo != null) {
+          final userJson = json.decode(userInfo);
+          return UserModel.fromJson(userJson);
+        }
         return null;
       }
     } on DioException catch (e) {
@@ -346,6 +346,14 @@ class AuthService {
         await SecureStorageService.clearUserInfo();
         return null;
       }
+      // 네트워크 오류 시 로컬 캐시로 폴백
+      try {
+        final userInfo = await SecureStorageService.getUserInfo();
+        if (userInfo != null) {
+          final userJson = json.decode(userInfo);
+          return UserModel.fromJson(userJson);
+        }
+      } catch (_) {}
       throw Exception('사용자 정보 조회 실패: ${e.message}');
     } catch (e) {
       if (kDebugMode) {

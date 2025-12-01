@@ -6,12 +6,13 @@ import '../../../injection/injection.dart';
 import '../../login/cubits/login_cubit.dart';
 import '../../login/cubits/login_state.dart';
 import '../../../domain/entities/user.dart';
-import '../../../domain/usecases/get_current_user.dart';
 import '../cubits/profile_recipes_cubit.dart';
 import '../cubits/profile_recipes_state.dart';
 import '../../home/widgets/recipe_card.dart';
 import '../../../data/datasources/api_client.dart';
 import '../../../domain/entities/user.dart' show UserStatus;
+import '../../session/session_cubit.dart';
+import '../../../core/config/env_config.dart';
 
 class ProfilePage extends StatelessWidget {
   final User? user;
@@ -27,15 +28,23 @@ class ProfilePage extends StatelessWidget {
   }
 }
 
-class _ProfileView extends StatelessWidget {
+class _ProfileView extends StatefulWidget {
   final User? user;
-
   const _ProfileView({required this.user});
+  @override
+  State<_ProfileView> createState() => _ProfileViewState();
+}
 
-  Future<User?> _loadUserIfNeeded() async {
-    if (user != null) return user;
-    final result = await getIt<GetCurrentUser>()();
-    return result.fold((_) => null, (u) => u);
+class _ProfileViewState extends State<_ProfileView> {
+  bool _refreshedOnce = false;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_refreshedOnce) {
+      _refreshedOnce = true;
+      // 진입 시 서버 최신 사용자 정보 동기화
+      context.read<SessionCubit>().refreshFromServer();
+    }
   }
 
   @override
@@ -54,6 +63,16 @@ class _ProfileView extends StatelessWidget {
         iconTheme:
             IconThemeData(color: Theme.of(context).colorScheme.onSurface),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () async {
+              await context.push('/profile/edit');
+              if (context.mounted) {
+                await context.read<SessionCubit>().refreshFromServer();
+              }
+            },
+            tooltip: '프로필 수정',
+          ),
           IconButton(
             icon: const Icon(Icons.menu),
             onPressed: () => context.push('/settings'),
@@ -74,10 +93,11 @@ class _ProfileView extends StatelessWidget {
             );
           }
         },
-        child: FutureBuilder<User?>(
-          future: _loadUserIfNeeded(),
-          builder: (context, snapshot) {
-            final displayUser = snapshot.data ?? user;
+        child: BlocBuilder<SessionCubit, SessionState>(
+          builder: (context, sessionState) {
+            final sessionUser = sessionState.user;
+            final effectiveUser = sessionUser ?? widget.user;
+            final displayUser = sessionUser ?? widget.user;
             return DefaultTabController(
               length: 2,
               child: BlocProvider(
@@ -111,13 +131,13 @@ class _ProfileView extends StatelessWidget {
                     const SizedBox(height: 8),
                     CircleAvatar(
                       radius: 40,
-                      backgroundImage: displayUser?.avatarUrl != null
-                          ? NetworkImage(displayUser!.avatarUrl!)
+                      backgroundImage: effectiveUser?.avatarUrl != null
+                          ? NetworkImage(_resolveAvatarUrl(_withCacheBust(effectiveUser!.avatarUrl!)))
                           : null,
-                      child: displayUser?.avatarUrl == null
+                      child: effectiveUser?.avatarUrl == null
                           ? Text(
-                              (displayUser?.name.isNotEmpty == true)
-                                  ? displayUser!.name[0].toUpperCase()
+                              (effectiveUser?.name.isNotEmpty == true)
+                                  ? effectiveUser!.name[0].toUpperCase()
                                   : '?',
                               style: const TextStyle(
                                 fontSize: 28,
@@ -128,7 +148,7 @@ class _ProfileView extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      displayUser?.name ?? '내 프로필',
+                      effectiveUser?.name ?? '내 프로필',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -350,4 +370,24 @@ class _ProfileStats {
     required this.followerCount,
     required this.followingCount,
   });
+}
+
+String _resolveAvatarUrl(String url) {
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  final clean = url.startsWith('/') ? url.substring(1) : url;
+  // Preserve existing query strings (e.g., cache-bust `?v=...`)
+  return '${EnvConfig.baseUrl}/$clean';
+}
+
+String _withCacheBust(String url) {
+  if (url.isEmpty) return url;
+  final ts = DateTime.now().millisecondsSinceEpoch;
+  if (url.contains('?')) {
+    // If it already contains v=, replace it; else append
+    final uri = Uri.parse(url);
+    final qp = Map<String, String>.from(uri.queryParameters);
+    qp['v'] = ts.toString();
+    return uri.replace(queryParameters: qp).toString();
+  }
+  return '$url?v=$ts';
 }
