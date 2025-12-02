@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:typed_data';
 import '../../../core/image/image_processing_service.dart';
-import '../../../core/image/gallery_picker_service.dart';
+import '../../../core/image/image_picker_service.dart';
+import '../../common/image_source_sheet.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../injection/injection.dart';
 import '../cubits/recipe_create_cubit.dart';
 import '../cubits/recipe_create_state.dart';
@@ -76,6 +77,7 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
   int _lastPulseKey = 0;
   bool _pulseActive = false;
   Timer? _pulseTimer;
+  bool _isPicking = false;
 
   @override
   void dispose() {
@@ -402,20 +404,25 @@ class _RecipeCreateViewState extends State<RecipeCreateView> {
 
   Future<void> _showImagePicker(BuildContext context,
       {bool isThumbnail = false}) async {
-    // Advanced gallery picker: image-only, MIME filtered, prefer camera roll
-    final Uint8List? bytes = await GalleryPickerService.pickSingleImageBytes(
-      context,
-      preferCameraRoll: true,
-    );
-    if (bytes == null) return;
+    if (_isPicking) return;
+    _isPicking = true;
+    try {
+      final ImageSource? source = await showImageSourceSheet(context);
+      if (source == null) return;
+
+      final PickedImage? picked = await ImagePickerService.pickSingle(source);
+      if (picked == null) return;
 
     // No edit modal: directly center-crop 1:1 and optimize
     final processed = await ImageProcessingService.processCroppedBytes(
-      croppedBytes: bytes,
+      croppedBytes: picked.previewBytes,
       format: OutputFormat.webp,
     );
     if (processed.tempFile != null && isThumbnail) {
       context.read<RecipeCreateCubit>().setThumbnail(processed.tempFile!.path);
+    }
+    } finally {
+      _isPicking = false;
     }
   }
 

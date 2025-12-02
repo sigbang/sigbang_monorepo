@@ -47,6 +47,8 @@
 		<true/>
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>사진을 불러오기 위해 사진 라이브러리 접근이 필요합니다.</string>
+		<key>NSCameraUsageDescription</key>
+		<string>프로필/레시피 사진 촬영을 위해 카메라 접근이 필요합니다.</string>
 		<key>UIStatusBarHidden</key>
 		<false/>
 	</dict>

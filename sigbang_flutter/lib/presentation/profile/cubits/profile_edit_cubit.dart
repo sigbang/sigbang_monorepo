@@ -1,15 +1,16 @@
-import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http_parser/http_parser.dart';
 import '../../../core/config/env_config.dart';
 import '../../../domain/entities/user.dart';
 import '../../../core/image/image_processing_service.dart';
-import '../../../core/image/gallery_picker_service.dart';
+import '../../../core/image/image_picker_service.dart';
 import '../../../domain/usecases/upload_image_with_presign.dart';
 import '../../../data/datasources/api_client.dart';
 import '../../session/session_cubit.dart';
 import 'profile_edit_state.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../common/image_source_sheet.dart';
 
 class ProfileEditCubit extends Cubit<ProfileEditState> {
   final UploadImageWithPresign uploadImageWithPresign;
@@ -27,6 +28,8 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
     emit(newState);
   }
 
+  bool _isPicking = false;
+
   void init(User user) {
     _emit(state.copyWith(
       originalName: user.name,
@@ -38,23 +41,32 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
   }
 
   Future<void> pickAvatar(dynamic context) async {
-    final Uint8List? bytes = await GalleryPickerService.pickSingleImageBytes(
-      context,
-      preferCameraRoll: true,
-    );
-    if (bytes == null) return;
+    if (_isPicking) return;
+    _isPicking = true;
+    try {
+      final ImageSource? source =
+          await showImageSourceSheet(context, includePresets: true);
+      if (source == null) {
+        // Caller may open presets UI when null returned.
+        return;
+      }
+      final PickedImage? picked = await ImagePickerService.pickSingle(source);
+      if (picked == null) return;
 
-    final processed = await ImageProcessingService.processCroppedBytes(
-      croppedBytes: bytes,
-      format: OutputFormat.webp,
-    );
+      final processed = await ImageProcessingService.processCroppedBytes(
+        croppedBytes: picked.previewBytes,
+        format: OutputFormat.webp,
+      );
 
-    _emit(state.copyWith(
-      avatarBytes: processed.bytes,
-      avatarPreviewPath: processed.tempFile?.path,
-      isDirty: true,
-      error: null,
-    ));
+      _emit(state.copyWith(
+        avatarBytes: processed.bytes,
+        avatarPreviewPath: processed.tempFile?.path,
+        isDirty: true,
+        error: null,
+      ));
+    } finally {
+      _isPicking = false;
+    }
   }
 
   void setName(String value) {
@@ -241,6 +253,14 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
 
   String? _appendCacheBust(String? url) {
     if (url == null || url.isEmpty) return url;
+    // Avoid adding cache-busting to Supabase storage objects to prevent 400s,
+    // and skip if a cache-busting param already exists.
+    final lower = url.toLowerCase();
+    final isSupabaseObject = lower.contains('supabase.co/storage/v1/object');
+    final alreadyHasV = RegExp(r'([?&])v=\d+').hasMatch(url);
+    if (isSupabaseObject || alreadyHasV) {
+      return url;
+    }
     final hasQuery = url.contains('?');
     final ts = DateTime.now().millisecondsSinceEpoch;
     return '$url${hasQuery ? '&' : '?'}v=$ts';
