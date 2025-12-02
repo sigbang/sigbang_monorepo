@@ -185,7 +185,7 @@ class HomeView extends StatelessWidget {
     );
   }
 
-  static final Uri _betaBannerUri = Uri.parse('https://sigbang.com/');
+  static final Uri _betaBannerUri = Uri.parse('https://sigbang.com/feedback');
 
   Future<void> _onTapBetaBanner() async {
     if (!await launchUrl(_betaBannerUri,
@@ -210,7 +210,7 @@ class HomeView extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  '식방 베타테스트에 참여하고 커피쿠폰 받기',
+                  '식방 사용후기 작성하고 커피쿠폰 받기',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: Colors.black87,
