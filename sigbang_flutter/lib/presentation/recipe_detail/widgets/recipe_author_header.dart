@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../../domain/entities/recipe.dart';
+import 'follow_button.dart';
 
 class RecipeAuthorHeader extends StatelessWidget {
   final Author author;
   final bool showFollowButton;
+  final bool isLoggedIn;
 
   const RecipeAuthorHeader({
     super.key,
     required this.author,
+    required this.isLoggedIn,
     this.showFollowButton = true,
   });
 
@@ -43,17 +46,10 @@ class RecipeAuthorHeader extends StatelessWidget {
           ),
         ),
         if (showFollowButton)
-          TextButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('프로필 화면은 곧 제공될 예정입니다'),
-                  duration: Duration(seconds: 1),
-                ),
-              );
-            },
-            child: const Text('팔로우'),
-          )
+          FollowButton(
+            authorId: author.id,
+            isLoggedIn: isLoggedIn,
+          ),
       ],
     );
   }

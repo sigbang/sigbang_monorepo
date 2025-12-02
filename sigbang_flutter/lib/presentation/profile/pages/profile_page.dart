@@ -13,6 +13,7 @@ import '../../../data/datasources/api_client.dart';
 import '../../../domain/entities/user.dart' show UserStatus;
 import '../../session/session_cubit.dart';
 import '../../../core/config/env_config.dart';
+import '../../recipe_detail/widgets/follow_button.dart';
 
 class ProfilePage extends StatelessWidget {
   final User? user;
@@ -37,6 +38,8 @@ class _ProfileView extends StatefulWidget {
 
 class _ProfileViewState extends State<_ProfileView> {
   bool _refreshedOnce = false;
+  bool _showFollowsMode = false; // false: 레시피/북마크, true: 팔로잉/팔로워
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -96,10 +99,12 @@ class _ProfileViewState extends State<_ProfileView> {
         child: BlocBuilder<SessionCubit, SessionState>(
           builder: (context, sessionState) {
             final sessionUser = sessionState.user;
-            final effectiveUser = sessionUser ?? widget.user;
-            final displayUser = sessionUser ?? widget.user;
+            // 화면에 표시할 대상 사용자: 명시된 user가 있으면 그 유저, 없으면 세션 유저
+            final displayUser = widget.user ?? sessionUser;
+            final effectiveUser = displayUser;
             return DefaultTabController(
               length: 2,
+              initialIndex: 0,
               child: BlocProvider(
                 create: (context) =>
                     getIt<ProfileRecipesCubit>()..loadInitial(),
@@ -132,7 +137,8 @@ class _ProfileViewState extends State<_ProfileView> {
                     CircleAvatar(
                       radius: 40,
                       backgroundImage: effectiveUser?.avatarUrl != null
-                          ? NetworkImage(_resolveAvatarUrl(_withCacheBust(effectiveUser!.avatarUrl!)))
+                          ? NetworkImage(_resolveAvatarUrl(
+                              _withCacheBust(effectiveUser!.avatarUrl!)))
                           : null,
                       child: effectiveUser?.avatarUrl == null
                           ? Text(
@@ -169,16 +175,37 @@ class _ProfileViewState extends State<_ProfileView> {
                                 _CountTile(
                                   label: '레시피',
                                   count: stats?.recipesCount ?? 0,
+                                  onTap: () {
+                                    setState(() {
+                                      _showFollowsMode = false;
+                                    });
+                                    final c = DefaultTabController.of(context);
+                                    c.animateTo(0);
+                                  },
                                 ),
                                 const SizedBox(width: 72),
                                 _CountTile(
                                   label: '팔로잉',
                                   count: stats?.followingCount ?? 0,
+                                  onTap: () {
+                                    setState(() {
+                                      _showFollowsMode = true;
+                                    });
+                                    final c = DefaultTabController.of(context);
+                                    c.animateTo(0);
+                                  },
                                 ),
                                 const SizedBox(width: 72),
                                 _CountTile(
                                   label: '팔로워',
                                   count: stats?.followerCount ?? 0,
+                                  onTap: () {
+                                    setState(() {
+                                      _showFollowsMode = true;
+                                    });
+                                    final c = DefaultTabController.of(context);
+                                    c.animateTo(1);
+                                  },
                                 ),
                               ],
                             ),
@@ -205,17 +232,28 @@ class _ProfileViewState extends State<_ProfileView> {
                         ),
                         insets: const EdgeInsets.symmetric(horizontal: 100),
                       ),
-                      tabs: const [
-                        Tab(text: '레시피'),
-                        Tab(text: '북마크'),
+                      tabs: [
+                        Tab(text: _showFollowsMode ? '팔로잉' : '레시피'),
+                        Tab(text: _showFollowsMode ? '팔로워' : '북마크'),
                       ],
                     ),
                     Expanded(
                       child: TabBarView(
-                        children: [
-                          _RecipesGrid(isSavedTab: false),
-                          _RecipesGrid(isSavedTab: true),
-                        ],
+                        children: _showFollowsMode
+                            ? [
+                                _FollowList(
+                                  userId: displayUser?.id,
+                                  isFollowers: false, // 팔로잉
+                                ),
+                                _FollowList(
+                                  userId: displayUser?.id,
+                                  isFollowers: true, // 팔로워
+                                ),
+                              ]
+                            : [
+                                _RecipesGrid(isSavedTab: false),
+                                _RecipesGrid(isSavedTab: true),
+                              ],
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -328,29 +366,37 @@ class _RecipesGrid extends StatelessWidget {
 class _CountTile extends StatelessWidget {
   final String label;
   final int count;
-  const _CountTile({required this.label, required this.count});
+  final VoidCallback? onTap;
+  const _CountTile({required this.label, required this.count, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          _formatNumber(count),
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w800,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        child: Column(
+          children: [
+            Text(
+              _formatNumber(count),
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -390,4 +436,160 @@ String _withCacheBust(String url) {
     return uri.replace(queryParameters: qp).toString();
   }
   return '$url?v=$ts';
+}
+
+class _FollowList extends StatefulWidget {
+  final String? userId;
+  final bool isFollowers; // true: followers, false: followings
+  const _FollowList({required this.userId, required this.isFollowers});
+
+  @override
+  State<_FollowList> createState() => _FollowListState();
+}
+
+class _FollowListState extends State<_FollowList> {
+  final _items = <_FollowUser>[];
+  String? _nextCursor;
+  bool _loading = false;
+  bool _initialLoaded = false;
+
+  bool get _isLoggedIn => context.read<SessionCubit>().state.isLoggedIn == true;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialLoaded) {
+      _initialLoaded = true;
+      _loadMore(initial: true);
+    }
+  }
+
+  Future<void> _loadMore({bool initial = false}) async {
+    if (_loading) return;
+    if (!initial && _nextCursor == null) return;
+    if (widget.userId == null) return;
+    setState(() {
+      _loading = true;
+    });
+    try {
+      final dio = getIt<ApiClient>().dio;
+      final path = widget.isFollowers
+          ? '/users/${widget.userId}/followers'
+          : '/users/${widget.userId}/followings';
+      final res = await dio.get(path, queryParameters: {
+        'limit': 20,
+        if (_nextCursor != null) 'cursor': _nextCursor,
+      });
+      final map = res.data as Map<String, dynamic>;
+      final users = (map['users'] as List<dynamic>? ??
+              (map['items'] as List<dynamic>? ?? []))
+          .map((e) => _FollowUser.fromJson(e as Map<String, dynamic>))
+          .toList();
+      final pageInfo = map['pageInfo'] as Map<String, dynamic>?;
+      final next = (pageInfo != null
+          ? pageInfo['nextCursor']
+          : map['nextCursor']) as String?;
+      setState(() {
+        _items.addAll(users);
+        _nextCursor = next;
+      });
+    } catch (_) {
+      // ignore fetch error silently
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_items.isEmpty && _loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_items.isEmpty) {
+      return Center(
+        child: Text(widget.isFollowers ? '팔로워가 없어요' : '팔로잉이 없어요'),
+      );
+    }
+    final showBottomLoader = _loading && _nextCursor != null;
+    return NotificationListener<ScrollNotification>(
+      onNotification: (n) {
+        if (n.metrics.pixels >= n.metrics.maxScrollExtent * 0.9 &&
+            !_loading &&
+            _nextCursor != null) {
+          _loadMore();
+        }
+        return false;
+      },
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        itemCount: _items.length + (showBottomLoader ? 1 : 0),
+        separatorBuilder: (_, __) => const Divider(height: 1),
+        itemBuilder: (context, index) {
+          if (index >= _items.length && showBottomLoader) {
+            return const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          final u = _items[index];
+          return ListTile(
+            leading: CircleAvatar(
+              radius: 20,
+              backgroundImage: u.profileImage != null
+                  ? NetworkImage(_resolveAvatarUrl(u.profileImage!))
+                  : null,
+              child: u.profileImage == null
+                  ? Icon(Icons.person,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant)
+                  : null,
+            ),
+            title: Text(
+              u.nickname,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            trailing: FollowButton(
+              authorId: u.id,
+              isLoggedIn: _isLoggedIn,
+              initialIsFollowing: u.isFollowing,
+            ),
+            onTap: () {
+              context.push('/profile/${u.id}');
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _FollowUser {
+  final String id;
+  final String nickname;
+  final String? profileImage;
+  final bool? isFollowing;
+  final bool? isFollowedBy;
+  _FollowUser({
+    required this.id,
+    required this.nickname,
+    this.profileImage,
+    this.isFollowing,
+    this.isFollowedBy,
+  });
+  factory _FollowUser.fromJson(Map<String, dynamic> json) {
+    return _FollowUser(
+      id: (json['id'] ?? json['userId']) as String,
+      nickname:
+          json['nickname'] as String? ?? (json['name'] as String? ?? '사용자'),
+      profileImage: json['profileImage'] as String?,
+      isFollowing: json['isFollowing'] as bool?,
+      isFollowedBy: json['isFollowedBy'] as bool?,
+    );
+  }
 }

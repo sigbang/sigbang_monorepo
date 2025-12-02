@@ -42,6 +42,7 @@ class RecipeDetailCard extends StatelessWidget {
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                       child: RecipeAuthorHeader(
                         author: recipe.author!,
+                        isLoggedIn: isLoggedIn,
                         showFollowButton: !(currentUserId != null &&
                             recipe.author?.id == currentUserId),
                       ),
