@@ -42,8 +42,8 @@ class _ProfileViewState extends State<_ProfileView> {
     super.didChangeDependencies();
     if (!_refreshedOnce) {
       _refreshedOnce = true;
-      // 진입 시 서버 최신 사용자 정보 동기화
-      context.read<SessionCubit>().refreshFromServer();
+      // 진입 시 필요할 때만 동기화 (최대 1시간)
+      context.read<SessionCubit>().refreshIfNeeded();
     }
   }
 
@@ -68,7 +68,7 @@ class _ProfileViewState extends State<_ProfileView> {
             onPressed: () async {
               await context.push('/profile/edit');
               if (context.mounted) {
-                await context.read<SessionCubit>().refreshFromServer();
+                await context.read<SessionCubit>().refreshIfNeeded();
               }
             },
             tooltip: '프로필 수정',

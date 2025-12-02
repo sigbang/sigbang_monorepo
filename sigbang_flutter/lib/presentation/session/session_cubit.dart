@@ -16,7 +16,26 @@ class SessionCubit extends Cubit<SessionState> {
   void setGuest() => emit(const SessionState(isLoggedIn: false));
   void setUser(User user) => emit(SessionState(isLoggedIn: true, user: user));
 
+  // Optimization flags
+  bool _profileStale = false;
+  bool _isRefreshing = false;
+  DateTime? _lastSyncAt;
+
+  void markProfileStale() {
+    _profileStale = true;
+  }
+
+  Future<void> refreshIfNeeded({Duration maxAge = const Duration(hours: 1)}) async {
+    if (_isRefreshing) return;
+    final now = DateTime.now();
+    final isFresh = _lastSyncAt != null && now.difference(_lastSyncAt!) < maxAge;
+    if (!_profileStale && isFresh) return;
+    await refreshFromServer();
+  }
+
   Future<void> refreshFromServer() async {
+    if (_isRefreshing) return;
+    _isRefreshing = true;
     try {
       final res = await _api.dio.get(
         '/users/me',
@@ -37,6 +56,10 @@ class SessionCubit extends Cubit<SessionState> {
       emit(SessionState(isLoggedIn: true, user: updated));
     } catch (_) {
       // ignore
+    } finally {
+      _lastSyncAt = DateTime.now();
+      _profileStale = false;
+      _isRefreshing = false;
     }
   }
 }

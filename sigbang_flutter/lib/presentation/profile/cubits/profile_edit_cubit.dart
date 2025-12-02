@@ -113,7 +113,7 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
         );
         sessionCubit.setUser(updatedUser);
       }
-      await sessionCubit.refreshFromServer();
+      sessionCubit.markProfileStale();
 
       _emit(state.copyWith(
         originalName: trimmed,
@@ -184,7 +184,7 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
         sessionCubit
             .setUser(current.copyWith(avatarUrl: _appendCacheBust(newUrl)));
       }
-      await sessionCubit.refreshFromServer();
+      sessionCubit.markProfileStale();
       _emit(state.copyWith(
         originalAvatarUrl: newUrl,
         avatarBytes: null,
@@ -215,7 +215,7 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
         sessionCubit
             .setUser(current.copyWith(avatarUrl: _appendCacheBust(newUrl)));
       }
-      await sessionCubit.refreshFromServer();
+      sessionCubit.markProfileStale();
       _emit(state.copyWith(
         originalAvatarUrl: newUrl,
         avatarBytes: null,

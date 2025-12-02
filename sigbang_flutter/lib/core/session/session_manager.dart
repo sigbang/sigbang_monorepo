@@ -3,13 +3,16 @@ import 'package:flutter/material.dart';
 import '../../data/datasources/secure_storage_service.dart';
 import '../../data/datasources/api_client.dart';
 import '../config/env_config.dart';
+import '../../presentation/session/session_cubit.dart';
 
 class SessionManager with WidgetsBindingObserver {
-  SessionManager(this._apiClient);
+  SessionManager(this._apiClient, this._sessionCubit);
 
   final ApiClient _apiClient;
+  final SessionCubit _sessionCubit;
 
   Timer? _timer;
+  Timer? _profileTimer;
   bool _isInitialized = false;
 
   void start() {
@@ -32,11 +35,18 @@ class SessionManager with WidgetsBindingObserver {
         }
       } catch (_) {}
     });
+
+    // Profile refresh throttle: check need at most hourly
+    _profileTimer?.cancel();
+    _profileTimer =
+        Timer.periodic(const Duration(hours: 1), (_) => _sessionCubit.refreshIfNeeded());
   }
 
   void stop() {
     _timer?.cancel();
     _timer = null;
+    _profileTimer?.cancel();
+    _profileTimer = null;
     if (_isInitialized) {
       WidgetsBinding.instance.removeObserver(this);
       _isInitialized = false;
@@ -50,6 +60,8 @@ class SessionManager with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       // App resumed, revalidate session
       _revalidateSession();
+      // And refresh profile only if needed
+      _sessionCubit.refreshIfNeeded();
     }
   }
 

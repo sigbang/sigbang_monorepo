@@ -190,7 +190,7 @@ Future<void> setupDependencyInjection() async {
         () => SessionCubit(getIt<ApiClient>()));
   }
   getIt.registerLazySingleton<SessionManager>(
-      () => SessionManager(getIt<ApiClient>()));
+      () => SessionManager(getIt<ApiClient>(), getIt<SessionCubit>()));
   getIt.registerLazySingleton<SessionBinding>(
       () => SessionBinding(getIt<SessionCubit>(), getIt<SessionManager>()));
 }
