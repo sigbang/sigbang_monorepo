@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../../presentation/session/session_cubit.dart';
 import '../../../core/utils/action_guard.dart';
 
@@ -72,25 +73,100 @@ class CustomBottomNavigationBar extends StatelessWidget {
           },
           selectedItemColor: Theme.of(context).primaryColor,
           unselectedItemColor: Colors.grey,
-          items: const [
+          items: [
             BottomNavigationBarItem(
-              icon: Icon(Icons.home),
+              icon: SvgPicture.asset(
+                'assets/images/nav_home.svg',
+                width: 22,
+                height: 22,
+                colorFilter:
+                    const ColorFilter.mode(Colors.grey, BlendMode.srcIn),
+              ),
+              activeIcon: SvgPicture.asset(
+                'assets/images/nav_home.svg',
+                width: 22,
+                height: 22,
+                colorFilter: ColorFilter.mode(
+                  Theme.of(context).primaryColor,
+                  BlendMode.srcIn,
+                ),
+              ),
               label: '홈',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.restaurant_menu),
-              label: '피드',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.search),
+              icon: SvgPicture.asset(
+                'assets/images/nav_search.svg',
+                width: 22,
+                height: 22,
+                colorFilter:
+                    const ColorFilter.mode(Colors.grey, BlendMode.srcIn),
+              ),
+              activeIcon: SvgPicture.asset(
+                'assets/images/nav_search.svg',
+                width: 22,
+                height: 22,
+                colorFilter: ColorFilter.mode(
+                  Theme.of(context).primaryColor,
+                  BlendMode.srcIn,
+                ),
+              ),
               label: '검색',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.add_circle_outline),
+              icon: SvgPicture.asset(
+                'assets/images/nav_feed.svg',
+                width: 22,
+                height: 22,
+                colorFilter:
+                    const ColorFilter.mode(Colors.grey, BlendMode.srcIn),
+              ),
+              activeIcon: SvgPicture.asset(
+                'assets/images/nav_feed.svg',
+                width: 22,
+                height: 22,
+                colorFilter: ColorFilter.mode(
+                  Theme.of(context).primaryColor,
+                  BlendMode.srcIn,
+                ),
+              ),
+              label: '피드',
+            ),
+            BottomNavigationBarItem(
+              icon: SvgPicture.asset(
+                'assets/images/nav_create.svg',
+                width: 22,
+                height: 22,
+                colorFilter:
+                    const ColorFilter.mode(Colors.grey, BlendMode.srcIn),
+              ),
+              activeIcon: SvgPicture.asset(
+                'assets/images/nav_create.svg',
+                width: 22,
+                height: 22,
+                colorFilter: ColorFilter.mode(
+                  Theme.of(context).primaryColor,
+                  BlendMode.srcIn,
+                ),
+              ),
               label: '레시피 추가',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.person),
+              icon: SvgPicture.asset(
+                'assets/images/nav_profile.svg',
+                width: 22,
+                height: 22,
+                colorFilter:
+                    const ColorFilter.mode(Colors.grey, BlendMode.srcIn),
+              ),
+              activeIcon: SvgPicture.asset(
+                'assets/images/nav_profile.svg',
+                width: 22,
+                height: 22,
+                colorFilter: ColorFilter.mode(
+                  Theme.of(context).primaryColor,
+                  BlendMode.srcIn,
+                ),
+              ),
               label: '프로필',
             ),
           ],
