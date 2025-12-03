@@ -3,6 +3,7 @@ import '../../../domain/entities/recipe.dart';
 import '../../../presentation/session/session_cubit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/utils/action_guard.dart';
+import '../../common/login_required_dialog.dart';
 
 class RecipeMetaRow extends StatelessWidget {
   final Recipe recipe;
@@ -56,18 +57,21 @@ class RecipeMetaRow extends StatelessWidget {
               children: [
                 // 좋아요 카운트
                 InkWell(
-                  onTap: canLike
-                      ? onLikeTap
-                      : () {
-                          if (!canLike && sessionState.user != null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                  content: Text(
-                                      ActionGuard.getRestrictionMessage(
-                                          ActionType.likeRecipe))),
-                            );
-                          }
-                        },
+                  onTap: () {
+                    if (canLike) {
+                      if (onLikeTap != null) onLikeTap!();
+                      return;
+                    }
+                    if (sessionState.user == null) {
+                      showLoginRequiredDialog(context);
+                      return;
+                    }
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text(ActionGuard.getRestrictionMessage(
+                              ActionType.likeRecipe))),
+                    );
+                  },
                   borderRadius: BorderRadius.circular(6),
                   child: Padding(
                     padding:
@@ -103,18 +107,21 @@ class RecipeMetaRow extends StatelessWidget {
 
                 // 저장 버튼 (아이콘만)
                 InkWell(
-                  onTap: canSave
-                      ? onSaveTap
-                      : () {
-                          if (!canSave && sessionState.user != null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                  content: Text(
-                                      ActionGuard.getRestrictionMessage(
-                                          ActionType.saveRecipe))),
-                            );
-                          }
-                        },
+                  onTap: () {
+                    if (canSave) {
+                      if (onSaveTap != null) onSaveTap!();
+                      return;
+                    }
+                    if (sessionState.user == null) {
+                      showLoginRequiredDialog(context);
+                      return;
+                    }
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text(ActionGuard.getRestrictionMessage(
+                              ActionType.saveRecipe))),
+                    );
+                  },
                   borderRadius: BorderRadius.circular(8),
                   child: Icon(
                     recipe.isSaved ? Icons.bookmark : Icons.bookmark_border,

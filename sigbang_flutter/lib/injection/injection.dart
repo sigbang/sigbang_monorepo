@@ -157,6 +157,8 @@ Future<void> setupDependencyInjection() async {
   getIt.registerFactory<FeedCubit>(() => FeedCubit(
         getIt<GetRecipeFeed>(),
         getIt<GetCurrentUser>(),
+        getIt<ToggleLike>(),
+        getIt<ToggleSave>(),
       ));
   getIt.registerFactory<RecipeDetailCubit>(() => RecipeDetailCubit(
         getIt<GetRecipeDetail>(),

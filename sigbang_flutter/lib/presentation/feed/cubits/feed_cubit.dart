@@ -4,15 +4,21 @@ import '../../../domain/entities/recipe.dart';
 import '../../../domain/entities/recipe_query.dart';
 import '../../../domain/usecases/get_recipe_feed.dart';
 import '../../../domain/usecases/get_current_user.dart';
+import '../../../domain/usecases/toggle_like.dart';
+import '../../../domain/usecases/toggle_save.dart';
 import 'feed_state.dart';
 
 class FeedCubit extends Cubit<FeedState> {
   final GetRecipeFeed _getRecipeFeed;
   final GetCurrentUser _getCurrentUser;
+  final ToggleLike _toggleLike;
+  final ToggleSave _toggleSave;
 
   FeedCubit(
     this._getRecipeFeed,
     this._getCurrentUser,
+    this._toggleLike,
+    this._toggleSave,
   ) : super(FeedInitial());
 
   static const int _pageSize = 10;
@@ -29,7 +35,7 @@ class FeedCubit extends Cubit<FeedState> {
       final userResult = await _getCurrentUser();
       final isLoggedIn = userResult.fold(
         (failure) => false,
-        (user) => true,
+        (user) => user != null,
       );
 
       if (kDebugMode) {
@@ -337,5 +343,110 @@ class FeedCubit extends Cubit<FeedState> {
     }
 
     await searchRecipes('');
+  }
+
+  /// 좋아요 토글 (피드 내 낙관적 업데이트)
+  Future<void> toggleLikeInFeed(String recipeId) async {
+    final currentState = state;
+    if (currentState is! FeedLoaded || !currentState.isLoggedIn) return;
+
+    final index =
+        currentState.recipes.indexWhere((recipe) => recipe.id == recipeId);
+    if (index == -1) return;
+
+    final original = currentState.recipes[index];
+    final updated = original.copyWith(
+      isLiked: !original.isLiked,
+      likesCount: original.isLiked
+          ? (original.likesCount - 1)
+          : (original.likesCount + 1),
+    );
+
+    final updatedList = List<Recipe>.from(currentState.recipes);
+    updatedList[index] = updated;
+    emit(currentState.copyWith(recipes: updatedList));
+
+    // 서버 반영
+    final userResult = await _getCurrentUser();
+    final userId = userResult.fold((_) => null, (u) => u?.id);
+    if (userId == null) {
+      // 복구
+      final rollback = List<Recipe>.from(currentState.recipes);
+      rollback[index] = original;
+      emit(currentState.copyWith(recipes: rollback));
+      return;
+    }
+
+    final result = await _toggleLike(recipeId: recipeId, userId: userId);
+    result.fold((failure) {
+      if (kDebugMode) {
+        print('❌ toggleLike failed: $failure');
+      }
+      // 실패 시 최신 상태 기준으로 롤백
+      final latest = state;
+      if (latest is FeedLoaded) {
+        final latestIndex =
+            latest.recipes.indexWhere((r) => r.id == recipeId);
+        if (latestIndex != -1) {
+          final rollback = List<Recipe>.from(latest.recipes);
+          rollback[latestIndex] = original;
+          emit(latest.copyWith(recipes: rollback));
+        }
+      }
+    }, (_) {
+      if (kDebugMode) {
+        print('✅ toggleLike succeeded');
+      }
+    });
+  }
+
+  /// 저장 토글 (피드 내 낙관적 업데이트)
+  Future<void> toggleSaveInFeed(String recipeId) async {
+    final currentState = state;
+    if (currentState is! FeedLoaded || !currentState.isLoggedIn) return;
+
+    final index =
+        currentState.recipes.indexWhere((recipe) => recipe.id == recipeId);
+    if (index == -1) return;
+
+    final original = currentState.recipes[index];
+    final updated = original.copyWith(isSaved: !original.isSaved);
+
+    final updatedList = List<Recipe>.from(currentState.recipes);
+    updatedList[index] = updated;
+    emit(currentState.copyWith(recipes: updatedList));
+
+    // 서버 반영
+    final userResult = await _getCurrentUser();
+    final userId = userResult.fold((_) => null, (u) => u?.id);
+    if (userId == null) {
+      // 복구
+      final rollback = List<Recipe>.from(currentState.recipes);
+      rollback[index] = original;
+      emit(currentState.copyWith(recipes: rollback));
+      return;
+    }
+
+    final result = await _toggleSave(recipeId: recipeId, userId: userId);
+    result.fold((failure) {
+      if (kDebugMode) {
+        print('❌ toggleSave failed: $failure');
+      }
+      // 실패 시 최신 상태 기준으로 롤백
+      final latest = state;
+      if (latest is FeedLoaded) {
+        final latestIndex =
+            latest.recipes.indexWhere((r) => r.id == recipeId);
+        if (latestIndex != -1) {
+          final rollback = List<Recipe>.from(latest.recipes);
+          rollback[latestIndex] = original;
+          emit(latest.copyWith(recipes: rollback));
+        }
+      }
+    }, (_) {
+      if (kDebugMode) {
+        print('✅ toggleSave succeeded');
+      }
+    });
   }
 }

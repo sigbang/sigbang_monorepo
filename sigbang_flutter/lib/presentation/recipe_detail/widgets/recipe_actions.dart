@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../domain/entities/recipe.dart';
+import '../../common/login_required_dialog.dart';
 
 class RecipeActions extends StatelessWidget {
   final Recipe recipe;
@@ -40,7 +41,7 @@ class RecipeActions extends StatelessWidget {
               color: recipe.isLiked ? Colors.red : null,
               onTap: isLoggedIn
                   ? (onLikeTap ?? () {})
-                  : () => _showLoginRequired(context),
+                  : () => showLoginRequiredDialog(context),
             ),
           ),
 
@@ -56,7 +57,7 @@ class RecipeActions extends StatelessWidget {
                   recipe.isSaved ? Theme.of(context).colorScheme.primary : null,
               onTap: isLoggedIn
                   ? (onSaveTap ?? () {})
-                  : () => _showLoginRequired(context),
+                  : () => showLoginRequiredDialog(context),
             ),
           ),
 
@@ -80,7 +81,9 @@ class RecipeActions extends StatelessWidget {
               context,
               icon: Icons.comment_outlined,
               label: '댓글 ${recipe.commentsCount}',
-              onTap: () => _showComingSoon(context),
+              onTap: isLoggedIn
+                  ? () => _showComingSoon(context)
+                  : () => showLoginRequiredDialog(context),
             ),
           ),
         ],
@@ -126,14 +129,7 @@ class RecipeActions extends StatelessWidget {
     );
   }
 
-  void _showLoginRequired(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('로그인이 필요한 기능입니다'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
+  // login-required handled by showLoginRequiredDialog in call sites
 
   void _showShareOptions(BuildContext context) {
     showModalBottomSheet(

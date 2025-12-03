@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 import '../../../domain/entities/recipe.dart';
 import '../../../core/config/env_config.dart';
+import '../../common/login_required_dialog.dart';
 
 class RecipeListItem extends StatelessWidget {
   final Recipe recipe;
   final VoidCallback? onTap;
   final bool isLoggedIn;
+  final VoidCallback? onLikeTap;
+  final VoidCallback? onSaveTap;
 
   const RecipeListItem({
     super.key,
     required this.recipe,
     this.onTap,
     this.isLoggedIn = false,
+    this.onLikeTap,
+    this.onSaveTap,
   });
 
   @override
@@ -111,52 +116,6 @@ class RecipeListItem extends StatelessWidget {
                                   ),
                         ),
                       ),
-                      Text(
-                        '${recipe.viewCount} 조회',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                            ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // 태그들
-                  if (recipe.tags.isNotEmpty)
-                    Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: recipe.tags.take(3).map((tag) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color:
-                                Theme.of(context).colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '${tag.emoji} ${tag.name}',
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onPrimaryContainer,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  const SizedBox(height: 8),
-
-                  // 요리 정보 및 액션
-                  Row(
-                    children: [
                       // 요리 시간
                       Icon(
                         Icons.access_time,
@@ -172,17 +131,15 @@ class RecipeListItem extends StatelessWidget {
                                   .onSurfaceVariant,
                             ),
                       ),
-                      const SizedBox(width: 16),
-
-                      // 인분
-                      Icon(
-                        Icons.people,
-                        size: 16,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                    ],
+                  ),
+                  // 요리 정보 및 액션
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       const SizedBox(width: 4),
                       Text(
-                        '${recipe.servings}인분',
+                        '조회수 ${recipe.viewCount}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Theme.of(context)
                                   .colorScheme
@@ -190,10 +147,17 @@ class RecipeListItem extends StatelessWidget {
                             ),
                       ),
 
+                      const SizedBox(width: 16),
                       const Spacer(),
 
                       // 좋아요 버튼
                       IconButton(
+                        iconSize: 28,
+                        padding: EdgeInsets.zero,
+                        constraints:
+                            const BoxConstraints(minWidth: 28, minHeight: 28),
+                        visualDensity:
+                            const VisualDensity(horizontal: -1, vertical: -2),
                         icon: Icon(
                           recipe.isLiked
                               ? Icons.favorite
@@ -202,19 +166,38 @@ class RecipeListItem extends StatelessWidget {
                               ? Colors.red
                               : Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
-                        onPressed: isLoggedIn
-                            ? () {
-                                // TODO: 좋아요 토글 구현
-                              }
-                            : null,
+                        onPressed: () {
+                          if (!isLoggedIn) {
+                            showLoginRequiredDialog(context);
+                            return;
+                          }
+                          if (onLikeTap != null) {
+                            onLikeTap!();
+                          }
+                        },
                       ),
                       Text(
                         '${recipe.likesCount}',
-                        style: Theme.of(context).textTheme.bodySmall,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              fontSize: (Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.fontSize ??
+                                      12) +
+                                  2,
+                            ),
                       ),
+                      const SizedBox(width: 4),
 
                       // 저장 버튼
                       IconButton(
+                        iconSize: 28,
+                        padding: EdgeInsets.zero,
+                        constraints:
+                            const BoxConstraints(minWidth: 32, minHeight: 32),
+                        visualDensity:
+                            const VisualDensity(horizontal: -4, vertical: -2),
                         icon: Icon(
                           recipe.isSaved
                               ? Icons.bookmark
@@ -223,11 +206,15 @@ class RecipeListItem extends StatelessWidget {
                               ? Theme.of(context).colorScheme.primary
                               : Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
-                        onPressed: isLoggedIn
-                            ? () {
-                                // TODO: 저장 토글 구현
-                              }
-                            : null,
+                        onPressed: () {
+                          if (!isLoggedIn) {
+                            showLoginRequiredDialog(context);
+                            return;
+                          }
+                          if (onSaveTap != null) {
+                            onSaveTap!();
+                          }
+                        },
                       ),
                     ],
                   ),

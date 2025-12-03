@@ -181,7 +181,7 @@ class HomeView extends StatelessWidget {
                       ),
                     ),
                     const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                    _buildRecipeGrid(context, recommendedRecipes),
+                    _buildRecipeGrid(context, recommendedRecipes, isLoggedIn),
                     const SliverToBoxAdapter(child: SizedBox(height: 100)),
                   ],
                 ),
@@ -236,7 +236,7 @@ class HomeView extends StatelessWidget {
     );
   }
 
-  Widget _buildRecipeGrid(BuildContext context, List<Recipe> recipes) {
+  Widget _buildRecipeGrid(BuildContext context, List<Recipe> recipes, bool isLoggedIn) {
     if (recipes.isEmpty) {
       return const SliverToBoxAdapter(
         child: Center(
@@ -282,6 +282,7 @@ class HomeView extends StatelessWidget {
             final recipe = recipes[index];
             return RecipeCard(
               recipe: recipe,
+              isLoggedIn: isLoggedIn,
               onTap: () {
                 try {
                   getIt<RecipeService>().logClick(

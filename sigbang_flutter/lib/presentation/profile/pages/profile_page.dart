@@ -353,6 +353,7 @@ class _RecipesGrid extends StatelessWidget {
               final recipe = recipes[index];
               return RecipeCard(
                 recipe: recipe,
+                isLoggedIn: context.read<SessionCubit>().state.isLoggedIn == true,
                 onTap: () => context.push('/recipe/${recipe.id}'),
               );
             },

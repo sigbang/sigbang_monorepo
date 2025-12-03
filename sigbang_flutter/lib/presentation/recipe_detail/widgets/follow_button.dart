@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
-import 'package:go_router/go_router.dart';
 import '../../../data/datasources/api_client.dart';
+import '../../common/login_required_dialog.dart';
 
 class FollowButton extends StatefulWidget {
   final String authorId;
@@ -114,28 +114,7 @@ class _FollowButtonState extends State<FollowButton> {
         onPressed: () {
           if (_loading) return;
           if (!widget.isLoggedIn) {
-            showDialog<void>(
-              context: context,
-              builder: (ctx) {
-                return AlertDialog(
-                  title: const Text('알림'),
-                  content: const Text('로그인이 필요합니다.'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      child: const Text('취소'),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(ctx).pop();
-                        context.push('/login');
-                      },
-                      child: const Text('로그인'),
-                    ),
-                  ],
-                );
-              },
-            );
+            showLoginRequiredDialog(context);
             return;
           }
           _toggleFollow(context);

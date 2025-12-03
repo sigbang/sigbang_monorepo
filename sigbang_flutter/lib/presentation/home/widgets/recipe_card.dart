@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import '../../../domain/entities/recipe.dart';
 import '../../../core/config/env_config.dart';
+import '../../common/login_required_dialog.dart';
 
 class RecipeCard extends StatelessWidget {
   final Recipe recipe;
   final VoidCallback onTap;
+  final bool isLoggedIn;
+  final VoidCallback? onLikeTap;
 
   const RecipeCard({
     super.key,
     required this.recipe,
     required this.onTap,
+    this.isLoggedIn = false,
+    this.onLikeTap,
   });
 
   @override
@@ -92,15 +97,34 @@ class RecipeCard extends StatelessWidget {
                             backgroundColor: Colors.transparent,
                           ),
                         const Spacer(),
-                        Icon(
-                          Icons.favorite,
-                          size: 14,
-                          color: recipe.isLiked ? Colors.red : Colors.grey,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${recipe.likesCount}',
-                          style: Theme.of(context).textTheme.bodySmall,
+                        InkWell(
+                          borderRadius: BorderRadius.circular(6),
+                          onTap: () {
+                            if (!isLoggedIn) {
+                              showLoginRequiredDialog(context);
+                              return;
+                            }
+                            if (onLikeTap != null) {
+                              onLikeTap!();
+                            }
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.favorite,
+                                  size: 14,
+                                  color: recipe.isLiked ? Colors.red : Colors.grey,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${recipe.likesCount}',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                     ),

@@ -4,8 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../../injection/injection.dart';
 import '../cubits/feed_cubit.dart';
 import '../cubits/feed_state.dart';
-import '../widgets/feed_search_bar.dart';
-import '../widgets/feed_filter_chips.dart';
 import '../widgets/recipe_list_item.dart';
 import '../../../data/datasources/recipe_service.dart';
 
@@ -54,79 +52,6 @@ class _FeedViewState extends State<FeedView> {
     final maxScroll = _scrollController.position.maxScrollExtent;
     final currentScroll = _scrollController.offset;
     return currentScroll >= (maxScroll * 0.9);
-  }
-
-  void _showFilterModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: BlocProvider.value(
-          value: context.read<FeedCubit>(),
-          child: Column(
-            children: [
-              // 드래그 핸들
-              Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurfaceVariant
-                      .withOpacity(0.4),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              // 타이틀
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Text(
-                      '필터',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(),
-              // 필터 내용
-              Expanded(
-                child: SingleChildScrollView(
-                  child: BlocBuilder<FeedCubit, FeedState>(
-                    builder: (context, state) {
-                      final selectedTags =
-                          state is FeedLoaded ? state.selectedTags : <String>[];
-                      return FeedFilterChips(
-                        selectedTags: selectedTags,
-                        onTagsChanged: (tags) =>
-                            context.read<FeedCubit>().filterByTags(tags),
-                        onClearAll: () =>
-                            context.read<FeedCubit>().clearFilters(),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   @override
@@ -244,6 +169,10 @@ class _FeedViewState extends State<FeedView> {
             return RecipeListItem(
               recipe: recipe,
               isLoggedIn: state.isLoggedIn,
+              onLikeTap: () =>
+                  context.read<FeedCubit>().toggleLikeInFeed(recipe.id),
+              onSaveTap: () =>
+                  context.read<FeedCubit>().toggleSaveInFeed(recipe.id),
               onTap: () {
                 // Click logging (fire-and-forget)
                 try {

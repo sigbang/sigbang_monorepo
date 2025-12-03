@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../presentation/session/session_cubit.dart';
 import '../../../core/utils/action_guard.dart';
+import '../../common/login_required_dialog.dart';
 
 class CustomBottomNavigationBar extends StatelessWidget {
   final int currentIndex;
@@ -47,8 +48,8 @@ class CustomBottomNavigationBar extends StatelessWidget {
           onTap: (index) {
             // 로그인이 필요한 탭들 (레시피 추가, 프로필)
             if (!isLoggedIn && (index == 3 || index == 4)) {
-              // 로그인 화면으로 이동
-              context.push('/login');
+              // 로그인 안내 다이얼로그 표시
+              showLoginRequiredDialog(context);
               return;
             }
 
@@ -129,7 +130,7 @@ class CustomBottomNavigationBar extends StatelessWidget {
                   BlendMode.srcIn,
                 ),
               ),
-              label: '피드',
+              label: '탐색',
             ),
             BottomNavigationBarItem(
               icon: SvgPicture.asset(
