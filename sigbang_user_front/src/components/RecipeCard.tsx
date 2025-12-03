@@ -14,6 +14,7 @@ type Props = {
   image: string;
   description?: string;
   likesCount?: number;
+  viewCount?: number;
   authorAvatar?: string;
   authorId?: string;
   liked?: boolean;
@@ -42,12 +43,11 @@ function formatCountShort(n?: number) {
 }
 
 const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
-  { recipeId, title, minutes, image, description, likesCount, authorAvatar, authorId, liked, active, tabIndex, href, saved, priority, sizes, stepImages, hoverPreview, previewIntervalMs, previewStartDelayMs },
+  { recipeId, title, minutes, image, description, viewCount, authorAvatar, authorId, liked, active, tabIndex, href, saved, priority, sizes, stepImages, hoverPreview, previewIntervalMs, previewStartDelayMs },
   ref
 ) {
   const [isLiked, setIsLiked] = useState<boolean>(!!liked);
   const [isSaved, setIsSaved] = useState<boolean>(!!saved);
-  const [likeCount, setLikeCount] = useState<number>(likesCount ?? 0);
   const [busy, setBusy] = useState<{ like?: boolean; save?: boolean }>({});
   const qc = useQueryClient();
   const { status } = useSession();
@@ -240,7 +240,6 @@ const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
     setBusy((b) => ({ ...b, like: true }));
     const optimisticNext = !isLiked;
     setIsLiked(optimisticNext);
-    setLikeCount((c) => Math.max(0, c + (optimisticNext ? 1 : -1)));
     updateListCaches((rec) => {
       const currentLikes = typeof rec['likesCount'] === 'number' ? (rec['likesCount'] as number) : 0;
       return {
@@ -260,12 +259,10 @@ const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
     try {
       const res = await toggleLike(recipeId);
       setIsLiked(res.isLiked);
-      setLikeCount(res.likesCount);
       updateListCaches((rec) => ({ ...rec, isLiked: res.isLiked, likesCount: res.likesCount }));
       updateRecipeDetailCache((rec) => ({ ...rec, isLiked: res.isLiked, likesCount: res.likesCount } as Record<string, unknown>));
     } catch {
       setIsLiked((prev) => !prev);
-      setLikeCount((c) => Math.max(0, c + (isLiked ? 1 : -1)));
       updateListCaches((rec) => {
         const currentLikes = typeof rec['likesCount'] === 'number' ? (rec['likesCount'] as number) : 0;
         return {
@@ -364,32 +361,13 @@ const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
           </div>
         )}
       </div>
-      <div className="px-3 pt-2 pb-1">
+      <div className="px-3 pt-2">
         <div className="text-[16px] font-semibold text-[#223]">{title}</div>
         {description && (
           <div className="mt-1 text-[13px] text-[#6b7280] truncate">{description}</div>
         )}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1 text-[12px] text-[#666]">
-            <IconClock />
-            <span>{minutes ?? 60} mins</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={onToggleLike} aria-pressed={isLiked} aria-label={isLiked ? '좋아요 취소' : '좋아요'} className="p-1 rounded-md hover:bg-[#f5f5f5] disabled:opacity-50" disabled={busy.like}>
-              <IconHeart className={isLiked ? 'text-rose-500' : 'text-[#999]'} filled={isLiked} />
-            </button>
-            <button type="button" onClick={onToggleSave} aria-pressed={isSaved} aria-label={isSaved ? '저장 취소' : '저장'} className="p-1 rounded-md hover:bg-[#f5f5f5] disabled:opacity-50" disabled={busy.save}>
-              <IconBookmark className={isSaved ? 'text-amber-500' : 'text-[#999]'} filled={isSaved} />
-            </button>
-          </div>
-        </div>
-      </div>
-      <div className="px-3 pb-2 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-[12px] text-[#6b7280]">
-          <span>좋아요 {formatCountShort(likeCount)}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          {authorAvatar ? (
+        <div className="pt-1 flex items-center justify-between">          
+            {authorAvatar ? (
             authorId ? (
               <Link href={`/users/${authorId}`} aria-label="작성자 프로필로 이동" className="group">
                 <span className="inline-block h-7 w-7 rounded-full overflow-hidden border border-[#eee] bg-[#f5f5f5] transition-shadow hover:ring-2 hover:ring-amber-300 focus-visible:ring-2 focus-visible:ring-amber-500 relative">
@@ -403,7 +381,26 @@ const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
             )
           ) : (
             <span className="inline-block h-7 w-7 rounded-full bg-[#e5e7eb]" aria-hidden="true" />
-          )}
+          )}                      
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 text-[12px] text-[#666]">
+            <IconClock />
+            <span>{minutes ?? 60} mins</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="px-3 pb-2 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-[12px] text-[#6b7280]">
+          <span>조회수 {formatCountShort(viewCount ?? 0)}</span>
+        </div>
+        <div className="flex items-center gap-2">          
+          <button type="button" onClick={onToggleLike} aria-pressed={isLiked} aria-label={isLiked ? '좋아요 취소' : '좋아요'} className="p-1 rounded-md hover:bg-[#f5f5f5] disabled:opacity-50" disabled={busy.like}>
+              <IconHeart className={isLiked ? 'text-rose-500' : 'text-[#999]'} filled={isLiked} />
+            </button>
+            <button type="button" onClick={onToggleSave} aria-pressed={isSaved} aria-label={isSaved ? '저장 취소' : '저장'} className="p-1 rounded-md hover:bg-[#f5f5f5] disabled:opacity-50" disabled={busy.save}>
+              <IconBookmark className={isSaved ? 'text-amber-500' : 'text-[#999]'} filled={isSaved} />
+            </button>
         </div>
       </div>
     </div>

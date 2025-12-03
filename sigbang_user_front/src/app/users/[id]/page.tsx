@@ -84,6 +84,7 @@ export default function UserProfilePage() {
         minutes: r.cookingTime,
         description: r.description,
         likesCount: r.likesCount,
+        viewCount: r.viewCount,
         liked: r.isLiked,
         saved: r.isSaved,
         href: `/recipes/${(() => { const s = (r as any).slug as string | undefined; const g = (r as any).region as string | undefined; return (r as any).slugPath || (s && s.includes('/') ? s : (g && s ? `${g}/${s}` : r.id)); })()}`,
@@ -221,7 +222,7 @@ export default function UserProfilePage() {
               {tab === 'recipes' ? (
                 <div className="mt-6 grid grid-cols-2 gap-6 max-w-[900px] mx-auto">
                   {recipeItems.map((r, idx) => (
-                    <RecipeCard key={r.id} recipeId={r.id} title={r.title} minutes={r.minutes} image={r.image} description={r.description} likesCount={r.likesCount} liked={r.liked} saved={r.saved} href={r.href} priority={idx < 4} />
+                    <RecipeCard key={r.id} recipeId={r.id} title={r.title} minutes={r.minutes} image={r.image} description={r.description} likesCount={r.likesCount} viewCount={r.viewCount} liked={r.liked} saved={r.saved} href={r.href} priority={idx < 4} />
                   ))}
                 </div>
               ) : (

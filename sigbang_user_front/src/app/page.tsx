@@ -26,6 +26,7 @@ type FeedItem = {
   thumbnailUrl?: string;
   thumbnailPath?: string;
   likesCount?: number;
+  viewCount?: number;
   isLiked?: boolean;
   isSaved?: boolean;
   author?: { id: string; profileImage?: string };
@@ -51,6 +52,7 @@ function mapItems(raw: FeedItem[]) {
     minutes: r.cookingTime,
     description: r.description,
     likesCount: r.likesCount,
+    viewCount: r.viewCount,
     liked: r.isLiked,
     saved: r.isSaved,
     authorAvatar: r.author?.profileImage ?? '',
