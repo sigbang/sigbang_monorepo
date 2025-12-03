@@ -10,6 +10,8 @@ import '../cubits/home_state.dart';
 import '../widgets/recipe_card.dart';
 import '../widgets/home_header.dart';
 import '../widgets/popular_recipe_square_card.dart';
+import '../../../injection/injection.dart';
+import '../../../data/datasources/recipe_service.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -119,8 +121,16 @@ class HomeView extends StatelessWidget {
                               width: 160,
                               child: PopularRecipeSquareCard(
                                 recipe: recipe,
-                                onTap: () =>
-                                    context.push('/recipe/${recipe.id}'),
+                                onTap: () {
+                                  try {
+                                    getIt<RecipeService>().logClick(
+                                      surface: 'popular',
+                                      recipeId: recipe.id,
+                                      position: index,
+                                    );
+                                  } catch (_) {}
+                                  context.push('/recipe/${recipe.id}');
+                                },
                               ),
                             );
                           },
@@ -272,7 +282,16 @@ class HomeView extends StatelessWidget {
             final recipe = recipes[index];
             return RecipeCard(
               recipe: recipe,
-              onTap: () => context.push('/recipe/${recipe.id}'),
+              onTap: () {
+                try {
+                  getIt<RecipeService>().logClick(
+                    surface: 'recommended',
+                    recipeId: recipe.id,
+                    position: index,
+                  );
+                } catch (_) {}
+                context.push('/recipe/${recipe.id}');
+              },
             );
           },
           childCount: recipes.length,

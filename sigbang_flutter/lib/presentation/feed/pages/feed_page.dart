@@ -7,6 +7,7 @@ import '../cubits/feed_state.dart';
 import '../widgets/feed_search_bar.dart';
 import '../widgets/feed_filter_chips.dart';
 import '../widgets/recipe_list_item.dart';
+import '../../../data/datasources/recipe_service.dart';
 
 class FeedPage extends StatelessWidget {
   const FeedPage({super.key});
@@ -244,6 +245,11 @@ class _FeedViewState extends State<FeedView> {
               recipe: recipe,
               isLoggedIn: state.isLoggedIn,
               onTap: () {
+                // Click logging (fire-and-forget)
+                try {
+                  getIt<RecipeService>()
+                      .logClick(surface: 'feed', recipeId: recipe.id, position: index);
+                } catch (_) {}
                 // 레시피 상세 화면으로 이동 (피드 컨텍스트 포함)
                 String? queryParams;
                 if (state.searchQuery != null ||

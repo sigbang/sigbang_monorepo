@@ -8,11 +8,106 @@ import '../../domain/entities/recipe_query.dart';
 import '../models/recipe_model.dart';
 import '../models/paginated_recipes_model.dart';
 import 'api_client.dart';
+import 'analytics_service.dart';
 
 class RecipeService {
   final ApiClient _apiClient;
+  late final AnalyticsService _analytics;
 
-  RecipeService(this._apiClient);
+  RecipeService(this._apiClient) {
+    _analytics = AnalyticsService(_apiClient);
+  }
+
+  Map<String, String?> _extractExperiment(Response response, {required String headerKey}) {
+    try {
+      final data = response.data is Map<String, dynamic>
+          ? response.data as Map<String, dynamic>
+          : (response.data['data'] ?? response.data) as Map<String, dynamic>;
+      final exp = data['experiment'] as Map<String, dynamic>?;
+      if (exp != null) {
+        return {
+          'id': exp['id']?.toString(),
+          'variant': exp['variant']?.toString(),
+        };
+      }
+    } catch (_) {}
+    // Fallback to header "X-Exp-...: expId:Variant"
+    try {
+      final hv = response.headers.value(headerKey);
+      if (hv != null && hv.contains(':')) {
+        final parts = hv.split(':');
+        return {'id': parts.first, 'variant': parts.last};
+      }
+    } catch (_) {}
+    return {'id': null, 'variant': null};
+  }
+
+  Future<void> _logImpressionsFromResponse({
+    required Response response,
+    required String surface,
+  }) async {
+    try {
+      final data = response.data is Map<String, dynamic>
+          ? response.data as Map<String, dynamic>
+          : (response.data['data'] ?? response.data) as Map<String, dynamic>;
+      final list = (data['recipes'] ?? data['items'] ?? data['results'] ?? data['list']) as List<dynamic>? ?? const [];
+      final pageInfo = (data['pageInfo'] as Map<String, dynamic>?) ?? (data['pagination'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+      final cursor = (pageInfo['nextCursor'] ?? pageInfo['cursor'])?.toString();
+      final exp = _extractExperiment(
+        response,
+        headerKey: surface == 'feed'
+            ? 'x-exp-feedalgo'
+            : surface == 'popular'
+                ? 'x-exp-popularalgo'
+                : 'x-exp-recommendalgo',
+      );
+      final items = <Map<String, dynamic>>[];
+      for (var i = 0; i < list.length; i++) {
+        final m = list[i] as Map<String, dynamic>;
+        final id = (m['id'] ?? m['recipeId'])?.toString();
+        if (id == null) continue;
+        items.add({'recipeId': id, 'position': i});
+      }
+      if (items.isNotEmpty) {
+        await _analytics.logImpressions(
+          surface: surface,
+          expId: exp['id'],
+          expVariant: exp['variant'],
+          seed: null,
+          cursor: cursor,
+          items: items,
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️ Failed to log impressions ($surface): $e');
+      }
+    }
+  }
+
+  Future<void> logClick({
+    required String surface,
+    required String recipeId,
+    int? position,
+    double? rankScore,
+    String? expId,
+    String? expVariant,
+    String? seed,
+    String? sessionId,
+  }) async {
+    try {
+      await _analytics.logClick(
+        surface: surface,
+        recipeId: recipeId,
+        position: position,
+        rankScore: rankScore,
+        expId: expId,
+        expVariant: expVariant,
+        seed: seed,
+        sessionId: sessionId,
+      );
+    } catch (_) {}
+  }
 
   /// 피드 조회 (커서 기반)
   Future<PaginatedRecipesModel> getFeed(
@@ -28,6 +123,8 @@ class RecipeService {
     );
 
     if (response.statusCode == 200) {
+      // fire-and-forget impressions
+      _logImpressionsFromResponse(response: response, surface: 'feed');
       if (kDebugMode) {
         final res = response.data is Map<String, dynamic>
             ? response.data
@@ -60,6 +157,7 @@ class RecipeService {
     );
 
     if (response.statusCode == 200) {
+      _logImpressionsFromResponse(response: response, surface: 'popular');
       return PaginatedRecipesModel.fromJson(
           response.data as Map<String, dynamic>);
     }
@@ -82,6 +180,7 @@ class RecipeService {
     );
 
     if (response.statusCode == 200) {
+      _logImpressionsFromResponse(response: response, surface: 'recommended');
       return PaginatedRecipesModel.fromJson(
           response.data as Map<String, dynamic>);
     }

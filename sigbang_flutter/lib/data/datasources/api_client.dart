@@ -41,6 +41,15 @@ class ApiClient {
         onRequest: (options, handler) async {
           try {
             String? accessToken = await SecureStorageService.getAccessToken();
+            // Ensure device headers
+            String? deviceId = await SecureStorageService.getDeviceId();
+            deviceId ??= DeviceUtils.generateUuidV4();
+            await SecureStorageService.saveDeviceId(deviceId);
+            options.headers['x-device-id'] = deviceId;
+            final deviceName = DeviceUtils.getDeviceName();
+            if (deviceName.isNotEmpty) {
+              options.headers['x-device-name'] = deviceName;
+            }
 
             // 토큰이 있고 만료 임박/만료 시 사전 갱신 시도
             if (accessToken != null &&
