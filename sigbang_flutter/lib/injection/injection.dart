@@ -38,6 +38,7 @@ import '../presentation/feed/cubits/feed_cubit.dart';
 import '../presentation/recipe_detail/cubits/recipe_detail_cubit.dart';
 import '../presentation/recipe_create/cubits/recipe_create_cubit.dart';
 import '../presentation/profile/cubits/profile_recipes_cubit.dart';
+import '../presentation/profile/cubits/profile_edit_cubit.dart';
 import '../presentation/search/cubits/search_cubit.dart';
 import '../core/session/session_manager.dart';
 import '../presentation/session/session_cubit.dart';
@@ -174,14 +175,22 @@ Future<void> setupDependencyInjection() async {
         getIt<GetMyRecipes>(),
         getIt<GetMySavedRecipes>(),
       ));
+  getIt.registerFactory<ProfileEditCubit>(() => ProfileEditCubit(
+        uploadImageWithPresign: getIt<UploadImageWithPresign>(),
+        apiClient: getIt<ApiClient>(),
+        sessionCubit: getIt<SessionCubit>(),
+      ));
   getIt.registerFactory<SearchCubit>(() => SearchCubit(
         getIt<SearchRecipes>(),
       ));
 
-  // Session support
-  getIt.registerLazySingleton<SessionCubit>(() => SessionCubit());
+  // Session support (register if not already)
+  if (!getIt.isRegistered<SessionCubit>()) {
+    getIt.registerLazySingleton<SessionCubit>(
+        () => SessionCubit(getIt<ApiClient>()));
+  }
   getIt.registerLazySingleton<SessionManager>(
-      () => SessionManager(getIt<ApiClient>()));
+      () => SessionManager(getIt<ApiClient>(), getIt<SessionCubit>()));
   getIt.registerLazySingleton<SessionBinding>(
       () => SessionBinding(getIt<SessionCubit>(), getIt<SessionManager>()));
 }

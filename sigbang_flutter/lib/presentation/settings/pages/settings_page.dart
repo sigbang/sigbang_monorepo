@@ -7,7 +7,6 @@ import '../../../injection/injection.dart';
 import '../../common/widgets/app_logo.dart';
 import '../../login/cubits/login_cubit.dart';
 import '../../login/cubits/login_state.dart';
-import '../../../data/datasources/auth_service_new.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -50,51 +49,6 @@ class SettingsView extends StatelessWidget {
               children: [
                 const SizedBox(height: 16),
 
-                // 계정 섹션
-                _buildSectionHeader(context, '계정'),
-                ListTile(
-                  leading: const Icon(Icons.person),
-                  title: const Text('프로필 관리'),
-                  subtitle: const Text('프로필 정보를 수정할 수 있습니다'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('프로필 관리 기능 준비 중입니다')),
-                    );
-                  },
-                ),
-
-                const Divider(),
-
-                // 앱 섹션
-                _buildSectionHeader(context, '앱 설정'),
-                ListTile(
-                  leading: const Icon(Icons.notifications),
-                  title: const Text('알림 설정'),
-                  subtitle: const Text('푸시 알림을 관리할 수 있습니다'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('알림 설정 기능 준비 중입니다')),
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.dark_mode),
-                  title: const Text('다크 모드'),
-                  subtitle: const Text('앱의 테마를 변경할 수 있습니다'),
-                  trailing: Switch(
-                    value: Theme.of(context).brightness == Brightness.dark,
-                    onChanged: (value) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('다크 모드 기능 준비 중입니다')),
-                      );
-                    },
-                  ),
-                ),
-
-                const Divider(),
-
                 // 정보 섹션
                 _buildSectionHeader(context, '정보'),
                 ListTile(
@@ -127,7 +81,10 @@ class SettingsView extends StatelessWidget {
                   onTap: () => _openLink(context, AppStrings.termsUrl),
                 ),
 
-                // 회원 탈퇴 (정보 섹션 내 노출)
+                const Divider(),
+
+                // 계정 섹션
+                _buildSectionHeader(context, '계정'),
                 ListTile(
                   leading: const Icon(Icons.delete_forever, color: Colors.red),
                   title:
@@ -243,72 +200,6 @@ class SettingsView extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  void _showDeleteAccountDialog(BuildContext context) {
-    bool agreed = false;
-    showDialog(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('회원 탈퇴'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('탈퇴 시 모든 데이터가 영구 삭제되며 복구할 수 없습니다.'),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Checkbox(
-                    value: agreed,
-                    onChanged: (v) => setState(() => agreed = v ?? false),
-                  ),
-                  const Expanded(
-                    child: Text('안내를 확인했으며 탈퇴에 동의합니다'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('취소'),
-            ),
-            TextButton(
-              onPressed: !agreed
-                  ? null
-                  : () async {
-                      Navigator.of(dialogContext).pop();
-                      await _deleteAccount(context);
-                    },
-              child: const Text(
-                '탈퇴하기',
-                style: TextStyle(color: Colors.red),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _deleteAccount(BuildContext context) async {
-    try {
-      final auth = getIt<AuthService>();
-      await auth.deleteMe();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('탈퇴가 완료되었습니다')),
-        );
-        context.go(AppRouter.login);
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('탈퇴에 실패했습니다: $e')),
-      );
-    }
   }
 }
 

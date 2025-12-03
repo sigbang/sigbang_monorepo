@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../domain/entities/user.dart';
 import '../../common/widgets/app_logo.dart';
 import 'cooking_tip_carousel.dart';
+import '../../../core/config/env_config.dart';
+import '../../session/session_cubit.dart';
 
 class HomeHeader extends StatelessWidget {
   final User? user;
@@ -16,6 +19,8 @@ class HomeHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sessionUser = context.watch<SessionCubit>().state.user;
+    final effectiveUser = sessionUser ?? user;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -39,13 +44,13 @@ class HomeHeader extends StatelessWidget {
                 onTap: () => context.push('/profile'),
                 child: CircleAvatar(
                   radius: 20,
-                  backgroundImage: user?.avatarUrl != null
-                      ? NetworkImage(user!.avatarUrl!)
+                  backgroundImage: effectiveUser?.avatarUrl != null
+                      ? NetworkImage(_resolveAvatarUrl(_withCacheBust(effectiveUser!.avatarUrl!)))
                       : null,
-                  child: user?.avatarUrl == null
+                  child: effectiveUser?.avatarUrl == null
                       ? Text(
-                          user?.name.isNotEmpty == true
-                              ? user!.name[0].toUpperCase()
+                          effectiveUser?.name.isNotEmpty == true
+                              ? effectiveUser!.name[0].toUpperCase()
                               : '?',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
@@ -78,4 +83,22 @@ class HomeHeader extends StatelessWidget {
       ],
     );
   }
+}
+
+String _resolveAvatarUrl(String url) {
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  final clean = url.startsWith('/') ? url.substring(1) : url;
+  return '${EnvConfig.baseUrl}/$clean';
+}
+
+String _withCacheBust(String url) {
+  if (url.isEmpty) return url;
+  final ts = DateTime.now().millisecondsSinceEpoch;
+  if (url.contains('?')) {
+    final uri = Uri.parse(url);
+    final qp = Map<String, String>.from(uri.queryParameters);
+    qp['v'] = ts.toString();
+    return uri.replace(queryParameters: qp).toString();
+  }
+  return '$url?v=$ts';
 }

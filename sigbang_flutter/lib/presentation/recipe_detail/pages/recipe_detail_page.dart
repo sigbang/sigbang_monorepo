@@ -7,6 +7,8 @@ import '../cubits/recipe_detail_cubit.dart';
 import '../cubits/recipe_detail_state.dart';
 import '../widgets/recipe_detail_card.dart';
 import '../../common/widgets/app_confirm_dialog.dart';
+import '../../../core/config/env_config.dart';
+import 'package:share_plus/share_plus.dart';
 
 class RecipeDetailPage extends StatelessWidget {
   final String recipeId;
@@ -213,9 +215,13 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
     if (state is! RecipeDetailLoaded) return;
 
     final recipe = state.currentRecipe;
+    final base = EnvConfig.siteUrl.replaceAll(RegExp(r'/+$'), '');
+    final url = '$base/recipes/${recipe.id}';
 
     showModalBottomSheet(
       context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
       builder: (context) => Container(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -231,27 +237,25 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
             ListTile(
               leading: const Icon(Icons.link),
               title: const Text('링크 복사'),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('링크가 복사되었습니다'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
+              onTap: () async {
+                await Clipboard.setData(ClipboardData(text: url));
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('링크가 복사되었습니다'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
               },
             ),
             ListTile(
               leading: const Icon(Icons.share),
               title: const Text('다른 앱으로 공유'),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('곧 구현될 예정입니다'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
+                await Share.share(url, subject: recipe.title);
               },
             ),
           ],

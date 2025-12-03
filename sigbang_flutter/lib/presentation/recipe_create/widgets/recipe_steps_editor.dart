@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import 'dart:typed_data';
 import 'dart:io';
 import '../../../domain/entities/recipe.dart';
 import '../../common/widgets/app_confirm_dialog.dart';
 import '../../../core/image/image_processing_service.dart';
-import '../../../core/image/gallery_picker_service.dart';
+import '../../../core/image/image_picker_service.dart';
 import '../../../core/config/env_config.dart';
+import '../../common/image_source_sheet.dart';
+import 'package:image_picker/image_picker.dart';
 
 class RecipeStepsEditor extends StatefulWidget {
   final List<RecipeStep> steps;
@@ -38,6 +39,7 @@ class _RecipeStepsEditorState extends State<RecipeStepsEditor> {
   // breaking IME composition and cursor position while typing.
   final List<TextEditingController> _controllers = [];
   final List<FocusNode> _focusNodes = [];
+  bool _isPicking = false;
 
   @override
   void initState() {
@@ -396,18 +398,24 @@ class _RecipeStepsEditorState extends State<RecipeStepsEditor> {
   }
 
   Future<void> _pickImageFromGallery(int stepIndex) async {
-    final Uint8List? bytes = await GalleryPickerService.pickSingleImageBytes(
-      context,
-      preferCameraRoll: true,
-    );
-    if (bytes == null) return;
+    if (_isPicking) return;
+    _isPicking = true;
+    try {
+      final ImageSource? source = await showImageSourceSheet(context);
+      if (source == null) return;
 
-    final processed = await ImageProcessingService.processCroppedBytes(
-      croppedBytes: bytes,
-      format: OutputFormat.webp,
-    );
-    if (processed.tempFile != null) {
-      widget.onSetStepImage(stepIndex, processed.tempFile!.path);
+      final PickedImage? picked = await ImagePickerService.pickSingle(source);
+      if (picked == null) return;
+
+      final processed = await ImageProcessingService.processCroppedBytes(
+        croppedBytes: picked.previewBytes,
+        format: OutputFormat.webp,
+      );
+      if (processed.tempFile != null) {
+        widget.onSetStepImage(stepIndex, processed.tempFile!.path);
+      }
+    } finally {
+      _isPicking = false;
     }
   }
 

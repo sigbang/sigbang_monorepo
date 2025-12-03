@@ -32,8 +32,8 @@ class _MainPageState extends State<MainPage> {
     super.initState();
     _pages = [
       const HomePage(), // 홈
-      const FeedPage(), // 피드
       const SearchPage(), // 검색
+      const FeedPage(), // 피드
       const RecipeCreatePlaceholder(), // 레시피 추가 화면
       widget.isLoggedIn
           ? ProfilePage(user: widget.user) // 프로필 (로그인 시)

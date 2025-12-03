@@ -22,6 +22,6 @@ class AppStrings {
   static const String settings = '설정';
 
   // Links
-  static const String privacyPolicyUrl = 'https://sigbang.com/privacypolicy/';
-  static const String termsUrl = 'https://sigbang.com/termsofservice/';
+  static const String privacyPolicyUrl = 'https://sigbang.com/legal/privacy';
+  static const String termsUrl = 'https://sigbang.com/legal/terms';
 }
