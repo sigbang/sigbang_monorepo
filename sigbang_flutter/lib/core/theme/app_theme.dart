@@ -37,6 +37,13 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
         ),
       ),
+      dialogTheme: const DialogThemeData(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(16)),
+        ),
+      ),
       appBarTheme: const AppBarTheme(
         centerTitle: true,
         elevation: 0,
