@@ -33,9 +33,9 @@ class HomeHeader extends StatelessWidget {
             Text(
               '식방',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).primaryColor,
-                  ),
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).primaryColor,
+                  fontSize: 20),
             ),
             const Spacer(),
             // 프로필 / 로그인 버튼
@@ -45,7 +45,8 @@ class HomeHeader extends StatelessWidget {
                 child: CircleAvatar(
                   radius: 20,
                   backgroundImage: effectiveUser?.avatarUrl != null
-                      ? NetworkImage(_resolveAvatarUrl(_withCacheBust(effectiveUser!.avatarUrl!)))
+                      ? NetworkImage(_resolveAvatarUrl(
+                          _withCacheBust(effectiveUser!.avatarUrl!)))
                       : null,
                   child: effectiveUser?.avatarUrl == null
                       ? Text(
