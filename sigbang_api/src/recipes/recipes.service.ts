@@ -77,9 +77,6 @@ export class RecipesService {
   async getPopularRecipes(query: RecipeQueryDto, userId?: string) {
     const { cursor, limit = 10 } = (query as any) || {};
 
-    // 최근성 윈도우: 7일 내 게시물 우선. 없으면 확장
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-
     // 커서: id 기반 키셋
     let decodedCursor: { id: string } | null = null;
     if (cursor) {
@@ -98,16 +95,17 @@ export class RecipesService {
       author: { status: 'ACTIVE' as any },
     };
 
-    // 1차: 7일 이내 상위 후보를 인기순으로 로드 (좋아요/댓글/저장과 조회수 가중치)
-    const rows = await this.prismaService.recipe.findMany({
-      where: { ...whereBase, createdAt: { gte: sevenDaysAgo } },
-      take: limit + 1,
+    // 후보 풀: 최근 7일 기준 로드 후 부족하면 30일로 확장
+    const now = Date.now();
+    const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
+    const candidateTake = Math.max(limit * 10, 200);
+
+    const loadCandidates = async (since: Date | null) => this.prismaService.recipe.findMany({
+      where: { ...whereBase, ...(since ? { createdAt: { gte: since } } : {}) },
+      take: candidateTake,
       ...(decodedCursor && { cursor: { id: decodedCursor.id }, skip: 1 }),
-      orderBy: [
-        { viewCount: 'desc' },
-        { createdAt: 'desc' },
-        { id: 'desc' },
-      ],
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: {
         author: { select: { id: true, nickname: true, profileImage: true } },
         tags: { include: { tag: true } },
@@ -120,45 +118,64 @@ export class RecipesService {
       },
     });
 
-    const items = rows;
-    // 부족하면 기간 제한 없이 보강
-    if (items.length <= limit) {
-      const more = await this.prismaService.recipe.findMany({
-        where: whereBase,
-        take: limit + 1,
-        orderBy: [
-          { viewCount: 'desc' },
-          { createdAt: 'desc' },
-          { id: 'desc' },
-        ],
-        include: {
-          author: { select: { id: true, nickname: true, profileImage: true } },
-          tags: { include: { tag: true } },
-          steps: { orderBy: { order: 'asc' }, take: 1 },
-          _count: { select: { likes: true, comments: true, saves: true } },
-          ...(userId && {
-            likes: { where: { userId }, select: { id: true } },
-            saves: { where: { userId }, select: { id: true } },
-          }),
-        },
-      });
-      // 중복 제거 후 상위 limit + 1 유지
-      const seen = new Set(items.map(r => r.id));
+    let candidates = await loadCandidates(sevenDaysAgo);
+    if (candidates.length < Math.min(candidateTake / 2, limit * 5)) {
+      const more = await loadCandidates(thirtyDaysAgo);
+      const seen = new Set(candidates.map(r => r.id));
       for (const m of more) {
         if (!seen.has(m.id)) {
-          items.push(m);
-          seen.add(m.id);
+          candidates.push(m);
         }
-        if (items.length > limit) break;
       }
     }
 
-    const hasMore = items.length > limit;
-    const pageItems = hasMore ? items.slice(0, limit) : items;
+    // 트렌드 점수: 시간감쇠(48h), 조회/참여 혼합
+    const tauHours = 48;
+    const wView = 0.6, wLike = 1.0, wComment = 2.0, wSave = 1.5;
+    function trendScore(r: any): number {
+      const ageH = (now - new Date(r.createdAt).getTime()) / (1000 * 60 * 60);
+      const decay = Math.exp(-ageH / tauHours);
+      const views = Math.log(1 + (r.viewCount || 0));
+      const eng = Math.log(1 + wLike * (r._count?.likes || 0) + wComment * (r._count?.comments || 0) + wSave * (r._count?.saves || 0));
+      return decay * (wView * views + eng);
+    }
+
+    // 일간 시드 셔플: 점수 버킷 내 순서 다양화
+    const daySeed = userId ? `u:${userId}` : `d:${new Date().toISOString().slice(0, 10)}`;
+    function hashStr(s: string): number { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h >>> 0; }
+
+    const scored = candidates.map(r => ({ r, s: trendScore(r) }));
+    scored.sort((a, b) => {
+      const ba = Math.round(a.s * 10);
+      const bb = Math.round(b.s * 10);
+      if (bb !== ba) return bb - ba;
+      const ha = hashStr(a.r.id + daySeed);
+      const hb = hashStr(b.r.id + daySeed);
+      return ha - hb;
+    });
+
+    // 신규/저노출 보장: 매 10개당 1개 시도(24h내, 조회<5)
+    const isVeryNew = (r: any) => (now - new Date(r.createdAt).getTime()) < 24 * 3600 * 1000 && (r.viewCount || 0) < 5;
+    const main = scored.map(x => x.r);
+    const veryNew = main.filter(r => isVeryNew(r));
+
+    const result: any[] = [];
+    let i = 0, j = 0;
+    while (result.length < limit && (i < main.length || j < veryNew.length)) {
+      if (result.length > 0 && result.length % 10 === 9 && j < veryNew.length) {
+        if (!result.find(x => x.id === veryNew[j].id)) result.push(veryNew[j]);
+        j++;
+      } else if (i < main.length) {
+        if (!result.find(x => x.id === main[i].id)) result.push(main[i]);
+        i++;
+      } else {
+        j++;
+      }
+    }
+
+    const pageItems = result.slice(0, limit);
     const last = pageItems[pageItems.length - 1];
-    const nextCursor = last
-      ? Buffer.from(JSON.stringify({ id: last.id })).toString('base64')
-      : null;
+    const nextCursor = last ? Buffer.from(JSON.stringify({ id: last.id })).toString('base64') : null;
 
     const recipes = pageItems.map((recipe: any) => ({
       ...recipe,
@@ -175,7 +192,7 @@ export class RecipesService {
       pageInfo: {
         limit,
         nextCursor,
-        hasMore,
+        hasMore: result.length > limit,
       },
     };
   }
@@ -420,24 +437,69 @@ export class RecipesService {
     const wTag = 0.8;
     const wEng = 0.5;
     const wRecency = 0.2;
+    const wSeason = 0.2;
     const now = Date.now();
 
-    const scored = candidates
-      .map(r => {
-        const isFollow = userId ? followingAuthorIds.includes(r.authorId) : false;
-        const tagOverlap = r.tags?.reduce((acc: number, rt: any) => acc + (tagSet.has(rt.tag.name) ? 1 : 0), 0) || 0;
-        const eng = Math.log(1 + (r._count?.likes || 0) + 2 * (r._count?.comments || 0) + 1.5 * (r._count?.saves || 0));
-        const ageHours = (now - new Date(r.createdAt).getTime()) / (1000 * 60 * 60);
-        const recency = Math.exp(-ageHours / 72);
-        const score = wFollow * (isFollow ? 1 : 0) + wTag * tagOverlap + wEng * eng + wRecency * recency;
-        return { r, score };
-      })
-      .sort((a, b) => b.score - a.score)
-      .map(x => x.r);
+    // 간단 계절성 부스트 (임시 키워드 매핑)
+    function seasonalBoost(r: any): number {
+      try {
+        const m = new Date().getMonth() + 1;
+        const tags = (r.tags || []).map((rt: any) => (rt.tag?.name || '').toLowerCase());
+        const has = (k: string) => tags?.some((t: string) => t.includes(k));
+        if ([12, 1, 2].includes(m)) return has('국') || has('찌개') || has('김장') ? 1 : 0;
+        if ([6, 7, 8].includes(m)) return has('냉') || has('샐러드') || has('빙수') ? 1 : 0;
+      } catch {}
+      return 0;
+    }
 
+    const sparseUser = !userId || (followingAuthorIds.length === 0 && preferredTagNames.length === 0);
+
+    // 베이스 스코어 계산
+    const scored = candidates.map(r => {
+      const isFollow = userId ? followingAuthorIds.includes(r.authorId) : false;
+      const tagOverlap = r.tags?.reduce((acc: number, rt: any) => acc + (tagSet.has(rt.tag.name) ? 1 : 0), 0) || 0;
+      const eng = Math.log(1 + (r._count?.likes || 0) + 2 * (r._count?.comments || 0) + 1.5 * (r._count?.saves || 0));
+      const ageHours = (now - new Date(r.createdAt).getTime()) / (1000 * 60 * 60);
+      const recency = Math.exp(-ageHours / 72);
+      const season = seasonalBoost(r);
+      const baseScore = wFollow * (isFollow ? 1 : 0) + wTag * tagOverlap + wEng * eng + wRecency * recency + wSeason * season;
+      return { r, baseScore, eng, ageHours };
+    });
+
+    // 콜드스타트 혼합: 60% 트렌드(eng+recency), 40% 탐색(신규/저노출 주입)
+    let ranked: any[] = [];
+    if (sparseUser) {
+      const trend = scored
+        .map(x => ({ r: x.r, s: 0.6 * (x.eng + Math.exp(-x.ageHours / 48)) + 0.4 * x.baseScore }))
+        .sort((a, b) => b.s - a.s)
+        .map(x => x.r);
+
+      const explore = candidates
+        .filter(r => (now - new Date(r.createdAt).getTime()) < 24 * 3600 * 1000 && ((r.viewCount || 0) < 5))
+        .slice(0, Math.max(10, limit));
+
+      const merged: any[] = [];
+      let i = 0, j = 0;
+      while (merged.length < Math.max(limit + 1, 20) && (i < trend.length || j < explore.length)) {
+        if (merged.length % 5 === 4 && j < explore.length) {
+          if (!merged.find(x => x.id === explore[j].id)) merged.push(explore[j]);
+          j++;
+        } else if (i < trend.length) {
+          if (!merged.find(x => x.id === trend[i].id)) merged.push(trend[i]);
+          i++;
+        } else {
+          j++;
+        }
+      }
+      ranked = merged;
+    } else {
+      ranked = scored.sort((a, b) => b.baseScore - a.baseScore).map(x => x.r);
+    }
+
+    // 유니크 + 페이지 크기 맞춤
     const unique: any[] = [];
     const seen = new Set<string>();
-    for (const r of scored) {
+    for (const r of ranked) {
       if (!seen.has(r.id)) {
         unique.push(r);
         seen.add(r.id);
@@ -1513,6 +1575,15 @@ export class RecipesService {
     const targetFollowingRatio = 0.6;
     const targetGlobalRatio = 0.4;
 
+    // 글로벌 풀 경미 셔플 (일간 시드)
+    const daySeed = userId ? `u:${userId}` : `d:${new Date().toISOString().slice(0, 10)}`;
+    function hashStr(s: string): number { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h >>> 0; }
+    globalPool.sort((a, b) => hashStr(a.id + daySeed) - hashStr(b.id + daySeed));
+
+    // 보조 풀: 트렌드/신규
+    const trendPool = ranked.slice(0, Math.min(50, ranked.length));
+    const newcomerPool = ranked.filter(r => (now - new Date(r.createdAt).getTime()) < 24 * 3600 * 1000 && (r.viewCount || 0) < 5);
+
     const result: any[] = [];
     const recentAuthorWindow: string[] = [];
     const recentCategoryWindow: string[] = [];
@@ -1535,9 +1606,25 @@ export class RecipesService {
 
     let fIdx = 0;
     let gIdx = 0;
+    let injectedEvery5 = 0;
     while (result.length < limit && (fIdx < followingPool.length || gIdx < globalPool.length)) {
       const fNeed = (result.length + 1) * targetFollowingRatio - result.filter(r => userId && followingAuthorIds.includes(r.authorId)).length;
       let picked = false;
+
+      // 팔로우가 적을 때 5개마다 탐색/트렌드 슬롯 주입
+      if (!userId || followingAuthorIds.length < 3) {
+        if (result.length > 0 && result.length % 5 === 0 && injectedEvery5 < 2) {
+          const pickFrom = (arr: any[]) => arr.find(x => !result.find(r => r.id === x.id));
+          const cand = pickFrom(newcomerPool) || pickFrom(trendPool);
+          if (cand) {
+            if (pushWithConstraints(cand)) {
+              picked = true;
+              injectedEvery5++;
+            }
+          }
+        }
+      }
+
       if (fNeed > 0 && fIdx < followingPool.length) {
         if (pushWithConstraints(followingPool[fIdx])) {
           picked = true;
