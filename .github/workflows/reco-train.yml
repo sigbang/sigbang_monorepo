@@ -1,0 +1,29 @@
+name: Reco Train
+
+on:
+  schedule:
+    - cron: "30 18 * * *" # UTC 18:30 (KST 03:30)
+  workflow_dispatch:
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r reco/requirements.txt
+
+      - name: Run training
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python reco/train.py
+
+

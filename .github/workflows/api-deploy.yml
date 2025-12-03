@@ -63,6 +63,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Run Prisma migrate deploy
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install and migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: |
+          cd sigbang_api
+          npm ci
+          npx prisma migrate deploy
+
       - name: Resolve image to deploy
         id: resolve
         run: |

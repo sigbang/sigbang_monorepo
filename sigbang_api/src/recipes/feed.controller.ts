@@ -6,6 +6,7 @@ import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
 import type { Response } from 'express';
 import { createHash } from 'crypto';
+import { assignVariant } from '../common/exp/exp.util';
 
 @ApiTags('레시피')
 @Controller('feed')
@@ -66,8 +67,12 @@ export class FeedController {
       },
     },
   })
-  async getFeed(@Query() query: RecipeQueryDto, @CurrentUser() user?: any, @Res({ passthrough: true }) res?: Response, @Headers('if-none-match') inm?: string) {
+  async getFeed(@Query() query: RecipeQueryDto, @CurrentUser() user?: any, @Res({ passthrough: true }) res?: Response, @Headers('if-none-match') inm?: string, @Headers('x-device-id') deviceId?: string) {
+    const expId = 'feed_algo_v1';
+    const subject = user?.id || deviceId || 'anon';
+    const variant = assignVariant(expId, subject, 50);
     const data = await this.recipesService.getFeed(query, user?.id);
+    res!.setHeader('X-Exp-FeedAlgo', `${expId}:${variant}`);
     if (!user) {
       const etag = 'W/"' + createHash('sha1').update(JSON.stringify(data)).digest('hex') + '"';
       res!.setHeader('ETag', etag);
@@ -79,15 +84,19 @@ export class FeedController {
     } else {
       res!.setHeader('Cache-Control', 'private, max-age=0, no-store');
     }
-    return data as any;
+    return { ...data, experiment: { id: expId, variant } } as any;
   }
 
   @Get('popular')
   @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: '인기 레시피', description: '최근 조회수/참여 기반 인기 레시피' })
   @ApiQuery({ type: RecipeQueryDto })
-  async getPopular(@Query() query: RecipeQueryDto, @CurrentUser() user?: any, @Res({ passthrough: true }) res?: Response, @Headers('if-none-match') inm?: string) {
+  async getPopular(@Query() query: RecipeQueryDto, @CurrentUser() user?: any, @Res({ passthrough: true }) res?: Response, @Headers('if-none-match') inm?: string, @Headers('x-device-id') deviceId?: string) {
+    const expId = 'popular_algo_v1';
+    const subject = user?.id || deviceId || 'anon';
+    const variant = assignVariant(expId, subject, 50);
     const data = await this.recipesService.getPopularRecipes(query, user?.id);
+    res!.setHeader('X-Exp-PopularAlgo', `${expId}:${variant}`);
     if (!user) {
       const etag = 'W/"' + createHash('sha1').update(JSON.stringify(data)).digest('hex') + '"';
       res!.setHeader('ETag', etag);
@@ -99,15 +108,19 @@ export class FeedController {
     } else {
       res!.setHeader('Cache-Control', 'private, max-age=0, no-store');
     }
-    return data as any;
+    return { ...data, experiment: { id: expId, variant } } as any;
   }
 
   @Get('recommended')
   @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: '추천 레시피', description: '개인화된 휴리스틱 추천 레시피' })
   @ApiQuery({ type: RecipeQueryDto })
-  async getRecommended(@Query() query: RecipeQueryDto, @CurrentUser() user?: any, @Res({ passthrough: true }) res?: Response, @Headers('if-none-match') inm?: string) {
+  async getRecommended(@Query() query: RecipeQueryDto, @CurrentUser() user?: any, @Res({ passthrough: true }) res?: Response, @Headers('if-none-match') inm?: string, @Headers('x-device-id') deviceId?: string) {
+    const expId = 'recommend_algo_v1';
+    const subject = user?.id || deviceId || 'anon';
+    const variant = assignVariant(expId, subject, 50);
     const data = await this.recipesService.getRecommendedRecipes(query, user?.id);
+    res!.setHeader('X-Exp-RecommendAlgo', `${expId}:${variant}`);
     if (!user) {
       const etag = 'W/"' + createHash('sha1').update(JSON.stringify(data)).digest('hex') + '"';
       res!.setHeader('ETag', etag);
@@ -119,7 +132,7 @@ export class FeedController {
     } else {
       res!.setHeader('Cache-Control', 'private, max-age=0, no-store');
     }
-    return data as any;
+    return { ...data, experiment: { id: expId, variant } } as any;
   }
 }
 

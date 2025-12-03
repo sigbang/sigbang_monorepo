@@ -16,6 +16,7 @@ import { MediaModule } from './media/media.module';
 import { TrendCronModule } from './jobs/trend-cron.module';
 import { CommonModule } from './common/common.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { EventsModule } from './events/events.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { FeedbackModule } from './feedback/feedback.module';
     TrendCronModule,
     CommonModule,
     FeedbackModule,
+    EventsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
