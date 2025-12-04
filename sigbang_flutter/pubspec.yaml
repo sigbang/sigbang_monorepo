@@ -34,6 +34,7 @@ dependencies:
   
   # Authentication
   google_sign_in: ^6.2.1
+  url_launcher: ^6.3.0
 
   http: ^1.2.1
   

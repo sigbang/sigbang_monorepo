@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/router/app_router.dart';
 import '../../../injection/injection.dart';
 import '../cubits/login_cubit.dart';
 import '../cubits/login_state.dart';
-import '../../common/widgets/app_logo.dart';
-import '../../main/widgets/bottom_navigation_bar.dart';
 import '../../home/cubits/home_cubit.dart';
 import '../../session/session_cubit.dart';
+import '../../../core/constants/app_strings.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
@@ -30,8 +31,6 @@ class LoginView extends StatefulWidget {
 }
 
 class _LoginViewState extends State<LoginView> {
-  int _currentIndex = 0;
-
   @override
   void initState() {
     super.initState();
@@ -43,24 +42,15 @@ class _LoginViewState extends State<LoginView> {
     context.read<LoginCubit>().loginWithGoogle();
   }
 
+  Future<void> _openLink(String url) async {
+    final uri = Uri.parse(url);
+    await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const AppLogo(),
-      ),
-      bottomNavigationBar: CustomBottomNavigationBar(
-        currentIndex: _currentIndex,
-        isLoggedIn: false,
-        onTap: (index) {
-          debugPrint('BottomNav tapped on login page. index=$index');
-          setState(() => _currentIndex = index);
-          // Navigate to main for accessible tabs to keep UX consistent
-          if (index == 0 || index == 1) {
-            context.go(AppRouter.main);
-          }
-        },
-      ),
       body: BlocListener<LoginCubit, LoginState>(
         listener: (context, state) {
           if (state is LoginSuccess) {
@@ -83,36 +73,216 @@ class _LoginViewState extends State<LoginView> {
         },
         child: Stack(
           children: [
-            SafeArea(
+            Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 560),
+                  constraints: const BoxConstraints(maxWidth: 420),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
+                      // // 상단 잠금 아이콘 (웹 룩앤필과 유사)
+                      // Container(
+                      //   width: 56,
+                      //   height: 56,
+                      //   decoration: BoxDecoration(
+                      //     color: const Color(0xFFFFD54F),
+                      //     borderRadius: BorderRadius.circular(14),
+                      //   ),
+                      //   child: const Icon(Icons.lock,
+                      //       size: 28, color: Colors.black87),
+                      // ),
+                      //logo이미지 + 로그인 텍스트
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SvgPicture.asset(
+                            'assets/images/logo_appbar.svg',
+                            height: 42,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '로그인',
+                            style: theme.textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 24),
 
-                      // 앱 로고/제목 (브랜드 룩 적용)
-                      const SizedBox(height: 32),
-                      Text(
-                        '로그인',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      const SizedBox(height: 48),
-
-                      // Google 로그인 버튼
-                      ElevatedButton.icon(
-                        onPressed: () => _onLoginPressed(context),
-                        icon: const Icon(Icons.login),
-                        label: const Text('Google로 계속하기'),
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 48),
+                      //hero image
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: AspectRatio(
+                          aspectRatio: 16 / 9,
+                          child: Image.asset(
+                            'assets/images/hero_login.jpg',
+                            fit: BoxFit.cover,
+                          ),
                         ),
                       ),
+                      const SizedBox(height: 24),
+
+                      // 헤드라인/설명
+                      Text(
+                        '나만의 레시피를 발견하세요.',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '세상의 모든 레시피 식방',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.textTheme.bodyMedium?.color
+                              ?.withOpacity(0.7),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+
+                      // 버튼 카드
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          children: [
+                            // Google로 계속하기
+                            SizedBox(
+                              width: double.infinity,
+                              height: 56,
+                              child: OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(
+                                      color: theme.colorScheme.outline),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 14),
+                                  backgroundColor: Colors.white,
+                                ),
+                                onPressed: () => _onLoginPressed(context),
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          SvgPicture.asset(
+                                            'assets/images/logo_google.svg',
+                                            width: 20,
+                                            height: 20,
+                                          ),
+                                          const SizedBox(width: 8),
+                                        ],
+                                      ),
+                                    ),
+                                    Text(
+                                      'Google로 계속하기',
+                                      style: theme.textTheme.titleMedium
+                                          ?.copyWith(height: 1.2),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // 메일로 계속하기 (준비중)
+                            SizedBox(
+                              width: double.infinity,
+                              height: 56,
+                              child: OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(
+                                      color: theme.colorScheme.outline),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 14),
+                                  backgroundColor: Colors.white,
+                                ),
+                                onPressed: () {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('준비중 입니다.'),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                },
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: const [
+                                          Icon(Icons.mail_outlined, size: 20),
+                                          SizedBox(width: 8),
+                                        ],
+                                      ),
+                                    ),
+                                    Text(
+                                      '    메일로 계속하기 (준비중)',
+                                      style: theme.textTheme.titleMedium
+                                          ?.copyWith(height: 1.2),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // 하단 약관/개인정보 링크
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 8,
+                        children: [
+                          TextButton(
+                            onPressed: () => _openLink(AppStrings.termsUrl),
+                            child: const Text('서비스 약관'),
+                          ),
+                          TextButton(
+                            onPressed: () =>
+                                _openLink(AppStrings.privacyPolicyUrl),
+                            child: const Text('개인정보처리 방침'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
                     ],
+                  ),
+                ),
+              ),
+            ),
+            // Close button (top-right) - on top of content
+            Positioned(
+              right: 0,
+              top: 0,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: IconButton(
+                    tooltip: '닫기',
+                    icon: const Icon(Icons.close),
+                    onPressed: () {
+                      context.go(AppRouter.main);
+                    },
                   ),
                 ),
               ),
