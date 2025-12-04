@@ -22,7 +22,7 @@ jobs:
 
       - name: Run training
         env:
-          DATABASE_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.SUPABASE_POOLER_URL }}
         run: |
           python reco/train.py
 
