@@ -2,7 +2,10 @@ name: Reco Train
 
 on:
   schedule:
-    - cron: "30 18 * * *" # UTC 18:30 (KST 03:30)
+    - cron: "0 15 * * *"  # KST 00:00
+    - cron: "0 21 * * *"  # KST 06:00
+    - cron: "0 03 * * *"  # KST 12:00
+    - cron: "0 09 * * *"  # KST 18:00
   workflow_dispatch:
 
 jobs:

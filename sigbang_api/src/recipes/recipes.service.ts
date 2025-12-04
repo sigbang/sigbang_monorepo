@@ -129,8 +129,8 @@ export class RecipesService {
       }
     }
 
-    // 트렌드 점수: 시간감쇠(48h), 조회/참여 혼합
-    const tauHours = 48;
+    // 트렌드 점수: 시간감쇠(환경변수, 기본 24h), 조회/참여 혼합
+    const tauHours = Number(this.configService.get('POPULAR_TAU_HOURS')) || 24;
     const wView = 0.6, wLike = 1.0, wComment = 2.0, wSave = 1.5;
     function trendScore(r: any): number {
       const ageH = (now - new Date(r.createdAt).getTime()) / (1000 * 60 * 60);
@@ -140,8 +140,13 @@ export class RecipesService {
       return decay * (wView * views + eng);
     }
 
-    // 일간 시드 셔플: 점수 버킷 내 순서 다양화
-    const daySeed = userId ? `u:${userId}` : `d:${new Date().toISOString().slice(0, 10)}`;
+    // 6시간 단위 시드 셔플: 점수 버킷 내 순서 다양화 (KST 기준)
+    const nowDate = new Date();
+    const hourKst = (nowDate.getUTCHours() + 9) % 24;
+    const slot = Math.floor(hourKst / 6); // 0..3
+    const daySeed = userId
+      ? `u:${userId}:${slot}`
+      : `d:${nowDate.toISOString().slice(0, 10)}:${slot}`;
     function hashStr(s: string): number { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h >>> 0; }
 
     const scored = candidates.map(r => ({ r, s: trendScore(r) }));
@@ -388,6 +393,59 @@ export class RecipesService {
       authorId: { not: null },
       author: { status: 'ACTIVE' as any },
     };
+
+    // 0) 활성 모델 기반 사전계산 추천이 있으면 우선 사용 (로그인 사용자 대상)
+    if (userId) {
+      try {
+        const activeModel = await (this.prismaService as any).recoModelRegistry.findFirst({
+          where: { isActive: true },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (activeModel) {
+          const rec = await (this.prismaService as any).userRecommendations.findUnique({
+            where: { userId_modelId: { userId, modelId: activeModel.id } },
+          });
+          if (rec?.items && Array.isArray(rec.items) && rec.items.length) {
+            // items: [{recipeId, score}]
+            const ids: string[] = rec.items.map((x: any) => x.recipeId).filter(Boolean);
+            if (ids.length) {
+              const rows = await this.prismaService.recipe.findMany({
+                where: { ...whereBase, id: { in: ids } },
+                include: {
+                  author: { select: { id: true, nickname: true, profileImage: true } },
+                  tags: { include: { tag: true } },
+                  steps: { orderBy: { order: 'asc' }, take: 1 },
+                  _count: { select: { likes: true, comments: true, saves: true } },
+                  likes: { where: { userId }, select: { id: true } },
+                  saves: { where: { userId }, select: { id: true } },
+                },
+              });
+              // rec.items 순서 유지
+              const order = new Map(ids.map((id, i) => [id, i]));
+              const ordered = rows.sort((a: any, b: any) => (order.get(a.id) ?? 1e9) - (order.get(b.id) ?? 1e9));
+              const pageItems = ordered.slice(0, limit);
+              const last = pageItems[pageItems.length - 1];
+              const nextCursorPc = last ? Buffer.from(JSON.stringify({ id: last.id })).toString('base64') : null;
+              const recipesPc = pageItems.map((recipe: any) => ({
+                ...recipe,
+                tags: recipe.tags.map((t: any) => ({ name: t.tag.name, emoji: t.tag.emoji })),
+                steps: recipe.steps.map((s: any) => ({ order: s.order, description: s.description, imageUrl: s.imageUrl })),
+                likesCount: recipe._count.likes,
+                commentsCount: recipe._count.comments,
+                isLiked: true ? (recipe.likes?.length > 0) : false,
+                isSaved: true ? (recipe.saves?.length > 0) : false,
+              }));
+              return {
+                recipes: recipesPc,
+                pageInfo: { limit, nextCursor: nextCursorPc, hasMore: ordered.length > limit },
+              };
+            }
+          }
+        }
+      } catch (e) {
+        this.logger.warn(`precomputed reco fallback to heuristic: ${String(e)}`);
+      }
+    }
 
     // 팔로우 저자, 내가 좋아요/저장한 태그 추출
     let followingAuthorIds: string[] = [];
@@ -1526,8 +1584,8 @@ export class RecipesService {
     });
     this.logger.debug(`candidates loaded=${candidates.length} in ${Date.now() - tCandidates}ms`);
 
-    // 점수 계산 파라미터 (MVP)
-    const tauHours = 36;
+    // 점수 계산 파라미터 (MVP, 환경변수로 조정 가능)
+    const tauHours = Number(this.configService.get('FEED_TAU_HOURS')) || 36;
     const wNew = 1.0;
     const wEng = 0.6;
     const wRecencyBurst = 0.3;
@@ -1575,8 +1633,13 @@ export class RecipesService {
     const targetFollowingRatio = 0.6;
     const targetGlobalRatio = 0.4;
 
-    // 글로벌 풀 경미 셔플 (일간 시드)
-    const daySeed = userId ? `u:${userId}` : `d:${new Date().toISOString().slice(0, 10)}`;
+    // 글로벌 풀 경미 셔플 (KST 기준 6시간 슬롯 시드)
+    const nowDate2 = new Date();
+    const hourKst2 = (nowDate2.getUTCHours() + 9) % 24;
+    const slot2 = Math.floor(hourKst2 / 6);
+    const daySeed = userId
+      ? `u:${userId}:${slot2}`
+      : `d:${nowDate2.toISOString().slice(0, 10)}:${slot2}`;
     function hashStr(s: string): number { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h >>> 0; }
     globalPool.sort((a, b) => hashStr(a.id + daySeed) - hashStr(b.id + daySeed));
 
