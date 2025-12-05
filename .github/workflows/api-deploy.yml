@@ -131,7 +131,7 @@ jobs:
             (git checkout -q ${SHA} || git checkout -q main)
             cd sigbang_api
             npm ci
-            DATABASE_URL='${DIRECT_URL}' npx prisma migrate deploy
+            DATABASE_URL='${DIRECT_URL}' DIRECT_URL='${DIRECT_URL}' npx prisma migrate deploy
 
             IMAGE='${IMAGE}'
             EXPOSE_PORT=${EXPOSE_PORT}
