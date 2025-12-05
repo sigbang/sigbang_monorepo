@@ -94,7 +94,7 @@ jobs:
           REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
         run: |
-          set -euo pipefail
+          set -eo pipefail
           echo "Resolving API instance by tag Name=${TARGET_NAME_TAG}"
           IID=$(aws ec2 describe-instances \
             --filters "Name=tag:Name,Values=${TARGET_NAME_TAG}" "Name=instance-state-name,Values=running" \
@@ -118,7 +118,7 @@ jobs:
 
           # Remote replacement of API container
           ssh -o StrictHostKeyChecking=no -i id_ed25519 ubuntu@"$PUBIP" bash -lc "
-            set -euo pipefail
+            set -eo pipefail
             # Ensure git and node are available
             command -v git >/dev/null || (sudo apt-get update -y && sudo apt-get install -y git curl)
             command -v node >/dev/null || (curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt-get install -y nodejs)
@@ -132,6 +132,10 @@ jobs:
             cd sigbang_api
             npm ci
             POOL_URL="${SUPABASE_POOLER_URL}"
+            if [ -z "\$POOL_URL" ]; then
+              echo "ERROR: SUPABASE_POOLER_URL is not set in job secrets." >&2
+              exit 1
+            fi
             DATABASE_URL="$POOL_URL" npx prisma migrate deploy
 
             IMAGE='${IMAGE}'
