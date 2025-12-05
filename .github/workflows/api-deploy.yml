@@ -140,8 +140,8 @@ jobs:
             --instance-os-user ubuntu --ssh-public-key file://id_ed25519.pub \
             --region "$AWS_REGION" >/dev/null
 
-          # Remote replacement of API container
-          ssh -o StrictHostKeyChecking=no -i id_ed25519 ubuntu@"$PUBIP" bash -lc "
+          # Remote replacement of API container + run prisma migrate on EC2
+          ssh -o ServerAliveInterval=10 -o ServerAliveCountMax=12 -o StrictHostKeyChecking=no -i id_ed25519 ubuntu@"$PUBIP" bash -lc "
             set -eo pipefail
             # Ensure git and node are available
             command -v git >/dev/null || (sudo apt-get update -y && sudo apt-get install -y git curl)
@@ -154,7 +154,21 @@ jobs:
             (git fetch --depth=1 origin ${SHA} || true)
             (git checkout -q ${SHA} || git checkout -q main)
             cd sigbang_api
-            # Prisma migrate already handled on runner
+            # Run prisma migrate on EC2 using pooler URL
+            if [ -z \"${SUPABASE_POOLER_URL}\" ]; then
+              echo \"ERROR: SUPABASE_POOLER_URL is not set in job secrets.\" >&2
+              exit 1
+            fi
+            echo 'Running prisma migrate on EC2 via pooler...'
+            DB_URL='${SUPABASE_POOLER_URL}'
+            if [[ \"\$DB_URL\" == *\"?\"* ]]; then
+              export DATABASE_URL=\"\${DB_URL}&pgbouncer=true&connection_limit=1\"
+            else
+              export DATABASE_URL=\"\${DB_URL}?pgbouncer=true&connection_limit=1\"
+            fi
+            export PRISMA_MIGRATION_ENGINE_LOG_LEVEL=debug
+            timeout 300s npx --yes prisma@5.22.0 migrate deploy --schema=./prisma/schema.prisma || { echo 'Prisma migrate failed'; exit 1; }
+            echo 'Prisma migrate completed.'
 
             IMAGE='${IMAGE}'
             EXPOSE_PORT=${EXPOSE_PORT}
