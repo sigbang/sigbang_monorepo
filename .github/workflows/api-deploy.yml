@@ -63,14 +63,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Prisma status (runner, pooler)
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_POOLER_URL }}
+          PRISMA_MIGRATION_ENGINE_LOG_LEVEL: debug
+        run: |
+          set -eo pipefail
+          echo "Prisma CLI version:"
+          npx --yes prisma@5.22.0 -v
+          echo "Prisma migrate status (pooler)..."
+          npx --yes prisma@5.22.0 migrate status --schema=./sigbang_api/prisma/schema.prisma
+
       - name: Prisma migrate (runner, pooler)
         env:
           DATABASE_URL: ${{ secrets.SUPABASE_POOLER_URL }}
+          PRISMA_MIGRATION_ENGINE_LOG_LEVEL: debug
         run: |
           set -eo pipefail
-          echo "Running prisma migrate on runner via pooler..."
-          npx --yes prisma@5.22.0 migrate deploy --schema=./sigbang_api/prisma/schema.prisma
-          echo "Prisma migrate completed."
+          echo "::group::Running prisma migrate on runner via pooler..."
+          echo "DATABASE_URL host=$(echo "$DATABASE_URL" | sed -E 's#^.*://[^@]*@([^/?]+).*$#\1#')"
+          START=$(date +%s)
+          # Timeout to avoid indefinite hang; debug logs enabled
+          timeout 300s npx --yes prisma@5.22.0 migrate deploy --schema=./sigbang_api/prisma/schema.prisma
+          RC=$?
+          END=$(date +%s)
+          echo "Prisma migrate exit_code=$RC duration=$((END-START))s"
+          echo "::endgroup::"
+          exit $RC
 
       - name: Resolve image to deploy
         id: resolve
