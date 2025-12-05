@@ -131,7 +131,7 @@ jobs:
             (git checkout -q ${SHA} || git checkout -q main)
             cd sigbang_api
             npm ci
-            POOL_URL='${SUPABASE_POOLER_URL:-}'
+            POOL_URL="${SUPABASE_POOLER_URL}"
             DATABASE_URL="$POOL_URL" npx prisma migrate deploy
 
             IMAGE='${IMAGE}'
