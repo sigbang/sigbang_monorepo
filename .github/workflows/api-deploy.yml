@@ -63,24 +63,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Prisma status (runner, pooler)
-        env:
-          DATABASE_URL: ${{ secrets.SUPABASE_POOLER_URL }}
-          PRISMA_MIGRATION_ENGINE_LOG_LEVEL: debug
-        run: |
-          set -eo pipefail
-          # Augment DATABASE_URL with pooler-friendly params if missing
-          DB_URL="$DATABASE_URL"
-          if [[ "$DB_URL" == *"?"* ]]; then
-            export DATABASE_URL="${DB_URL}&pgbouncer=true&connection_limit=1"
-          else
-            export DATABASE_URL="${DB_URL}?pgbouncer=true&connection_limit=1"
-          fi
-          echo "Prisma CLI version:"
-          npx --yes prisma@5.22.0 -v
-          echo "Prisma migrate status (pooler)..."
-          npx --yes prisma@5.22.0 migrate status --schema=./sigbang_api/prisma/schema.prisma
-
       - name: Prisma migrate (runner, pooler)
         env:
           DATABASE_URL: ${{ secrets.SUPABASE_POOLER_URL }}
