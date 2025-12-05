@@ -130,13 +130,11 @@ jobs:
             (git fetch --depth=1 origin ${SHA} || true)
             (git checkout -q ${SHA} || git checkout -q main)
             cd sigbang_api
-            npm ci
-            POOL_URL="${SUPABASE_POOLER_URL}"
-            if [ -z "\$POOL_URL" ]; then
+            if [ -z "${SUPABASE_POOLER_URL}" ]; then
               echo "ERROR: SUPABASE_POOLER_URL is not set in job secrets." >&2
               exit 1
             fi
-            DATABASE_URL="$POOL_URL" npx prisma migrate deploy
+            DATABASE_URL='${SUPABASE_POOLER_URL}' npx --yes prisma@5.22.0 migrate deploy
 
             IMAGE='${IMAGE}'
             EXPOSE_PORT=${EXPOSE_PORT}
