@@ -63,19 +63,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run Prisma migrate deploy
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Install and migrate
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
-        run: |
-          cd sigbang_api
-          npm ci
-          npx prisma migrate deploy
-
       - name: Resolve image to deploy
         id: resolve
         run: |
@@ -102,6 +89,10 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           CONTAINER_NAME: sigbang-api
           EXPOSE_PORT: "3000"
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           echo "Resolving API instance by tag Name=${TARGET_NAME_TAG}"
@@ -128,6 +119,20 @@ jobs:
           # Remote replacement of API container
           ssh -o StrictHostKeyChecking=no -i id_ed25519 ubuntu@"$PUBIP" bash -lc "
             set -euo pipefail
+            # Ensure git and node are available
+            command -v git >/dev/null || (sudo apt-get update -y && sudo apt-get install -y git curl)
+            command -v node >/dev/null || (curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt-get install -y nodejs)
+            # Checkout repository at this commit for migration
+            if [ ! -d ~/sigbang_monorepo ]; then
+              git clone https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git ~/sigbang_monorepo
+            fi
+            cd ~/sigbang_monorepo
+            (git fetch --depth=1 origin ${SHA} || true)
+            (git checkout -q ${SHA} || git checkout -q main)
+            cd sigbang_api
+            npm ci
+            DATABASE_URL='${DIRECT_URL}' npx prisma migrate deploy
+
             IMAGE='${IMAGE}'
             EXPOSE_PORT=${EXPOSE_PORT}
             CONTAINER_NAME='${CONTAINER_NAME}'
