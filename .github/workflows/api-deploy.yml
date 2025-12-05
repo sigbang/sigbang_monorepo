@@ -134,7 +134,9 @@ jobs:
               echo "ERROR: SUPABASE_POOLER_URL is not set in job secrets." >&2
               exit 1
             fi
-            DATABASE_URL='${SUPABASE_POOLER_URL}' npx --yes prisma@5.22.0 migrate deploy
+            echo "Running prisma migrate deploy via pooler..."
+            DATABASE_URL='${SUPABASE_POOLER_URL}' npx --yes prisma@5.22.0 migrate deploy --schema=./prisma/schema.prisma || { echo "Prisma migrate failed"; exit 1; }
+            echo "Prisma migrate completed."
 
             IMAGE='${IMAGE}'
             EXPOSE_PORT=${EXPOSE_PORT}
