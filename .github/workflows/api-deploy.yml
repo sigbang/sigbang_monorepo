@@ -63,30 +63,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Prisma migrate (runner, pooler)
-        env:
-          DATABASE_URL: ${{ secrets.SUPABASE_POOLER_URL }}
-          PRISMA_MIGRATION_ENGINE_LOG_LEVEL: debug
-        run: |
-          set -eo pipefail
-          # Augment DATABASE_URL with pooler-friendly params if missing
-          DB_URL="$DATABASE_URL"
-          if [[ "$DB_URL" == *"?"* ]]; then
-            export DATABASE_URL="${DB_URL}&pgbouncer=true&connection_limit=1"
-          else
-            export DATABASE_URL="${DB_URL}?pgbouncer=true&connection_limit=1"
-          fi
-          echo "::group::Running prisma migrate on runner via pooler..."
-          echo "DATABASE_URL host=$(echo "$DATABASE_URL" | sed -E 's#^.*://[^@]*@([^/?]+).*$#\1#')"
-          START=$(date +%s)
-          # Timeout to avoid indefinite hang; debug logs enabled
-          timeout 300s npx --yes prisma@5.22.0 migrate deploy --schema=./sigbang_api/prisma/schema.prisma
-          RC=$?
-          END=$(date +%s)
-          echo "Prisma migrate exit_code=$RC duration=$((END-START))s"
-          echo "::endgroup::"
-          exit $RC
-
       - name: Resolve image to deploy
         id: resolve
         run: |
