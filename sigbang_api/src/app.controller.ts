@@ -25,9 +25,9 @@ export class AppController {
     let dbStatus = 'down';
     try {
       const db = await this.prisma.$queryRaw`SELECT 1`;
-      dbStatus = 'up';
+      dbStatus = 'dbstatus up';
     } catch (e) {
-      dbStatus = 'down';
+      dbStatus = 'dbstatus down';
     }
 
     return {
