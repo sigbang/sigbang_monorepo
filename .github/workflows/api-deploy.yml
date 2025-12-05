@@ -89,7 +89,6 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           CONTAINER_NAME: sigbang-api
           EXPOSE_PORT: "3000"
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
           SUPABASE_POOLER_URL: ${{ secrets.SUPABASE_POOLER_URL }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -133,10 +132,7 @@ jobs:
             cd sigbang_api
             npm ci
             POOL_URL='${SUPABASE_POOLER_URL:-}'
-            if [ -z "$POOL_URL" ]; then
-              POOL_URL='${DIRECT_URL}'
-            fi
-            DATABASE_URL="$POOL_URL" DIRECT_URL="$POOL_URL" npx prisma migrate deploy
+            DATABASE_URL="$POOL_URL" npx prisma migrate deploy
 
             IMAGE='${IMAGE}'
             EXPOSE_PORT=${EXPOSE_PORT}
