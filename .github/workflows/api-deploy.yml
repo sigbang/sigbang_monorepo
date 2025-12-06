@@ -167,8 +167,21 @@ jobs:
             sudo docker rm -f \"\$CONTAINER_NAME\" || true
             [ -f \"\$ENV_FILE\" ] && ENV_FILE_ARG='--env-file '\$ENV_FILE'' || ENV_FILE_ARG=''
             sudo docker run --pull=always -d --name \"\$CONTAINER_NAME\" --restart=always \$ENV_FILE_ARG -p \$EXPOSE_PORT:3000 \"\$IMAGE\"
-            sleep 3
-            curl -fsS http://localhost:\$EXPOSE_PORT/health >/dev/null
+            # Wait for the container to become healthy (API can take a bit to start)
+            HEALTH_OK=0
+            for i in {1..20}; do
+              if curl -fsS \"http://localhost:\$EXPOSE_PORT/health\" >/dev/null; then
+                HEALTH_OK=1
+                break
+              fi
+              echo \"Health check failed (\$i/20), retrying in 3s...\"
+              sleep 3
+            done
+            if [ \"\$HEALTH_OK\" -ne 1 ]; then
+              echo \"Health check failed after retries. Showing recent container logs:\"
+              sudo docker logs \"\$CONTAINER_NAME\" || true
+              exit 1
+            fi
             sudo docker ps -a | sed -n '1p;/sigbang-api/p'
             sudo docker inspect -f 'Image={{.Config.Image}} State={{.State.Status}}' sigbang-api
           "
