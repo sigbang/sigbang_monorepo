@@ -78,13 +78,13 @@ jobs:
       - name: Run prisma db push to production (pooler)
         env:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           set -eo pipefail
           if [ -z "${DIRECT_URL}" ]; then
             echo "ERROR: DIRECT_URL is not set." >&2
             exit 1
-          fi
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}           
+          fi          
           npx prisma db push --schema=./prisma/schema.prisma
 
   deploy-api-eic:
