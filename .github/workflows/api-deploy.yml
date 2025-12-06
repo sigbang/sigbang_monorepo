@@ -54,9 +54,48 @@ jobs:
           cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:latest
           cache-to: type=inline
 
-  deploy-api-eic:
+  db-push-prod:
     needs: build-and-push
     runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: sigbang_api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            sigbang_api/package-lock.json
+            package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run prisma db push to production (pooler)
+        env:
+          SUPABASE_POOLER_URL: ${{ secrets.SUPABASE_POOLER_URL }}
+        run: |
+          set -eo pipefail
+          if [ -z "${SUPABASE_POOLER_URL}" ]; then
+            echo "ERROR: SUPABASE_POOLER_URL is not set." >&2
+            exit 1
+          fi
+          DB_URL="${SUPABASE_POOLER_URL}"
+          if [[ "$DB_URL" == *"?"* ]]; then
+            export DATABASE_URL="${DB_URL}&pgbouncer=true&connection_limit=1"
+          else
+            export DATABASE_URL="${DB_URL}?pgbouncer=true&connection_limit=1"
+          fi
+          npx prisma db push --schema=./prisma/schema.prisma
+
+  deploy-api-eic:
+    needs: [build-and-push, db-push-prod]
+    runs-on: ubuntu-latest
+    environment: production
     permissions:
       contents: read
       id-token: write
@@ -89,7 +128,6 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           CONTAINER_NAME: sigbang-api
           EXPOSE_PORT: "3000"
-          SUPABASE_POOLER_URL: ${{ secrets.SUPABASE_POOLER_URL }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
@@ -116,35 +154,11 @@ jobs:
             --instance-os-user ubuntu --ssh-public-key file://id_ed25519.pub \
             --region "$AWS_REGION" >/dev/null
 
-          # Remote replacement of API container + run prisma migrate on EC2
+          # Remote replacement of API container only (DB schema is managed via db-push-prod job)
           ssh -o ServerAliveInterval=10 -o ServerAliveCountMax=12 -o StrictHostKeyChecking=no -i id_ed25519 ubuntu@"$PUBIP" bash -lc "
             set -eo pipefail
-            # Ensure git and node are available
+            # Ensure git is available (for potential future use)
             command -v git >/dev/null || (sudo apt-get update -y && sudo apt-get install -y git curl)
-            command -v node >/dev/null || (curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt-get install -y nodejs)
-            # Checkout repository at this commit for migration
-            if [ ! -d ~/sigbang_monorepo ]; then
-              git clone https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git ~/sigbang_monorepo
-            fi
-            cd ~/sigbang_monorepo
-            (git fetch --depth=1 origin ${SHA} || true)
-            (git checkout -q ${SHA} || git checkout -q main)
-            cd sigbang_api
-            # Run prisma migrate on EC2 using pooler URL
-            if [ -z \"${SUPABASE_POOLER_URL}\" ]; then
-              echo \"ERROR: SUPABASE_POOLER_URL is not set in job secrets.\" >&2
-              exit 1
-            fi
-            echo 'Running prisma migrate on EC2 via pooler...'
-            DB_URL='${SUPABASE_POOLER_URL}'
-            if [[ \"\$DB_URL\" == *\"?\"* ]]; then
-              export DATABASE_URL=\"\${DB_URL}&pgbouncer=true&connection_limit=1\"
-            else
-              export DATABASE_URL=\"\${DB_URL}?pgbouncer=true&connection_limit=1\"
-            fi
-            export PRISMA_MIGRATION_ENGINE_LOG_LEVEL=debug
-            timeout 300s npx --yes prisma@5.22.0 migrate deploy --schema=./prisma/schema.prisma || { echo 'Prisma migrate failed'; exit 1; }
-            echo 'Prisma migrate completed.'
 
             IMAGE='${IMAGE}'
             EXPOSE_PORT=${EXPOSE_PORT}
@@ -163,5 +177,4 @@ jobs:
             sudo docker ps -a | sed -n '1p;/sigbang-api/p'
             sudo docker inspect -f 'Image={{.Config.Image}} State={{.State.Status}}' sigbang-api
           "
-
 
