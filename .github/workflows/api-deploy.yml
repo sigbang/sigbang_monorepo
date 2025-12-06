@@ -77,19 +77,13 @@ jobs:
 
       - name: Run prisma db push to production (pooler)
         env:
-          SUPABASE_POOLER_URL: ${{ secrets.SUPABASE_POOLER_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
         run: |
           set -eo pipefail
-          if [ -z "${SUPABASE_POOLER_URL}" ]; then
-            echo "ERROR: SUPABASE_POOLER_URL is not set." >&2
+          if [ -z "${DIRECT_URL}" ]; then
+            echo "ERROR: DIRECT_URL is not set." >&2
             exit 1
-          fi
-          DB_URL="${SUPABASE_POOLER_URL}"
-          if [[ "$DB_URL" == *"?"* ]]; then
-            export DATABASE_URL="${DB_URL}&pgbouncer=true&connection_limit=1"
-          else
-            export DATABASE_URL="${DB_URL}?pgbouncer=true&connection_limit=1"
-          fi
+          fi          
           npx prisma db push --schema=./prisma/schema.prisma
 
   deploy-api-eic:
