@@ -580,6 +580,11 @@ export class RecipesService {
       isSaved: userId ? recipe.saves?.length > 0 : false,
     }));
 
+    // 후보가 전혀 없을 때는 완전히 빈 추천 피드 대신 인기 피드로 폴백
+    if (recipes.length === 0) {
+      return this.getPopularRecipes(query, userId);
+    }
+
     return {
       recipes,
       pageInfo: {
