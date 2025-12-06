@@ -83,7 +83,8 @@ jobs:
           if [ -z "${DIRECT_URL}" ]; then
             echo "ERROR: DIRECT_URL is not set." >&2
             exit 1
-          fi          
+          fi
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}           
           npx prisma db push --schema=./prisma/schema.prisma
 
   deploy-api-eic:
