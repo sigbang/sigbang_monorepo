@@ -54,7 +54,7 @@ jobs:
           cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:latest
           cache-to: type=inline
 
-  db-push-prod:
+  db-migrate-prod:
     needs: build-and-push
     runs-on: ubuntu-latest
     environment: production
@@ -75,7 +75,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run prisma db push to production (pooler)
+      - name: Run prisma migrate deploy to production (pooler)
         env:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -85,10 +85,10 @@ jobs:
             echo "ERROR: DIRECT_URL is not set." >&2
             exit 1
           fi          
-          npx prisma db push --schema=./prisma/schema.prisma
+          npx prisma migrate deploy --schema=./prisma/schema.prisma
 
   deploy-api-eic:
-    needs: [build-and-push, db-push-prod]
+    needs: [build-and-push, db-migrate-prod]
     runs-on: ubuntu-latest
     environment: production
     permissions:

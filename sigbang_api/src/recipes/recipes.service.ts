@@ -377,6 +377,9 @@ export class RecipesService {
   // 개인화 추천 (간단 휴리스틱): 팔로우, 태그 유사, 참여 점수
   async getRecommendedRecipes(query: RecipeQueryDto, userId?: string) {
     const { cursor, limit = 10 } = (query as any) || {};
+    this.logger.log(
+      `getRecommendedRecipes start u=${userId ?? 'anon'} limit=${limit} cursor=${cursor ? 'y' : 'n'}`,
+    );
 
     let decodedCursor: { id: string } | null = null;
     if (cursor) {
@@ -402,6 +405,7 @@ export class RecipesService {
           orderBy: { createdAt: 'desc' },
         });
         if (activeModel) {
+          this.logger.log(`getRecommendedRecipes found active reco model id=${activeModel.id}`);
           const rec = await (this.prismaService as any).userRecommendations.findUnique({
             where: { userId_modelId: { userId, modelId: activeModel.id } },
           });
@@ -432,13 +436,22 @@ export class RecipesService {
                 steps: recipe.steps.map((s: any) => ({ order: s.order, description: s.description, imageUrl: s.imageUrl })),
                 likesCount: recipe._count.likes,
                 commentsCount: recipe._count.comments,
-                isLiked: true ? (recipe.likes?.length > 0) : false,
-                isSaved: true ? (recipe.saves?.length > 0) : false,
+                isLiked: recipe.likes?.length > 0,
+                isSaved: recipe.saves?.length > 0,
               }));
-              return {
-                recipes: recipesPc,
-                pageInfo: { limit, nextCursor: nextCursorPc, hasMore: ordered.length > limit },
-              };
+
+              // 선계산 추천으로부터 유효한 결과가 있을 때만 바로 반환하고,
+              // 그렇지 않으면 아래 휴리스틱/폴백 로직으로 진행
+              if (recipesPc.length > 0) {
+                this.logger.log(
+                  `getRecommendedRecipes using precomputed reco count=${recipesPc.length} hasMore=${ordered.length > limit}`,
+                );
+                return {
+                  recipes: recipesPc,
+                  pageInfo: { limit, nextCursor: nextCursorPc, hasMore: ordered.length > limit },
+                };
+              }
+              this.logger.log('getRecommendedRecipes precomputed reco empty after filtering, falling back to heuristic');
             }
           }
         }
@@ -473,6 +486,7 @@ export class RecipesService {
     }
 
     // 후보 풀 로드: 최신 상위 N
+    const tCandidates = Date.now();
     const candidates = await this.prismaService.recipe.findMany({
       where: whereBase,
       take: Math.max(100, limit * 10),
@@ -489,6 +503,9 @@ export class RecipesService {
         }),
       },
     });
+    this.logger.debug(
+      `getRecommendedRecipes candidates loaded=${candidates.length} in ${Date.now() - tCandidates}ms`,
+    );
 
     const tagSet = new Set(preferredTagNames);
     const wFollow = 1.0;
@@ -582,7 +599,41 @@ export class RecipesService {
 
     // 후보가 전혀 없을 때는 완전히 빈 추천 피드 대신 인기 피드로 폴백
     if (recipes.length === 0) {
+      this.logger.warn('getRecommendedRecipes produced 0 recipes, falling back to getPopularRecipes');
       return this.getPopularRecipes(query, userId);
+    }
+
+    // 추천 결과가 limit보다 적을 경우, 인기 피드로 부족분을 보강
+    if (recipes.length < limit) {
+      try {
+        const popular = await this.getPopularRecipes({ ...query, cursor: undefined, limit: limit * 2 } as any, userId);
+        const seenIds = new Set(recipes.map(r => r.id));
+        for (const p of popular.recipes) {
+          if (recipes.length >= limit) break;
+          if (!seenIds.has(p.id)) {
+            recipes.push(p as any);
+            seenIds.add(p.id);
+          }
+        }
+        // 보강 후 nextCursor/hasMore 재계산
+        const last = recipes[recipes.length - 1];
+        const mergedNextCursor = last ? Buffer.from(JSON.stringify({ id: last.id })).toString('base64') : null;
+        const mergedHasMore = recipes.length >= limit && !!mergedNextCursor;
+        this.logger.log(
+          `getRecommendedRecipes boosted with popular: finalCount=${recipes.length} limit=${limit} hasMore=${mergedHasMore}`,
+        );
+        return {
+          recipes,
+          pageInfo: {
+            limit,
+            nextCursor: mergedNextCursor,
+            hasMore: mergedHasMore,
+          },
+        };
+      } catch (e) {
+        // 인기 피드 보강이 실패해도 기존 추천 결과는 그대로 반환
+        this.logger.warn(`getRecommendedRecipes popular boost failed: ${String(e)}`);
+      }
     }
 
     return {
