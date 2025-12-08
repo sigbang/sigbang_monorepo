@@ -162,6 +162,8 @@ jobs:
               echo '${GHCR_TOKEN}' | sudo docker login ghcr.io -u '${GHCR_USERNAME}' --password-stdin || true
             fi
             ENV_FILE='/home/ubuntu/.env'
+            # Clean up unused Docker data to reduce disk usage before pulling
+            sudo docker system prune -af || true
             sudo docker pull \"\$IMAGE\"
             sudo docker ps --filter \"publish=\$EXPOSE_PORT\" -q | xargs -r sudo docker rm -f || true
             sudo docker rm -f \"\$CONTAINER_NAME\" || true
