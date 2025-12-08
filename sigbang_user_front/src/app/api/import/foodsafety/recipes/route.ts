@@ -2,7 +2,7 @@ export const runtime = 'edge';
 import { NextRequest, NextResponse } from 'next/server';
 
 const API_BASE = process.env.FOOD_SAFETY_API_BASE ?? 'https://openapi.foodsafetykorea.go.kr/api';
-const KEY = process.env.FOOD_SAFETY_API_KEY as string | undefined;
+const KEY = '4d14961c3de24411ad6e';
 const SERVICE = process.env.FOOD_SAFETY_SERVICE_ID ?? 'COOKRCP01';
 
 type FoodsafetyBox = {
