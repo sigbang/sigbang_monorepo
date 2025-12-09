@@ -25,7 +25,7 @@ export interface DeviceContext {
 
 @Injectable()
 export class TokenService {
-  private readonly ACCESS_TOKEN_EXPIRES_IN = '15m'; // 15분
+  private readonly ACCESS_TOKEN_EXPIRES_IN = '1h'; // 15분
   private readonly REFRESH_TOKEN_EXPIRES_IN_DAYS = 30; // 30일
 
   constructor(
