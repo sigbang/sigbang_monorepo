@@ -76,7 +76,7 @@ function mapItems(raw: FeedItem[]) {
 async function fetchFeed(path: string, limit: number) {
   const api = ENV.API_BASE_URL.replace(/\/+$/, '');
   const url = `${api}${path}?limit=${limit}`;
-  const res = await fetch(url, { next: { revalidate: 300 } });
+  const res = await fetch(url, { next: { revalidate: 60 } });
   if (!res.ok) return [] as FeedItem[];
   const json: any = await res.json().catch(() => null);
   const list = (json?.data?.recipes ?? json?.recipes ?? []) as FeedItem[];
