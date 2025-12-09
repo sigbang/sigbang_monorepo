@@ -3,6 +3,7 @@ import RecipeCard from './RecipeCard';
 import RecipeCardSkeleton from './RecipeCardSkeleton';
 import { useT } from '@/i18n/I18nProvider';
 import { useEffect, useRef } from 'react';
+import type { RecipeCardItem } from '@/lib/types/recipeCard';
 
 export default function Section({
   title,
@@ -13,7 +14,7 @@ export default function Section({
   loading,
 }: {
   title: string;
-  items: Array<{ id: string; title: string; image: string; minutes?: number; description?: string; likesCount?: number; viewCount?: number; authorAvatar?: string; authorId?: string; liked?: boolean; saved?: boolean; stepImages?: string[] }>;
+  items: RecipeCardItem[];
   highlightFirst?: boolean;
   startIndex?: number;
   focusIndex?: number;

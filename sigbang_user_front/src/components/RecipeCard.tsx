@@ -225,9 +225,24 @@ const RecipeCard = forwardRef<HTMLDivElement, Props>(function RecipeCard(
     }
   };
   const updateListCaches = (updater: (r: Record<string, unknown>) => Record<string, unknown>) => {
+    // 메인 피드(추천/인기/탐색)
     updateQueriesByPrefix('feed', updater);
+    // 검색 결과 리스트
     updateQueriesByPrefix('search', updater);
+    // 내 프로필의 내 레시피/북마크 리스트
+    updateQueriesByPrefix('me', updater);
+    // 다른 유저 프로필의 레시피 리스트
+    updateQueriesByPrefix('userRecipes', updater);
   };
+
+  // 외부에서 liked/saved props가 변경된 경우(페이지 이동, refetch 등) 내부 state를 동기화
+  useEffect(() => {
+    setIsLiked(!!liked);
+  }, [liked]);
+
+  useEffect(() => {
+    setIsSaved(!!saved);
+  }, [saved]);
 
   const onToggleLike = async (e: React.MouseEvent) => {
     e.preventDefault();

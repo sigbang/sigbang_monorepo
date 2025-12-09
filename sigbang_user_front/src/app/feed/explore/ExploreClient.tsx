@@ -8,19 +8,15 @@ import { useEffect, useMemo, useRef } from 'react';
 import RecipeCard from '@/components/RecipeCard';
 import RecipeCardSkeleton from '@/components/RecipeCardSkeleton';
 import { ENV } from '@/lib/env';
+import { toRecipeCardItem } from '@/lib/mappers/recipeCard';
 
 export default function ExploreClient() {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } = useExploreFeed(10);
 
-  const items = useMemo(() => data?.pages.flatMap((p) => p.recipes) ?? [], [data]);
-
-  const getImageUrl = (recipe: { thumbnailImage?: string }) => {
-    const thumb = recipe.thumbnailImage;
-    if (!thumb) return '';
-    if (/^https?:/i.test(thumb)) return thumb;
-    const clean = thumb.startsWith('/') ? thumb.slice(1) : thumb;
-    return `/media/${clean.startsWith('media/') ? clean.slice('media/'.length) : clean}`;
-  };
+  const items = useMemo(
+    () => data?.pages.flatMap((p) => p.recipes).map((r) => toRecipeCardItem(r as any)) ?? [],
+    [data],
+  );
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -58,24 +54,32 @@ export default function ExploreClient() {
           {status === 'success' && (
             <div>
               <ul className="flex flex-col">
-                {items.map((r) => {
-                  const imageUrl = getImageUrl(r);
-                  const slugPath = (() => { const s = (r as any).slug as string | undefined; const g = (r as any).region as string | undefined; return (r as any).slugPath || (s && s.includes('/') ? s : (g && s ? `${g}/${s}` : r.id)); })();
+                {items.map((it) => {
+                  const slugPath = (() => {
+                    const s = it.slug;
+                    const g = it.region;
+                    return it.slugPath || (s && s.includes('/') ? s : g && s ? `${g}/${s}` : it.id);
+                  })();
                   return (
-                    <li key={r.id} className="max-w-[520px] w-full min-w-0 mx-auto py-6 border-b border-[#e5e7eb] last:border-b-0">
+                    <li
+                      key={it.id}
+                      className="max-w-[520px] w-full min-w-0 mx-auto py-6 border-b border-[#e5e7eb] last:border-b-0"
+                    >
                       <RecipeCard
-                        recipeId={r.id}
+                        recipeId={it.id}
                         href={`/recipes/${slugPath}`}
-                        title={r.title}
-                        image={imageUrl}
-                        minutes={r.cookingTime}
-                        description={r.description}
-                        likesCount={r.likesCount}
-                        viewCount={r.viewCount}
-                        liked={r.isLiked}
-                        saved={r.isSaved}
-                        authorAvatar={r.author?.profileImage}
-                        authorId={r.author?.id}
+                        title={it.title}
+                        image={it.image}
+                        minutes={it.minutes}
+                        description={it.description}
+                        likesCount={it.likesCount}
+                        viewCount={it.viewCount}
+                        liked={it.liked}
+                        saved={it.saved}
+                        authorAvatar={it.authorAvatar}
+                        authorId={it.authorId}
+                        hoverPreview={!!it.stepImages && it.stepImages.length > 0}
+                        stepImages={it.stepImages}
                       />
                     </li>
                   );
@@ -83,10 +87,10 @@ export default function ExploreClient() {
               </ul>
               {(() => {
                 const base = ENV.SITE_URL;
-                const itemUrls = items.map((r) => {
-                  const s = (r as any).slug as string | undefined;
-                  const g = (r as any).region as string | undefined;
-                  const p = (r as any).slugPath || (s && s.includes('/') ? s : (g && s ? `${g}/${s}` : r.id));
+                const itemUrls = items.map((it) => {
+                  const s = it.slug;
+                  const g = it.region;
+                  const p = it.slugPath || (s && s.includes('/') ? s : g && s ? `${g}/${s}` : it.id);
                   const rel = `/recipes/${p}`;
                   return new URL(rel, base).toString();
                 });

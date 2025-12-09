@@ -3,6 +3,7 @@ import { usePopularFeed } from '@/lib/hooks/feed';
 import RecipeCard from '@/components/RecipeCard';
 import RecipeCardSkeleton from '@/components/RecipeCardSkeleton';
 import { ENV } from '@/lib/env';
+import { toRecipeCardItem } from '@/lib/mappers/recipeCard';
 
 export default function PopularPage() {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } = usePopularFeed(10);
@@ -23,50 +24,38 @@ export default function PopularPage() {
   }
   if (status === 'error') return <main style={{ padding: 24 }}>오류가 발생했습니다</main>;
 
-  const items = data?.pages.flatMap((p) => p.recipes) ?? [];
-  
-  const getImageUrl = (recipe: { thumbnailImage?: string }) => {
-    const thumb = recipe.thumbnailImage;
-    if (!thumb) return '';
-    if (/^https?:/i.test(thumb)) return thumb;
-    const clean = thumb.startsWith('/') ? thumb.slice(1) : thumb;
-    return `/media/${clean.startsWith('media/') ? clean.slice('media/'.length) : clean}`;
-  };
+  const recipes = data?.pages.flatMap((p) => p.recipes) ?? [];
+  const items = recipes.map((r) => toRecipeCardItem(r as any));
 
   return (
     <main style={{ padding: 24 }}>
       <h2>인기 레시피</h2>
       <ul className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
-        {items.map((r, idx) => {
-          const imageUrl = getImageUrl(r);
-          const stepImages = ((r as any).steps || [])
-            .map((s: any) => (s?.imageUrl || s?.imagePath) as string | undefined)
-            .filter(Boolean)
-            .map((u: string) => {
-              if (/^https?:/i.test(u)) return u;
-              const clean = u.startsWith('/') ? u.slice(1) : u;
-              return `/media/${clean.startsWith('media/') ? clean.slice('media/'.length) : clean}`;
-            })
-            .slice(0, 3) as string[];
+        {items.map((it, idx) => {
+          const slugPath = (() => {
+            const s = it.slug;
+            const g = it.region;
+            return it.slugPath || (s && s.includes('/') ? s : g && s ? `${g}/${s}` : it.id);
+          })();
           return (
-            <li key={r.id}>
+            <li key={it.id}>
               <RecipeCard
-                recipeId={r.id}
-                href={`/recipes/${(() => { const s = (r as any).slug as string | undefined; const g = (r as any).region as string | undefined; return (r as any).slugPath || (s && s.includes('/') ? s : (g && s ? `${g}/${s}` : r.id)); })()}`}
-                title={r.title}
-                image={imageUrl}
-                minutes={r.cookingTime}
-                description={r.description}
-                likesCount={r.likesCount}
-                viewCount={r.viewCount}
-                liked={r.isLiked}
-                saved={r.isSaved}
-                authorAvatar={r.author?.profileImage}
-                authorId={r.author?.id}
+                recipeId={it.id}
+                href={`/recipes/${slugPath}`}
+                title={it.title}
+                image={it.image}
+                minutes={it.minutes}
+                description={it.description}
+                likesCount={it.likesCount}
+                viewCount={it.viewCount}
+                liked={it.liked}
+                saved={it.saved}
+                authorAvatar={it.authorAvatar}
+                authorId={it.authorId}
                 priority={idx < 6}
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 33vw, 360px"
-                hoverPreview
-                stepImages={stepImages}
+                hoverPreview={!!it.stepImages && it.stepImages.length > 0}
+                stepImages={it.stepImages}
               />
             </li>
           );
@@ -74,10 +63,10 @@ export default function PopularPage() {
       </ul>
       {(() => {
         const base = ENV.SITE_URL;
-        const itemUrls = items.map((r) => {
-          const s = (r as any).slug as string | undefined;
-          const g = (r as any).region as string | undefined;
-          const p = (r as any).slugPath || (s && s.includes('/') ? s : (g && s ? `${g}/${s}` : r.id));
+        const itemUrls = items.map((it) => {
+          const s = it.slug;
+          const g = it.region;
+          const p = it.slugPath || (s && s.includes('/') ? s : g && s ? `${g}/${s}` : it.id);
           const rel = `/recipes/${p}`;
           return new URL(rel, base).toString();
         });

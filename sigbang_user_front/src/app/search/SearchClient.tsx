@@ -8,6 +8,7 @@ import Sidebar from '@/components/Sidebar';
 import Topbar from '@/components/Topbar';
 import MobileNav from '@/components/MobileNav';
 import RecipeCard from '@/components/RecipeCard';
+import { toRecipeCardItem } from '@/lib/mappers/recipeCard';
 
 function SearchPageInner() {
   const router = useRouter();
@@ -20,14 +21,6 @@ function SearchPageInner() {
   // React Query 기반 데이터
   const rq = useSearchFeed(hasSearched ? searchInput : '', 20);
   const rqItems = useMemo(() => rq.data?.pages.flatMap((p) => p.recipes) ?? [], [rq.data]);
-  
-  const getImageUrl = (recipe: { thumbnailImage?: string; thumbnailUrl?: string; thumbnailPath?: string }) => {
-    const thumb = recipe.thumbnailImage || recipe.thumbnailUrl || recipe.thumbnailPath;
-    if (!thumb) return '';
-    if (/^https?:/i.test(thumb)) return thumb;
-    const clean = thumb.startsWith('/') ? thumb.slice(1) : thumb;
-    return `/media/${clean.startsWith('media/') ? clean.slice('media/'.length) : clean}`;
-  };
   
   // Initialize from URL
   useEffect(() => {
@@ -152,37 +145,37 @@ function SearchPageInner() {
       );
     }
     
+    const cardItems = rqItems.map((r) => toRecipeCardItem(r as any));
+
     return (
       <div>
         <ul className="flex flex-col">
-          {rqItems.map((r) => {
-            const imageUrl = getImageUrl(r);
-            const stepImages = ((r as any).steps || [])
-              .map((s: any) => (s?.imageUrl || s?.imagePath) as string | undefined)
-              .filter(Boolean)
-              .map((u: string) => {
-                if (/^https?:/i.test(u)) return u;
-                const clean = u.startsWith('/') ? u.slice(1) : u;
-                return `/media/${clean.startsWith('media/') ? clean.slice('media/'.length) : clean}`;
-              })
-              .slice(0, 3) as string[];
+          {cardItems.map((it) => {
+            const slugPath = (() => {
+              const s = it.slug;
+              const g = it.region;
+              return it.slugPath || (s && s.includes('/') ? s : g && s ? `${g}/${s}` : it.id);
+            })();
             return (
-              <li key={r.id} className="max-w-[520px] w-full mx-auto py-6 border-b border-[#e5e7eb] last:border-b-0">
+              <li
+                key={it.id}
+                className="max-w-[520px] w-full mx-auto py-6 border-b border-[#e5e7eb] last:border-b-0"
+              >
                 <RecipeCard
-                  recipeId={r.id}
-                  href={`/recipes/${(() => { const s = (r as any).slug as string | undefined; const g = (r as any).region as string | undefined; return (r as any).slugPath || (s && s.includes('/') ? s : (g && s ? `${g}/${s}` : r.id)); })()}`}
-                  title={r.title}
-                  image={imageUrl}
-                  minutes={r.cookingTime}
-                  description={r.description}
-                  likesCount={r.likesCount}
-                  viewCount={r.viewCount}
-                  liked={r.isLiked}
-                  saved={r.isSaved}
-                  authorAvatar={r.author?.profileImage}
-                  authorId={r.author?.id}
-                  hoverPreview
-                  stepImages={stepImages}
+                  recipeId={it.id}
+                  href={`/recipes/${slugPath}`}
+                  title={it.title}
+                  image={it.image}
+                  minutes={it.minutes}
+                  description={it.description}
+                  likesCount={it.likesCount}
+                  viewCount={it.viewCount}
+                  liked={it.liked}
+                  saved={it.saved}
+                  authorAvatar={it.authorAvatar}
+                  authorId={it.authorId}
+                  hoverPreview={!!it.stepImages && it.stepImages.length > 0}
+                  stepImages={it.stepImages}
                 />
               </li>
             );

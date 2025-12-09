@@ -338,8 +338,19 @@ export class UsersService {
           select: {
             likes: true,
             comments: true,
+            saves: true,
           },
         },
+        ...(requestUserId && {
+          likes: {
+            where: { userId: requestUserId },
+            select: { id: true },
+          },
+          saves: {
+            where: { userId: requestUserId },
+            select: { id: true },
+          },
+        }),
       },
     });
 
@@ -352,7 +363,7 @@ export class UsersService {
         ).toString('base64')
       : null;
 
-    const recipes = items.map(recipe => ({
+    const recipes = items.map((recipe: any) => ({
       id: recipe.id,
       title: recipe.title,
       description: recipe.description,
@@ -365,6 +376,8 @@ export class UsersService {
       status: recipe.status,
       likesCount: recipe._count.likes,
       commentsCount: recipe._count.comments,
+      isLiked: requestUserId ? (Array.isArray(recipe.likes) && recipe.likes.length > 0) : false,
+      isSaved: requestUserId ? (Array.isArray(recipe.saves) && recipe.saves.length > 0) : false,
     }));
 
     return {
@@ -405,7 +418,11 @@ export class UsersService {
             author: {
               select: { id: true, nickname: true, profileImage: true },
             },
-            _count: { select: { likes: true, comments: true } },
+            _count: { select: { likes: true, comments: true, saves: true } },
+            likes: {
+              where: { userId },
+              select: { id: true },
+            },
           },
         },
       },
@@ -420,11 +437,14 @@ export class UsersService {
         ).toString('base64')
       : null;
 
-    const recipes = items.map(save => ({
+    const recipes = items.map((save: any) => ({
       ...save.recipe,
       savedAt: save.createdAt,
       likesCount: save.recipe._count.likes,
       commentsCount: save.recipe._count.comments,
+      isLiked: Array.isArray(save.recipe.likes) && save.recipe.likes.length > 0,
+      // 북마크 탭에서는 항상 내가 저장한 레시피이므로 true 고정
+      isSaved: true,
     }));
 
     return {

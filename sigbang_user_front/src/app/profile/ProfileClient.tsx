@@ -13,6 +13,7 @@ import Image from "next/image";
 import { IconSettings } from "@/components/icons";
 import UserListItem from "@/components/UserListItem";
 import type { PublicUser } from "@/lib/types/user";
+import { toRecipeCardItem } from "@/lib/mappers/recipeCard";
 import Link from "next/link";
 
 export default function ProfileClient() {
@@ -46,18 +47,20 @@ export default function ProfileClient() {
     if (!editingName) setNickInput(name);
   }, [name, editingName]);
 
-  const getImageUrl = (recipe: { thumbnailImage?: string; thumbnailUrl?: string; thumbnailPath?: string }) => {
-    const thumb = recipe.thumbnailImage || recipe.thumbnailUrl || recipe.thumbnailPath;
-    if (!thumb) return '';
-    if (/^https?:/i.test(thumb)) return thumb;
-    const clean = thumb.startsWith('/') ? thumb.slice(1) : thumb;
-    return `/media/${clean.startsWith('media/') ? clean.slice('media/'.length) : clean}`;
-  };
-
   const items = useMemo(() => {
     const pages = tab === 'recipes' ? recipes.data?.pages : saved.data?.pages;
-    return (pages?.flatMap((p) => p.recipes) ?? []).map((r) => ({ id: r.id, title: r.title, image: getImageUrl(r) }));
-  }, [recipes.data, saved.data, tab]);
+    return (pages?.flatMap((p) => p.recipes) ?? []).map((r) => {
+      const base = toRecipeCardItem(r as any);
+      // 내 프로필의 "내 레시피" 탭은 백엔드에서 author 정보가 안 오므로
+      // 상단 프로필 이미지/내 사용자 ID를 그대로 쓰고,
+      // 북마크 탭은 레시피의 author 정보가 있으면 그걸 사용합니다.
+      return {
+        ...base,
+        authorAvatar: tab === 'recipes' ? image : (base.authorAvatar || image),
+        authorId: tab === 'recipes' ? me.data?.id : (base.authorId || me.data?.id),
+      };
+    });
+  }, [recipes.data, saved.data, tab, image, me.data?.id]);
 
   const followers = useFollowers(me.data?.id, 20, tab === 'followers');
   const followings = useFollowings(me.data?.id, 20, tab === 'followings');
@@ -272,12 +275,35 @@ export default function ProfileClient() {
                 {tab === 'recipes' || tab === 'saved' ? (
                   <div className="mt-6 grid grid-cols-2 gap-6 max-w-[900px] mx-auto">
                     {items.map((it, idx) => {
-                      const inSaved = (saved.data?.pages?.flatMap((p) => p.recipes) ?? []).some((r) => r.id === it.id && (r.isSaved ?? (r as { isBookmarked?: boolean }).isBookmarked));
-                      const s = (it as any).slug as string | undefined;
-                      const r = (it as any).region as string | undefined;
-                      const path = (it as any).slugPath || (s && s.includes('/') ? s : (r && s ? `${r}/${s}` : it.id));
+                      const inSaved = (saved.data?.pages?.flatMap((p) => p.recipes) ?? []).some(
+                        (r) => r.id === it.id && (r.isSaved ?? (r as { isBookmarked?: boolean }).isBookmarked),
+                      );
+
+                      const path =
+                        it.slugPath ||
+                        (it.slug && it.slug.includes('/')
+                          ? it.slug
+                          : it.region && it.slug
+                          ? `${it.region}/${it.slug}`
+                          : it.id);
+
                       return (
-                        <RecipeCard key={it.id} title={it.title} image={it.image} href={`/recipes/${path}`} saved={inSaved} priority={idx < 6} />
+                        <RecipeCard
+                          key={it.id}
+                          recipeId={it.id}
+                          title={it.title}
+                          image={it.image}
+                          minutes={it.minutes}
+                          description={it.description}
+                          likesCount={it.likesCount}
+                          viewCount={it.viewCount}
+                          liked={it.liked}
+                          saved={tab === 'saved' ? true : inSaved || it.saved}
+                          authorAvatar={it.authorAvatar}
+                          authorId={it.authorId}
+                          href={`/recipes/${path}`}
+                          priority={idx < 6}
+                        />
                       );
                     })}
                   </div>
