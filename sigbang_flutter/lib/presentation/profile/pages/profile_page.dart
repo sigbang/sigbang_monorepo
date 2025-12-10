@@ -325,7 +325,7 @@ class _RecipesGrid extends StatelessWidget {
 
         final textScale = MediaQuery.of(context).textScaleFactor;
         final double aspectRatio =
-            (0.68 - (textScale - 1.0) * 0.12).clamp(0.56, 0.8);
+            (0.64 - (textScale - 1.0) * 0.12).clamp(0.56, 0.8);
 
         return NotificationListener<ScrollNotification>(
           onNotification: (notification) {
@@ -353,8 +353,10 @@ class _RecipesGrid extends StatelessWidget {
               final recipe = recipes[index];
               return RecipeCard(
                 recipe: recipe,
-                isLoggedIn: context.read<SessionCubit>().state.isLoggedIn == true,
+                isLoggedIn:
+                    context.read<SessionCubit>().state.isLoggedIn == true,
                 onTap: () => context.push('/recipe/${recipe.id}'),
+                // 프로필 탭에서는 현재는 읽기전용(좋아요/북마크 토글은 나중에 필요 시 추가)
               );
             },
           ),

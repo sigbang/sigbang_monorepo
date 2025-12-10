@@ -236,7 +236,8 @@ class HomeView extends StatelessWidget {
     );
   }
 
-  Widget _buildRecipeGrid(BuildContext context, List<Recipe> recipes, bool isLoggedIn) {
+  Widget _buildRecipeGrid(
+      BuildContext context, List<Recipe> recipes, bool isLoggedIn) {
     if (recipes.isEmpty) {
       return const SliverToBoxAdapter(
         child: Center(
@@ -266,7 +267,7 @@ class HomeView extends StatelessWidget {
 
     final textScale = MediaQuery.of(context).textScaleFactor;
     final double aspectRatio =
-        (0.68 - (textScale - 1.0) * 0.12).clamp(0.56, 0.8);
+        (0.64 - (textScale - 1.0) * 0.12).clamp(0.56, 0.8);
 
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),

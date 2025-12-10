@@ -8,6 +8,7 @@ class RecipeCard extends StatelessWidget {
   final VoidCallback onTap;
   final bool isLoggedIn;
   final VoidCallback? onLikeTap;
+  final VoidCallback? onBookmarkTap;
 
   const RecipeCard({
     super.key,
@@ -15,6 +16,7 @@ class RecipeCard extends StatelessWidget {
     required this.onTap,
     this.isLoggedIn = false,
     this.onLikeTap,
+    this.onBookmarkTap,
   });
 
   @override
@@ -41,9 +43,9 @@ class RecipeCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 이미지 영역
-            Flexible(
-              flex: 3,
+            // 이미지 영역: 고정 비율(예: 16:9)로 고정
+            AspectRatio(
+              aspectRatio: 5 / 4,
               child: Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
@@ -55,14 +57,13 @@ class RecipeCard extends StatelessWidget {
               ),
             ),
             // 정보 영역
-            Flexible(
-              flex: 2,
+            Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(12.0),
+                padding: const EdgeInsets.all(10.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 제목
+                    // 1줄: 제목
                     SizedBox(
                       height: titleLineHeight,
                       child: Align(
@@ -76,7 +77,7 @@ class RecipeCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    // 설명 (제목 아래 1줄 고정)
+                    // 2줄: 설명 (1줄)
                     Text(
                       recipe.description,
                       maxLines: 1,
@@ -85,8 +86,8 @@ class RecipeCard extends StatelessWidget {
                             color: Colors.grey[700],
                           ),
                     ),
-                    const SizedBox(height: 4),
-                    // 작성자 아바타 + 좋아요 (4번째 줄)
+                    const SizedBox(height: 12),
+                    // 3줄: 왼쪽 아바타, 오른쪽 조리시간
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
@@ -97,36 +98,88 @@ class RecipeCard extends StatelessWidget {
                             backgroundColor: Colors.transparent,
                           ),
                         const Spacer(),
-                        InkWell(
-                          borderRadius: BorderRadius.circular(6),
-                          onTap: () {
-                            if (!isLoggedIn) {
-                              showLoginRequiredDialog(context);
-                              return;
-                            }
-                            if (onLikeTap != null) {
-                              onLikeTap!();
-                            }
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.favorite,
-                                  size: 14,
-                                  color: recipe.isLiked ? Colors.red : Colors.grey,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${recipe.likesCount}',
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ],
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.schedule,
+                              size: 14,
+                              color: Colors.grey,
                             ),
-                          ),
+                            const SizedBox(width: 4),
+                            Text(
+                              recipe.cookingTime != null
+                                  ? '${recipe.cookingTime}분'
+                                  : '-',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: Colors.grey[700]),
+                            ),
+                          ],
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 6),
+                    // 4줄: 왼쪽 조회수, 오른쪽 좋아요(숫자 없음) + 북마크
+                    SizedBox(
+                      width: double.infinity,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          //왼쪽: 조회수
+                          Text(
+                            '조회수 ${_formatCount(recipe.viewCount)}',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: Colors.grey[700]),
+                          ),
+                          const Spacer(),
+                          // 오른쪽: 좋아요 + 북마크
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  if (!isLoggedIn) {
+                                    showLoginRequiredDialog(context);
+                                    return;
+                                  }
+                                  onLikeTap?.call();
+                                },
+                                child: Icon(
+                                  recipe.isLiked
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  size: 18,
+                                  color: recipe.isLiked
+                                      ? Colors.red
+                                      : Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              GestureDetector(
+                                onTap: () {
+                                  if (!isLoggedIn) {
+                                    showLoginRequiredDialog(context);
+                                    return;
+                                  }
+                                  onBookmarkTap?.call();
+                                },
+                                child: Icon(
+                                  recipe.isSaved
+                                      ? Icons.bookmark
+                                      : Icons.bookmark_border,
+                                  size: 18,
+                                  color: recipe.isSaved
+                                      ? Colors.amber[700]
+                                      : Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -186,5 +239,11 @@ class RecipeCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _formatCount(int n) {
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
+    return n.toString();
   }
 }
