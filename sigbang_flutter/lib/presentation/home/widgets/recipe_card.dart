@@ -247,3 +247,76 @@ class RecipeCard extends StatelessWidget {
     return n.toString();
   }
 }
+
+class RecipeCardSkeleton extends StatelessWidget {
+  const RecipeCardSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final baseColor = Colors.grey.shade300;
+
+    Widget skeletonBox({
+      double? width,
+      double? height,
+      BorderRadius? radius,
+    }) {
+      return Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: baseColor,
+          borderRadius: radius ?? BorderRadius.circular(4),
+        ),
+      );
+    }
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 이미지 영역 skeleton
+          AspectRatio(
+            aspectRatio: 5 / 4,
+            child: Container(color: baseColor),
+          ),
+          // 정보 영역 skeleton
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(10.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  skeletonBox(width: 80, height: 14),
+                  const SizedBox(height: 8),
+                  skeletonBox(width: 120, height: 12),
+                  const Spacer(),
+                  Row(
+                    children: [
+                      Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: baseColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const Spacer(),
+                      skeletonBox(width: 60, height: 12),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  skeletonBox(width: double.infinity, height: 12),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

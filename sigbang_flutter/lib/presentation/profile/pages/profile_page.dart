@@ -314,9 +314,59 @@ class _RecipesGrid extends StatelessWidget {
         final recipes = isSavedTab ? state.savedRecipes : state.myRecipes;
         final nextCursor =
             isSavedTab ? state.savedNextCursor : state.myNextCursor;
+        final errorMessage = state.errorMessage;
 
         if (state.isLoading && recipes.isEmpty) {
-          return const Center(child: CircularProgressIndicator());
+          final textScale = MediaQuery.of(context).textScaleFactor;
+          final double aspectRatio =
+              (0.64 - (textScale - 1.0) * 0.12).clamp(0.56, 0.8);
+
+          return GridView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              childAspectRatio: aspectRatio,
+            ),
+            itemCount: 6,
+            itemBuilder: (_, __) => const RecipeCardSkeleton(),
+          );
+        }
+
+        if (errorMessage != null && recipes.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.cloud_off, size: 48, color: Colors.grey),
+                  const SizedBox(height: 12),
+                  Text(
+                    isSavedTab ? '북마크를 불러오지 못했어요.' : '내 레시피를 불러오지 못했어요.',
+                    style: Theme.of(context).textTheme.titleMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    errorMessage,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () =>
+                        context.read<ProfileRecipesCubit>().loadInitial(),
+                    child: const Text('다시 시도'),
+                  ),
+                ],
+              ),
+            ),
+          );
         }
 
         if (recipes.isEmpty) {
