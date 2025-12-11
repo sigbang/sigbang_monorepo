@@ -30,6 +30,37 @@ elif command -v yum >/dev/null 2>&1; then
   systemctl restart sshd || true
 fi
 
+# Install CloudWatch Agent for minimal log shipping
+if command -v apt >/dev/null 2>&1; then
+  retry apt install -y amazon-cloudwatch-agent
+elif command -v yum >/dev/null 2>&1; then
+  retry yum install -y amazon-cloudwatch-agent
+fi
+
+# Configure CloudWatch Agent to ship userdata logs
+cat >/opt/aws/amazon-cloudwatch-agent/bin/sigbang-api-config.json <<'EOF'
+{
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/userdata.log",
+            "log_group_name": "/sigbang/api/userdata",
+            "log_stream_name": "{instance_id}"
+          }
+        ]
+      }
+    }
+  }
+}
+EOF
+
+/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+  -a fetch-config -m ec2 \
+  -c file:/opt/aws/amazon-cloudwatch-agent/bin/sigbang-api-config.json \
+  -s
+
 # Build .env from SSM path
 ENV_FILE="/home/ubuntu/.env"
 mkdir -p "$(dirname "$ENV_FILE")"

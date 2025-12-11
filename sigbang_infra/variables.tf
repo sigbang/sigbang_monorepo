@@ -188,6 +188,14 @@ variable "ses_region" {
 }
 
 ##########################################
+# Ops alert email for CloudWatch alarms
+##########################################
+variable "ops_alert_email" {
+  type        = string
+  description = "Email address to receive operational alerts from CloudWatch alarms"
+}
+
+##########################################
 # Toggle for managing SG rules as separate resources
 ##########################################
 variable "manage_sg_rules" {

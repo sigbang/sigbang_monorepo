@@ -255,6 +255,14 @@ resource "aws_iam_role_policy_attachment" "api_ec2_ssm_core" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
+##########################################
+# Attach CloudWatch Agent policy to EC2 role
+##########################################
+resource "aws_iam_role_policy_attachment" "api_ec2_cw_agent" {
+  role       = aws_iam_role.api_ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+}
+
 resource "aws_iam_instance_profile" "api_instance_profile" {
   name = var.instance_profile_name
   role = aws_iam_role.api_ec2_role.name
