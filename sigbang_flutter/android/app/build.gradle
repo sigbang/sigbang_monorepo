@@ -6,6 +6,22 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+def getGitCommitCount = { ->
+    try {
+        return 'git rev-list --count HEAD'.execute().text.trim().toInteger()
+    } catch (ignored) {
+        return 1
+    }
+}
+
+def getGitShortHash = { ->
+    try {
+        return 'git rev-parse --short HEAD'.execute().text.trim()
+    } catch (ignored) {
+        return "dev"
+    }
+}
+
 android {
     namespace = "com.aminity.sigbang"
     compileSdk = flutter.compileSdkVersion
@@ -27,8 +43,8 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        versionCode = getGitCommitCount()
+        versionName = "1.0.0-${getGitShortHash()}"
     }
 
     def keystoreProperties = new Properties()
