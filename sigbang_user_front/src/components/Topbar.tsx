@@ -49,8 +49,8 @@ export default function Topbar() {
           <Link href="/" className="flex items-center gap-2" aria-label="식방 홈">
             <Image src="/logo.png" alt="식방" width={36} height={36} priority />
             <span className="sr-only">식방</span>
-          </Link>
-          <div className="text-[16px]">식방 Beta</div>
+            <div className="text-[16px]">식방 Beta</div>
+          </Link>          
         </div>
 
         {/* Center banner */}

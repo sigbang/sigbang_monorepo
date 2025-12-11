@@ -31,7 +31,9 @@ export default function LoginPage() {
             </div>
             <div className="flex flex-col items-center">
               <div className="h-4 md:h-8" />
-              <Image src="/logo.png" alt="식방" width={52} height={52} />
+              <Link href="/" className="flex items-center gap-2" aria-label="식방 홈">
+                <Image src="/logo.png" alt="식방" width={52} height={52} />
+              </Link>
               <div className="h-6 md:h-8" />
               <h1 className="text-[28px] md:text-[32px] font-bold text-left">나만의 레시피를 발견하세요.</h1>
               <h2 className="text-[16px] md:text-[18px] text-left">세상의 모든 레시피 식방</h2>
@@ -51,15 +53,15 @@ export default function LoginPage() {
                   <Image src="/login/email_login.png" alt="Google" width={22} height={22} />
                   <span>메일로 계속하기 (준비중)</span>
                 </button>
-              </div>
-            </div>            
-          </div>
-        </div>
-        <div className="mt-10 mb-24 text-[16px] text-[#777]">
-          <Link href="/legal/terms" className="hover:underline">서비스 약관</Link>
-          <span className="mx-2">·</span>
-          <Link href="/legal/privacy" className="hover:underline">개인정보처리 방침</Link>
-        </div>
+              </div>              
+              <div className="mt-10 mb-24 text-[16px] text-[#777]">
+                <Link href="/legal/terms" className="hover:underline">서비스 약관</Link>
+                <span className="mx-2">·</span>
+                <Link href="/legal/privacy" className="hover:underline">개인정보처리 방침</Link>
+                </div>            
+            </div>
+          </div>          
+        </div>                
       </main>
     </div>
   );

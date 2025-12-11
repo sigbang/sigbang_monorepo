@@ -14,7 +14,7 @@ export default function Footer() {
           <div className="flex flex-col gap-2">
             <a className="hover:underline" href="/legal/privacy">개인정보처리방침</a>
             <a className="hover:underline" href="/legal/terms">서비스 이용약관</a>
-            <a className="hover:underline" href="/account/delete">계정 및 데이터 삭제</a>
+            <a className="hover:underline" href="/legal/account-deletion">계정 및 데이터 삭제</a>
           </div>
 
           <div className="space-y-2">
