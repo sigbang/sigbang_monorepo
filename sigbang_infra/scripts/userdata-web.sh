@@ -17,12 +17,12 @@ retry() { local n=0; until "$@"; do n=$((n+1)); [ $n -ge 5 ] && return 1; sleep 
 # Install deps
 if command -v apt >/dev/null 2>&1; then
   retry apt update -y
-  retry apt install -y awscli jq docker.io ec2-instance-connect
+  retry apt install -y awscli jq docker.io ec2-instance-connect curl
   systemctl enable docker
   systemctl start docker
   systemctl restart ssh || true
 elif command -v yum >/dev/null 2>&1; then
-  retry yum install -y awscli jq docker ec2-instance-connect
+  retry yum install -y awscli jq docker ec2-instance-connect curl
   systemctl enable docker
   systemctl start docker
   systemctl restart sshd || true
@@ -30,9 +30,11 @@ fi
 
 # Install CloudWatch Agent for minimal log shipping
 if command -v apt >/dev/null 2>&1; then
-  retry apt install -y amazon-cloudwatch-agent
+  retry bash -c 'curl -fsSL -o /tmp/amazon-cloudwatch-agent.deb https://amazoncloudwatch-agent.s3.amazonaws.com/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb'
+  dpkg -i -E /tmp/amazon-cloudwatch-agent.deb
 elif command -v yum >/dev/null 2>&1; then
-  retry yum install -y amazon-cloudwatch-agent
+  retry bash -c 'curl -fsSL -o /tmp/amazon-cloudwatch-agent.rpm https://amazoncloudwatch-agent.s3.amazonaws.com/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm'
+  rpm -Uvh /tmp/amazon-cloudwatch-agent.rpm
 fi
 
 # Configure CloudWatch Agent to ship userdata logs
