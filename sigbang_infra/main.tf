@@ -389,10 +389,12 @@ resource "aws_launch_template" "api_lt" {
 resource "aws_autoscaling_group" "api_asg" {
   name                = "${var.project_name}-asg"
   vpc_zone_identifier = data.aws_subnets.default.ids
-  max_size            = 2
+  max_size            = 3
   min_size            = 1
   desired_capacity    = 1
   target_group_arns   = [aws_lb_target_group.api_tg.arn]
+  health_check_type   = "ELB"
+  health_check_grace_period = 120
 
   tag {
     key                 = "Name"
