@@ -11,10 +11,19 @@ export class TrendCronService {
   @Cron(CronExpression.EVERY_HOUR)
   async refreshTrend() {
     this.logger.log('Refreshing counters + trendScore ...');
-    await this.upsertCounters7d();
-    await this.backfillMissingCounters();
-    await this.updateTrendScore();
-    this.logger.log('Done refreshing trend.');
+    try {
+      await this.upsertCounters7d();
+      await this.backfillMissingCounters();
+      await this.updateTrendScore();
+      this.logger.log('Done refreshing trend.');
+    } catch (e: any) {
+      const code = (e && (e.code || e.meta?.code)) || e?.name || 'UNKNOWN';
+      this.logger.error(
+        `refreshTrend failed code=${code} msg=${e?.message}`,
+        e?.stack,
+      );
+      // 크론 전체가 죽지 않도록 예외는 여기서 소화하고, 다음 실행에서 다시 시도한다.
+    }
   }
 
   private async upsertCounters7d() {

@@ -741,80 +741,126 @@ export class RecipesService {
 
     // q 있음 → 혼합 점수 정렬
     const qTrim = q.trim();
-    const rows = await (this.prismaService as any).$queryRaw<any[]>`
-      WITH scored AS (
-        SELECT r.*,
-               GREATEST(similarity(r.title, ${qTrim as any}), similarity(r.ingredients, ${qTrim as any})) AS text_score,
-               CASE
-                 WHEN ${qTrim as any} = ANY(COALESCE(r."altTitles", ARRAY[]::text[])) THEN 0.15
-                 WHEN EXISTS (
-                   SELECT 1 FROM unnest(COALESCE(r."altTitles", ARRAY[]::text[])) t WHERE t ILIKE '%' || ${qTrim as any} || '%'
-                 ) THEN 0.08
-                 ELSE 0
-               END AS alias_bonus,
-               COALESCE(rc."trendScore", 0) AS trend_score
-        FROM recipes r
-        LEFT JOIN recipe_counters rc ON rc."recipeId" = r.id
-        WHERE r."status" = 'PUBLISHED' AND r."isHidden" = false
-          AND r."authorId" IS NOT NULL
-          AND EXISTS (SELECT 1 FROM users u WHERE u.id = r."authorId" AND u.status = 'ACTIVE')
-          AND (
-            r.title ILIKE '%' || ${qTrim as any} || '%'
-            OR r.ingredients ILIKE '%' || ${qTrim as any} || '%'
-            OR r.title % ${qTrim as any}
-            OR r.ingredients % ${qTrim as any}
-          )
-      )
-      SELECT *, (0.7 * text_score + 0.1 * alias_bonus + 0.3 * trend_score) AS total_score
-      FROM scored
-      WHERE (${afterScore as any}::numeric IS NULL OR (0.7 * text_score + 0.1 * alias_bonus + 0.3 * trend_score, id) < (${afterScore as any}::numeric, ${afterId as any}::text))
-      ORDER BY total_score DESC, id DESC
-      LIMIT ${safeLimit + 1}
-    `;
 
-    const page = rows.slice(0, safeLimit);
-    const next = rows.length > safeLimit ? rows[safeLimit] : null;
-    const nextCursor = next
-      ? Buffer.from(JSON.stringify({ score: Number((next as any).total_score) || 0, id: (next as any).id })).toString('base64')
-      : null;
+    const buildResult = async (rows: any[], scoreField: 'total_score' | 'trend_score') => {
+      const page = rows.slice(0, safeLimit);
+      const next = rows.length > safeLimit ? rows[safeLimit] : null;
+      const nextCursor = next
+        ? Buffer.from(JSON.stringify({ score: Number((next as any)[scoreField]) || 0, id: (next as any).id })).toString('base64')
+        : null;
 
-    // 상세 정보 로드 (피드 카드 형태)
-    const ids = page.map(r => r.id);
-    const details = ids.length
-      ? await this.prismaService.recipe.findMany({
-          where: { id: { in: ids } },
-          include: {
-            author: { select: { id: true, nickname: true, profileImage: true } },
-            tags: { include: { tag: true } },
-            steps: { orderBy: { order: 'asc' }, take: 1 },
-            _count: { select: { likes: true, comments: true } },
-            ...(userId && {
-              likes: { where: { userId }, select: { id: true } },
-              saves: { where: { userId }, select: { id: true } },
-            }),
-          },
+      // 상세 정보 로드 (피드 카드 형태)
+      const ids = page.map(r => r.id);
+      const details = ids.length
+        ? await this.prismaService.recipe.findMany({
+            where: { id: { in: ids } },
+            include: {
+              author: { select: { id: true, nickname: true, profileImage: true } },
+              tags: { include: { tag: true } },
+              steps: { orderBy: { order: 'asc' }, take: 1 },
+              _count: { select: { likes: true, comments: true } },
+              ...(userId && {
+                likes: { where: { userId }, select: { id: true } },
+                saves: { where: { userId }, select: { id: true } },
+              }),
+            },
+          })
+        : [];
+      const byId = new Map(details.map(d => [d.id, d]));
+      const items = ids
+        .map(id => {
+          const recipe: any = byId.get(id);
+          if (!recipe) return null;
+          return {
+            ...recipe,
+            tags: recipe.tags.map((t: any) => ({ name: t.tag.name, emoji: t.tag.emoji })),
+            steps: recipe.steps.map((s: any) => ({ order: s.order, description: s.description, imageUrl: s.imageUrl })),
+            likesCount: recipe._count.likes,
+            commentsCount: recipe._count.comments,
+            isLiked: userId ? recipe.likes?.length > 0 : false,
+            isSaved: userId ? recipe.saves?.length > 0 : false,
+          };
         })
-      : [];
-    const byId = new Map(details.map(d => [d.id, d]));
-    const items = ids.map(id => {
-      const recipe: any = byId.get(id);
-      if (!recipe) return null;
-      return {
-        ...recipe,
-        tags: recipe.tags.map((t: any) => ({ name: t.tag.name, emoji: t.tag.emoji })),
-        steps: recipe.steps.map((s: any) => ({ order: s.order, description: s.description, imageUrl: s.imageUrl })),
-        likesCount: recipe._count.likes,
-        commentsCount: recipe._count.comments,
-        isLiked: userId ? recipe.likes?.length > 0 : false,
-        isSaved: userId ? recipe.saves?.length > 0 : false,
-      };
-    }).filter(Boolean) as any[];
+        .filter(Boolean) as any[];
 
-    const result = { items, nextCursor };
-    const ttl = 60_000 + Math.floor(Math.random() * 60_000);
-    g.__searchCache.set(cacheKey, { expire: Date.now() + ttl, value: result });
-    this.logger.log(`search(q) u=${userId ?? 'anon'} took=${Date.now() - t0}ms len=${page.length}`);
-    return result;
+      const result = { items, nextCursor };
+      const ttl = 60_000 + Math.floor(Math.random() * 60_000);
+      g.__searchCache.set(cacheKey, { expire: Date.now() + ttl, value: result });
+      return { result, pageLength: page.length };
+    };
+
+    try {
+      const rows = await (this.prismaService as any).$queryRaw<any[]>`
+        WITH scored AS (
+          SELECT r.*,
+                 GREATEST(similarity(r.title, ${qTrim as any}), similarity(r.ingredients, ${qTrim as any})) AS text_score,
+                 CASE
+                   WHEN ${qTrim as any} = ANY(COALESCE(r."altTitles", ARRAY[]::text[])) THEN 0.15
+                   WHEN EXISTS (
+                     SELECT 1 FROM unnest(COALESCE(r."altTitles", ARRAY[]::text[])) t WHERE t ILIKE '%' || ${qTrim as any} || '%'
+                   ) THEN 0.08
+                   ELSE 0
+                 END AS alias_bonus,
+                 COALESCE(rc."trendScore", 0) AS trend_score
+          FROM recipes r
+          LEFT JOIN recipe_counters rc ON rc."recipeId" = r.id
+          WHERE r."status" = 'PUBLISHED' AND r."isHidden" = false
+            AND r."authorId" IS NOT NULL
+            AND EXISTS (SELECT 1 FROM users u WHERE u.id = r."authorId" AND u.status = 'ACTIVE')
+            AND (
+              r.title ILIKE '%' || ${qTrim as any} || '%'
+              OR r.ingredients ILIKE '%' || ${qTrim as any} || '%'
+              OR r.title % ${qTrim as any}
+              OR r.ingredients % ${qTrim as any}
+            )
+        )
+        SELECT *, (0.7 * text_score + 0.1 * alias_bonus + 0.3 * trend_score) AS total_score
+        FROM scored
+        WHERE (${afterScore as any}::numeric IS NULL OR (0.7 * text_score + 0.1 * alias_bonus + 0.3 * trend_score, id) < (${afterScore as any}::numeric, ${afterId as any}::text))
+        ORDER BY total_score DESC, id DESC
+        LIMIT ${safeLimit + 1}
+      `;
+
+      const { result, pageLength } = await buildResult(rows, 'total_score');
+      this.logger.log(`search(q) u=${userId ?? 'anon'} took=${Date.now() - t0}ms len=${pageLength}`);
+      return result;
+    } catch (e: any) {
+      const code = (e && (e.code || e.meta?.code)) || e?.name || 'UNKNOWN';
+      this.logger.error(
+        `search(q) failed q="${qTrim}" u=${userId ?? 'anon'} code=${code} msg=${e?.message}`,
+        e?.stack,
+      );
+
+      // pg_trgm / similarity 관련 함수가 없는 경우 → LIKE 기반 fallback
+      if (code === '42883') {
+        this.logger.warn('pg_trgm similarity function missing, falling back to LIKE-based search');
+
+        const rows = await (this.prismaService as any).$queryRaw<any[]>`
+          SELECT r.*,
+                 COALESCE(rc."trendScore", 0) AS trend_score
+          FROM recipes r
+          LEFT JOIN recipe_counters rc ON rc."recipeId" = r.id
+          WHERE r."status" = 'PUBLISHED' AND r."isHidden" = false
+            AND r."authorId" IS NOT NULL
+            AND EXISTS (SELECT 1 FROM users u WHERE u.id = r."authorId" AND u.status = 'ACTIVE')
+            AND (
+              r.title ILIKE '%' || ${qTrim as any} || '%'
+              OR r.ingredients ILIKE '%' || ${qTrim as any} || '%'
+            )
+          ORDER BY COALESCE(rc."trendScore", 0) DESC, r.id DESC
+          LIMIT ${safeLimit + 1}
+        `;
+
+        const { result, pageLength } = await buildResult(rows, 'trend_score');
+        this.logger.log(
+          `search(q:fallback-like) u=${userId ?? 'anon'} took=${Date.now() - t0}ms len=${pageLength}`,
+        );
+        return result;
+      }
+
+      // 다른 에러는 상위 핸들러로 전파
+      throw e;
+    }
   }
 
   // 레시피 생성 (즉시 공개)
