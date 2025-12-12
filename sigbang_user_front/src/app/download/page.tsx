@@ -11,7 +11,11 @@ export default function DownloadPage() {
       <Topbar />
       <div className="mx-auto max-w-[1200px] flex">
         <Sidebar />
-        <main id="main" className="flex-1 px-6 py-6" role="main">
+        <main
+          id="main"
+          className="flex-1 px-4 sm:px-6 pt-6 pb-32 sm:pb-6"
+          role="main"
+        >
           <div className="w-full max-w-[720px] mx-auto rounded-2xl border border-[#eee] bg-white p-8 shadow-sm">
             <h1 className="text-2xl font-semibold text-[#111]">다운로드</h1>
             <p className="mt-3 text-[14px] text-[#555]">

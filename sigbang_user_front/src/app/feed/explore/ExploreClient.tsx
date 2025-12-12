@@ -3,9 +3,9 @@
 import Topbar from '@/components/Topbar';
 import Sidebar from '@/components/Sidebar';
 import MobileNav from '@/components/MobileNav';
+import Section from '@/components/Section';
 import { useExploreFeed } from '@/lib/hooks/feed';
 import { useEffect, useMemo, useRef } from 'react';
-import RecipeCard from '@/components/RecipeCard';
 import RecipeCardSkeleton from '@/components/RecipeCardSkeleton';
 import { ENV } from '@/lib/env';
 import { toRecipeCardItem } from '@/lib/mappers/recipeCard';
@@ -40,11 +40,15 @@ export default function ExploreClient() {
       <Topbar />
       <div className="mx-auto max-w-[1200px] flex">
         <Sidebar />
-        <main id="main" className="flex-1 px-6 py-6" role="main">
+        <main
+          id="main"
+          className="flex-1 px-4 sm:px-6 pt-6 pb-32 sm:pb-6"
+          role="main"
+        >
           {status === 'pending' && (
             <ul className="flex flex-col">
               {Array.from({ length: 6 }).map((_, idx) => (
-                <li key={idx} className="max-w-[520px] w-full min-w-0 mx-auto py-6 border-b border-[#e5e7eb] last:border-b-0">
+                <li key={idx} className="w-full min-w-0 py-6 border-b border-[#e5e7eb] last:border-b-0">
                   <RecipeCardSkeleton />
                 </li>
               ))}
@@ -53,38 +57,9 @@ export default function ExploreClient() {
           {status === 'error' && <div>오류가 발생했습니다</div>}
           {status === 'success' && (
             <div>
-              <ul className="flex flex-col">
-                {items.map((it) => {
-                  const slugPath = (() => {
-                    const s = it.slug;
-                    const g = it.region;
-                    return it.slugPath || (s && s.includes('/') ? s : g && s ? `${g}/${s}` : it.id);
-                  })();
-                  return (
-                    <li
-                      key={it.id}
-                      className="max-w-[520px] w-full min-w-0 mx-auto py-6 border-b border-[#e5e7eb] last:border-b-0"
-                    >
-                      <RecipeCard
-                        recipeId={it.id}
-                        href={`/recipes/${slugPath}`}
-                        title={it.title}
-                        image={it.image}
-                        minutes={it.minutes}
-                        description={it.description}
-                        likesCount={it.likesCount}
-                        viewCount={it.viewCount}
-                        liked={it.liked}
-                        saved={it.saved}
-                        authorAvatar={it.authorAvatar}
-                        authorId={it.authorId}
-                        hoverPreview={!!it.stepImages && it.stepImages.length > 0}
-                        stepImages={it.stepImages}
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
+              <Section title="탐색 레시피" items={items}>
+                {/* Section 내부에서 RecipeCard를 사용해 홈과 동일한 레이아웃으로 렌더링 */}
+              </Section>
               {(() => {
                 const base = ENV.SITE_URL;
                 const itemUrls = items.map((it) => {
@@ -111,7 +86,7 @@ export default function ExploreClient() {
               {isFetchingNextPage && (
                 <ul className="flex flex-col">
                   {Array.from({ length: 3 }).map((_, idx) => (
-                    <li key={idx} className="max-w-[520px] w-full min-w-0 mx-auto py-6 border-b border-[#e5e7eb] last:border-b-0">
+                    <li key={idx} className="w-full min-w-0 py-6 border-b border-[#e5e7eb] last:border-b-0">
                       <RecipeCardSkeleton />
                     </li>
                   ))}

@@ -7,7 +7,7 @@ import SearchIcon from '@/components/icons/SearchIcon';
 import Sidebar from '@/components/Sidebar';
 import Topbar from '@/components/Topbar';
 import MobileNav from '@/components/MobileNav';
-import RecipeCard from '@/components/RecipeCard';
+import Section from '@/components/Section';
 import { toRecipeCardItem } from '@/lib/mappers/recipeCard';
 
 function SearchPageInner() {
@@ -149,38 +149,9 @@ function SearchPageInner() {
 
     return (
       <div>
-        <ul className="flex flex-col">
-          {cardItems.map((it) => {
-            const slugPath = (() => {
-              const s = it.slug;
-              const g = it.region;
-              return it.slugPath || (s && s.includes('/') ? s : g && s ? `${g}/${s}` : it.id);
-            })();
-            return (
-              <li
-                key={it.id}
-                className="max-w-[520px] w-full mx-auto py-6 border-b border-[#e5e7eb] last:border-b-0"
-              >
-                <RecipeCard
-                  recipeId={it.id}
-                  href={`/recipes/${slugPath}`}
-                  title={it.title}
-                  image={it.image}
-                  minutes={it.minutes}
-                  description={it.description}
-                  likesCount={it.likesCount}
-                  viewCount={it.viewCount}
-                  liked={it.liked}
-                  saved={it.saved}
-                  authorAvatar={it.authorAvatar}
-                  authorId={it.authorId}
-                  hoverPreview={!!it.stepImages && it.stepImages.length > 0}
-                  stepImages={it.stepImages}
-                />
-              </li>
-            );
-          })}
-        </ul>
+        <Section title="검색 결과" items={cardItems}>
+          {/* Section 내부에서 RecipeCard를 사용해 홈과 동일한 레이아웃으로 렌더링 */}
+        </Section>
         
         {(rq.isFetchingNextPage) && (
           <div className="text-center mt-4">
@@ -205,7 +176,11 @@ function SearchPageInner() {
       <Topbar />
       <div className="mx-auto max-w-[1200px] flex">
         <Sidebar />
-        <main id="main" className="flex-1 px-6 py-6" role="main">
+        <main
+          id="main"
+          className="flex-1 px-4 sm:px-6 pt-6 pb-32 sm:pb-6"
+          role="main"
+        >
           {/* Search Header */}
           <div className="mb-6">            
             <form onSubmit={handleSearch} className="max-w-md mx-auto">
