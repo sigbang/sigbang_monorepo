@@ -206,6 +206,8 @@ npx prisma migrate dev --name <change_name> --schema=./prisma/schema.prisma
 
 # 프로덕션/공유 DB에 마이그레이션 적용 (CI에서 사용)
 npx prisma migrate deploy --schema=./prisma/schema.prisma
+# 예: pg_trgm / recipe_counters.id 기본값 등을 포함한 마이그레이션(예: 20251212_fix_pg_trgm_and_ids)도
+#     신규 환경에서 위 명령으로 자동으로 함께 적용된다.
 
 # 현재 마이그레이션 상태 확인
 npx prisma migrate status --schema=./prisma/schema.prisma
