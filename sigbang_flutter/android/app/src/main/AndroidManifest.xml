@@ -1,8 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Android 13 이상 -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <!-- Android 12 이하 -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!-- 카메라 촬영만 사용. 사진 선택은 Android Photo Picker를 통해 처리하며
+         READ_MEDIA_IMAGES / READ_EXTERNAL_STORAGE 등 저장소 권한은 사용하지 않습니다. -->
     <uses-permission android:name="android.permission.CAMERA" />
     
     <application
