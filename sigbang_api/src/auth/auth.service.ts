@@ -262,9 +262,18 @@ export class AuthService {
   }
 
   async refreshToken(refreshToken: string): Promise<TokenPair> {
+    this.logger.log(`refreshToken start tokenLen=${refreshToken?.length ?? 0}`);
+    const startedAt = Date.now();
     try {
-      return await this.tokenService.refreshTokenPair(refreshToken);
-    } catch (error) {
+      const result = await this.tokenService.refreshTokenPair(refreshToken);
+      const took = Date.now() - startedAt;
+      this.logger.log(`refreshToken ok took=${took}ms`);
+      return result;
+    } catch (error: any) {
+      const took = Date.now() - startedAt;
+      this.logger.error(
+        `refreshToken failed took=${took}ms msg=${error?.message || error}`,
+      );
       throw new UnauthorizedException('토큰 갱신에 실패했습니다.');
     }
   }

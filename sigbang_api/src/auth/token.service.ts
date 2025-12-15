@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../database/prisma.service';
 import { randomBytes } from 'crypto';
@@ -27,6 +27,7 @@ export interface DeviceContext {
 export class TokenService {
   private readonly ACCESS_TOKEN_EXPIRES_IN = '1h'; // 15분
   private readonly REFRESH_TOKEN_EXPIRES_IN_DAYS = 30; // 30일
+  private readonly logger = new Logger(TokenService.name);
 
   constructor(
     private jwtService: JwtService,
@@ -74,6 +75,10 @@ export class TokenService {
    * Refresh Token으로 새 토큰 쌍 생성 (Token Rotation)
    */
   async refreshTokenPair(refreshToken: string): Promise<TokenPair> {
+    const startedAt = Date.now();
+    const shortToken = refreshToken ? `${refreshToken.slice(0, 8)}...${refreshToken.slice(-4)}` : 'null';
+    this.logger.log(`refreshTokenPair start token=${shortToken}`);
+
     // 리프레시 토큰 검증
     const storedToken = await this.prismaService.refreshToken.findUnique({
       where: { token: refreshToken },
@@ -81,10 +86,18 @@ export class TokenService {
     });
 
     if (!storedToken || storedToken.isRevoked || storedToken.expiresAt < new Date()) {
+      const took = Date.now() - startedAt;
+      this.logger.warn(
+        `refreshTokenPair invalid storedToken=${!!storedToken} revoked=${storedToken?.isRevoked ?? null} took=${took}ms`,
+      );
       throw new UnauthorizedException('유효하지 않은 리프레시 토큰입니다.');
     }
 
     if ((storedToken.user as any).status !== 'ACTIVE') {
+      const took = Date.now() - startedAt;
+      this.logger.warn(
+        `refreshTokenPair inactiveUser userId=${storedToken.user.id} status=${(storedToken.user as any).status} took=${took}ms`,
+      );
       throw new UnauthorizedException('비활성화된 사용자입니다.');
     }
 
@@ -95,7 +108,7 @@ export class TokenService {
     });
 
     // 기존 토큰의 디바이스 컨텍스트를 이어받아 새 토큰 쌍 생성
-    return this.generateTokenPair(
+    const result = await this.generateTokenPair(
       storedToken.user.id,
       storedToken.user.email,
       {
@@ -105,6 +118,12 @@ export class TokenService {
         ip: (storedToken as any).ip,
       }
     );
+
+    const took = Date.now() - startedAt;
+    this.logger.log(
+      `refreshTokenPair ok userId=${storedToken.user.id} tokenId=${storedToken.id} took=${took}ms`,
+    );
+    return result;
   }
 
   /**
