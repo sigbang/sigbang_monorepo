@@ -2,8 +2,8 @@ import Sidebar from '@/components/Sidebar';
 import Topbar from '@/components/Topbar';
 import MobileNav from '@/components/MobileNav';
 import Footer from '@/components/Footer';
-import RecommendedSection from './_client/RecommendedSection';
-import PopularSection from './_client/PopularSection';
+import Section from '@/components/Section';
+import { fetchHomePopular, fetchHomeRecommended } from '@/lib/server/homeFeed';
 
 export const revalidate = 300;
 export const dynamic = 'force-dynamic';
@@ -16,7 +16,12 @@ export const metadata = {
   twitter: { card: 'summary_large_image', images: ['/og.png'] },
 } as const;
 
-export default function Home() {
+export default async function Home() {
+  const [popularItems, recommendedItems] = await Promise.all([
+    fetchHomePopular(6),
+    fetchHomeRecommended(6),
+  ]);
+
   return (
     <div className="min-h-screen">
       <Topbar />
@@ -28,9 +33,9 @@ export default function Home() {
           role="main"
           tabIndex={-1}
         >
-          <PopularSection />
+          <Section title="지금 인기 레시피" items={popularItems} />
           <div className="h-[24px]" />
-          <RecommendedSection />
+          <Section title="추천 레시피" items={recommendedItems} />
         </main>
       </div>
       <Footer />

@@ -38,6 +38,14 @@
           }
         },
         {
+          "client_id": "656282694766-m3kdbmemoi9fgp66213s4a69qdhhfdrq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aminity.sigbang",
+            "certificate_hash": "82:95:4B:3C:3B:80:83:0C:CD:92:B1:C6:1F:DF:BC:32:B8:42:AB:07"
+          }
+        },
+        {
           "client_id": "656282694766-p41mpn61kthbh62pehl1d0ivbd62ts8s.apps.googleusercontent.com",
           "client_type": 3
         }
