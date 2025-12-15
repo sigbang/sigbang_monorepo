@@ -4,6 +4,44 @@ import { SearchResponse } from '../types/recipe';
 export type StepDto = { order: number; description: string; imagePath?: string | null };
 export type TagDto = { name: string; emoji?: string };
 
+export type RecipeTextModerationPayload = {
+  title: string;
+  description?: string;
+  ingredients?: string;
+  steps?: { order: number; description: string }[];
+};
+
+export type RecipeTextModerationResult = {
+  allowed: boolean;
+  isRecipe: boolean;
+  recipeScore: number;
+  isHarmful: boolean;
+  harmfulReasons?: string[];
+  shortFeedback?: string;
+};
+
+export type RecipeImageModerationPayload = {
+  thumbnailPath: string;
+  stepImagePaths?: string[];
+};
+
+export type RecipeImageModerationPerImageResult = {
+  index: number;
+  path: string;
+  isHarmful: boolean;
+  isFoodLike: boolean;
+  reasons?: string[];
+};
+
+export type RecipeImageModerationResult = {
+  allowed: boolean;
+  isFoodLike: boolean;
+  isHarmful: boolean;
+  harmfulReasons?: string[];
+  shortFeedback?: string;
+  perImage?: RecipeImageModerationPerImageResult[];
+};
+
 export type CreateRecipeDto = {
   title: string;
   description?: string;
@@ -25,6 +63,105 @@ function toServerDto(dto: CreateRecipeDto) {
     ...rest,
     ...(difficulty ? { difficulty: difficulty.toUpperCase() } : {}),
   } as Record<string, unknown>;
+}
+
+export async function moderateRecipeText(
+  payload: RecipeTextModerationPayload,
+): Promise<RecipeTextModerationResult> {
+  const { data } = await api.post('/recipes/ai/moderate-text', payload);
+  const raw: any = (data && (data as any).data) ? (data as any).data : data;
+
+  const isRecipe =
+    typeof raw?.isRecipe === 'boolean'
+      ? raw.isRecipe
+      : typeof raw?.is_recipe === 'boolean'
+      ? raw.is_recipe
+      : false;
+
+  const isHarmful =
+    typeof raw?.isHarmful === 'boolean'
+      ? raw.isHarmful
+      : typeof raw?.is_harmful === 'boolean'
+      ? raw.is_harmful
+      : false;
+
+  const scoreSrc = typeof raw?.recipeScore === 'number'
+    ? raw.recipeScore
+    : typeof raw?.recipe_score === 'number'
+    ? raw.recipe_score
+    : 0;
+
+  const recipeScore = Number.isFinite(scoreSrc) ? scoreSrc : 0;
+
+  const reasonsSrc = raw?.harmfulReasons ?? raw?.harmful_reasons;
+  const harmfulReasons: string[] | undefined = Array.isArray(reasonsSrc)
+    ? reasonsSrc.map((r: any) => String(r)).filter((s: string) => !!s)
+    : undefined;
+
+  const fbSrc = raw?.shortFeedback ?? raw?.short_feedback;
+  const shortFeedback: string | undefined =
+    typeof fbSrc === 'string' ? fbSrc : undefined;
+
+  return {
+    allowed: !!raw?.allowed && !isHarmful && isRecipe && recipeScore >= 0.4,
+    isRecipe,
+    recipeScore,
+    isHarmful,
+    harmfulReasons,
+    shortFeedback,
+  };
+}
+
+export async function moderateRecipeImages(
+  payload: RecipeImageModerationPayload,
+): Promise<RecipeImageModerationResult> {
+  const { data } = await api.post('/recipes/ai/moderate-images', payload);
+  const raw: any = (data && (data as any).data) ? (data as any).data : data;
+
+  const isFoodLike =
+    typeof raw?.isFoodLike === 'boolean'
+      ? raw.isFoodLike
+      : typeof raw?.is_food_like === 'boolean'
+      ? raw.is_food_like
+      : false;
+
+  const isHarmful =
+    typeof raw?.isHarmful === 'boolean'
+      ? raw.isHarmful
+      : typeof raw?.is_harmful === 'boolean'
+      ? raw.is_harmful
+      : false;
+
+  const reasonsSrc = raw?.harmfulReasons ?? raw?.harmful_reasons;
+  const harmfulReasons: string[] | undefined = Array.isArray(reasonsSrc)
+    ? reasonsSrc.map((r: any) => String(r)).filter((s: string) => !!s)
+    : undefined;
+
+  const fbSrc = raw?.shortFeedback ?? raw?.short_feedback;
+  const shortFeedback: string | undefined =
+    typeof fbSrc === 'string' ? fbSrc : undefined;
+
+  const perImageSrc = raw?.perImage ?? raw?.per_image;
+  const perImage: RecipeImageModerationPerImageResult[] | undefined = Array.isArray(perImageSrc)
+    ? perImageSrc.map((item: any, idx: number) => ({
+        index: typeof item.index === 'number' ? item.index : idx,
+        path: String(item.path ?? ''),
+        isHarmful: !!item.isHarmful || !!item.is_harmful,
+        isFoodLike: !!item.isFoodLike || !!item.is_food_like,
+        reasons: Array.isArray(item.reasons)
+          ? item.reasons.map((r: any) => String(r)).filter((s: string) => !!s)
+          : undefined,
+      }))
+    : undefined;
+
+  return {
+    allowed: !!raw?.allowed && !isHarmful && isFoodLike,
+    isFoodLike,
+    isHarmful,
+    harmfulReasons,
+    shortFeedback,
+    perImage,
+  };
 }
 
 export async function createRecipe(dto: CreateRecipeDto): Promise<{ id: string; thumbnailImage?: string }> {

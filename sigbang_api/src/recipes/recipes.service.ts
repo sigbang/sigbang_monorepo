@@ -16,6 +16,11 @@ import {
   RecipeStatus,
   RecipeSearchQueryDto,
   CropRectDto,
+  RecipeTextModerationDto,
+  RecipeTextModerationResultDto,
+  RecipeImageModerationDto,
+  RecipeImageModerationResultDto,
+  RecipeImageModerationPerImageDto,
 } from './dto/recipes.dto';
 import { ConfigService } from '@nestjs/config';
 import { generateSemanticRecipeSlug } from '../common/utils/slug.util';
@@ -289,6 +294,278 @@ export class RecipesService {
     } catch (error) {
       this.logger.error(`AI 레시피 생성 실패: ${String((error as any)?.message || error)}`);
       throw new BadRequestException('AI 레시피 생성에 실패했습니다.');
+    }
+  }
+
+  // AI: 텍스트 기반 레시피/유해성 판별
+  async moderateRecipeText(payload: RecipeTextModerationDto): Promise<RecipeTextModerationResultDto> {
+    const title = String(payload.title || '').trim();
+    if (!title) {
+      throw new BadRequestException('제목이 필요합니다.');
+    }
+
+    const doc = {
+      title: title.slice(0, 120),
+      description: String(payload.description || '').slice(0, 1000),
+      ingredients: String(payload.ingredients || '').slice(0, 2000),
+      steps: Array.isArray(payload.steps)
+        ? payload.steps
+            .map((s: any, idx: number) => ({
+              order: Number(s.order) || idx + 1,
+              description: String(s.description || '').slice(0, 500),
+            }))
+            .filter(s => s.description)
+        : [],
+    };
+
+    const systemPrompt =
+      '당신은 요리 레시피 SNS 플랫폼의 컨텐츠 검수 전문가입니다. ' +
+      '입력으로 레시피 후보 텍스트(제목/설명/재료/조리 단계)를 받으면, ' +
+      '1) 이것이 실제로 따라 만들 수 있는 레시피인지 여부, ' +
+      '2) 유해/부적절(욕설, 혐오, 성적, 극단적 폭력, 자해/자살 조장 등) 여부, ' +
+      '3) 레시피 품질/완성도 점수(0~1)를 평가합니다. ' +
+      '플랫폼은 안전한 요리 커뮤니티를 지향하며, 음식과 무관한 일반 잡담/일기/홍보 글은 레시피가 아닌 것으로 간주합니다. ' +
+      '반드시 아래 JSON 형식으로만, 추가 설명 없이 응답하세요.\n\n' +
+      '{\n' +
+      '  "is_recipe": boolean,\n' +
+      '  "recipe_score": number,\n' +
+      '  "is_harmful": boolean,\n' +
+      '  "harmful_reasons": string[],\n' +
+      '  "short_feedback": string\n' +
+      '}';
+
+    const userPrompt =
+      '다음은 사용자가 작성한 레시피 후보 데이터입니다. ' +
+      '이 텍스트가 실제로 따라 만들 수 있는 레시피인지, 그리고 유해/부적절한 내용이 있는지 평가하세요.\n\n' +
+      '레시피 데이터(JSON):\n```json\n' +
+      JSON.stringify(doc, null, 2) +
+      '\n```';
+
+    try {
+      const model =
+        this.configService.get<string>('OPENAI_RECIPE_MODEL') ||
+        'gpt-4o-mini';
+
+      const resp = await this.openai.chat.completions.create({
+        model,
+        // 일부 최신 모델(gpt-5-nano 등)은 temperature를 기본값(1) 외에 허용하지 않으므로 명시하지 않는다.
+        response_format: { type: 'json_object' } as any,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+      });
+
+      const content: string = resp.choices?.[0]?.message?.content || '{}';
+      let parsed: any;
+      try {
+        parsed = JSON.parse(content);
+      } catch {
+        // JSON 아닌 경우, 마지막 중괄호 기준으로 재시도
+        const m = content.match(/\{[\s\S]*\}$/);
+        parsed = m ? JSON.parse(m[0]) : {};
+      }
+
+      const isRecipe =
+        typeof parsed.is_recipe === 'boolean'
+          ? parsed.is_recipe
+          : typeof parsed.isRecipe === 'boolean'
+          ? parsed.isRecipe
+          : false;
+
+      const isHarmful =
+        typeof parsed.is_harmful === 'boolean'
+          ? parsed.is_harmful
+          : typeof parsed.isHarmful === 'boolean'
+          ? parsed.isHarmful
+          : false;
+
+      const rawScore =
+        typeof parsed.recipe_score === 'number'
+          ? parsed.recipe_score
+          : typeof parsed.recipeScore === 'number'
+          ? parsed.recipeScore
+          : 0;
+      const recipeScore = Math.max(0, Math.min(1, Number.isFinite(rawScore) ? rawScore : 0));
+
+      const reasonsRaw = parsed.harmful_reasons ?? parsed.harmfulReasons;
+      const harmfulReasons: string[] = Array.isArray(reasonsRaw)
+        ? reasonsRaw.map((r: any) => String(r)).filter((s: string) => !!s)
+        : [];
+
+      const shortFeedbackSrc = parsed.short_feedback ?? parsed.shortFeedback;
+      const shortFeedback =
+        typeof shortFeedbackSrc === 'string'
+          ? shortFeedbackSrc.slice(0, 200)
+          : undefined;
+
+      // 기본 정책: 유해하거나(isHarmful) 레시피가 아니거나(isRecipe=false) 점수가 너무 낮으면(recipeScore<0.4) 차단
+      const allowed = !isHarmful && isRecipe && recipeScore >= 0.4;
+
+      const result: RecipeTextModerationResultDto = {
+        allowed,
+        isRecipe,
+        recipeScore,
+        isHarmful,
+        harmfulReasons: harmfulReasons.length ? harmfulReasons : undefined,
+        shortFeedback,
+      };
+
+      return result;
+    } catch (error) {
+      this.logger.error(`레시피 텍스트 검증 실패: ${String((error as any)?.message || error)}`, (error as any)?.stack);
+      throw new BadRequestException('레시피 텍스트 검증에 실패했습니다.');
+    }
+  }
+
+  // AI: 이미지 기반 레시피/유해성 판별 (썸네일 + 스텝 이미지)
+  async moderateRecipeImages(payload: RecipeImageModerationDto): Promise<RecipeImageModerationResultDto> {
+    const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipes';
+
+    const allPathsRaw = [
+      String(payload.thumbnailPath || '').trim(),
+      ...(Array.isArray(payload.stepImagePaths) ? payload.stepImagePaths.map(p => String(p || '').trim()) : []),
+    ];
+
+    const allPaths = allPathsRaw
+      .filter(p => !!p && !p.startsWith('http')) // 스토리지 경로만 대상
+      .slice(0, 10); // 과도한 비용 방지
+
+    if (!allPaths.length) {
+      throw new BadRequestException('검사할 이미지 경로가 없습니다.');
+    }
+
+    // 중복 제거
+    const uniquePaths = Array.from(new Set(allPaths));
+
+    // Supabase 서명 URL 생성
+    const signed = await Promise.all(
+      uniquePaths.map(async (path, index) => {
+        const url = await this.supabaseService.createSignedUrl(bucketName, path, 60 * 5);
+        return { index, path, url };
+      }),
+    );
+
+    const systemPrompt =
+      'You are a safety and content moderation expert for a cooking recipe social platform. ' +
+      'You receive up to 10 food-related images. Your job is to check: ' +
+      '(1) whether any image contains harmful or disallowed content (explicit nudity, sexual content, graphic violence, self-harm, hate symbols, etc.), ' +
+      '(2) whether the images overall look like food / cooking / recipe-related images, ' +
+      '(3) provide short Korean feedback to show to the end user. ' +
+      'Respond ONLY in JSON, no extra text.\n\n' +
+      '{\n' +
+      '  "is_harmful": boolean,\n' +
+      '  "is_food_like": boolean,\n' +
+      '  "harmful_reasons": string[],\n' +
+      '  "short_feedback": string,\n' +
+      '  "per_image": [\n' +
+      '    {\n' +
+      '      "index": number,\n' +
+      '      "is_harmful": boolean,\n' +
+      '      "is_food_like": boolean,\n' +
+      '      "reasons": string[]\n' +
+      '    }\n' +
+      '  ]\n' +
+      '}';
+
+    const userIntro =
+      '다음 이미지는 사용자가 레시피를 올리면서 함께 등록한 사진들입니다. ' +
+      '각 이미지가 음식/조리/완성샷처럼 보이는지와, 유해/부적절(노출, 폭력, 혐오, 자해 등)한지 평가해 주세요. ' +
+      '전체적으로 레시피와 무관한 사진(셀카, 풍경, 문자 캡쳐 등)만 있는 경우에는 is_food_like를 false로 설정하세요.';
+
+    const userContent: any[] = [
+      { type: 'text', text: userIntro },
+      ...signed.map(item => ({
+        type: 'image_url',
+        image_url: { url: item.url },
+      })),
+    ];
+
+    try {
+      const model =
+        this.configService.get<string>('OPENAI_RECIPE_MODEL') ||
+        'gpt-4o-mini';
+
+      const resp = await this.openai.chat.completions.create({
+        model,
+        // 일부 최신 모델(gpt-5-nano 등)은 temperature를 기본값(1) 외에 허용하지 않으므로 명시하지 않는다.
+        response_format: { type: 'json_object' } as any,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent as any },
+        ],
+      });
+
+      const content: string = resp.choices?.[0]?.message?.content || '{}';
+      let parsed: any;
+      try {
+        parsed = JSON.parse(content);
+      } catch {
+        const m = content.match(/\{[\s\S]*\}$/);
+        parsed = m ? JSON.parse(m[0]) : {};
+      }
+
+      const isHarmful =
+        typeof parsed.is_harmful === 'boolean'
+          ? parsed.is_harmful
+          : typeof parsed.isHarmful === 'boolean'
+          ? parsed.isHarmful
+          : false;
+
+      const isFoodLike =
+        typeof parsed.is_food_like === 'boolean'
+          ? parsed.is_food_like
+          : typeof parsed.isFoodLike === 'boolean'
+          ? parsed.isFoodLike
+          : false;
+
+      const reasonsRaw = parsed.harmful_reasons ?? parsed.harmfulReasons;
+      const harmfulReasons: string[] = Array.isArray(reasonsRaw)
+        ? reasonsRaw.map((r: any) => String(r)).filter((s: string) => !!s)
+        : [];
+
+      const shortFeedbackSrc = parsed.short_feedback ?? parsed.shortFeedback;
+      const shortFeedback =
+        typeof shortFeedbackSrc === 'string'
+          ? shortFeedbackSrc.slice(0, 200)
+          : undefined;
+
+      const perImageRaw = Array.isArray(parsed.per_image ?? parsed.perImage)
+        ? parsed.per_image ?? parsed.perImage
+        : [];
+
+      const perImage: RecipeImageModerationPerImageDto[] = perImageRaw.map((item: any) => {
+        const idx = typeof item.index === 'number' ? item.index : 0;
+        const base = signed[idx] || signed[0];
+        const imgReasonsRaw = item.reasons;
+        const imgReasons: string[] = Array.isArray(imgReasonsRaw)
+          ? imgReasonsRaw.map((r: any) => String(r)).filter((s: string) => !!s)
+          : [];
+        return {
+          index: idx,
+          path: base?.path ?? '',
+          isHarmful: !!item.is_harmful || !!item.isHarmful,
+          isFoodLike: !!item.is_food_like || !!item.isFoodLike,
+          reasons: imgReasons.length ? imgReasons : undefined,
+        };
+      });
+
+      // 기본 정책: 유해 이미지가 하나라도 있거나, 전체적으로 음식 이미지가 아니면 차단
+      const allowed = !isHarmful && isFoodLike;
+
+      const result: RecipeImageModerationResultDto = {
+        allowed,
+        isHarmful,
+        isFoodLike,
+        harmfulReasons: harmfulReasons.length ? harmfulReasons : undefined,
+        shortFeedback,
+        perImage: perImage.length ? perImage : undefined,
+      };
+
+      return result;
+    } catch (error) {
+      this.logger.error(`레시피 이미지 검증 실패: ${String((error as any)?.message || error)}`, (error as any)?.stack);
+      throw new BadRequestException('레시피 이미지 검증에 실패했습니다.');
     }
   }
 

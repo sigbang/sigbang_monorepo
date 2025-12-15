@@ -528,3 +528,153 @@ export class NormalizedIngredientsResponseDto {
   @ApiProperty({ required: false, description: '모델 및 토큰 사용량 등 메타정보', default: undefined })
   meta?: { model: string; tokens?: { prompt: number; completion: number; total: number } };
 }
+
+// 텍스트 기반 레시피/유해성 판별 요청 DTO
+export class RecipeTextModerationDto {
+  @ApiProperty({
+    example: '간장 계란밥',
+    description: '레시피 제목',
+  })
+  @IsString()
+  @MinLength(2)
+  @MaxLength(100)
+  title: string;
+
+  @ApiProperty({
+    example: '아침에 간단히 먹기 좋은 간장 계란밥 레시피입니다.',
+    description: '레시피 설명',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  description?: string;
+
+  @ApiProperty({
+    example: '밥 1공기\n계란 1개\n간장 1큰술\n참기름 약간',
+    description: '재료 목록 (멀티라인 텍스트)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  ingredients?: string;
+
+  @ApiProperty({
+    type: [RecipeStepDto],
+    description: '조리 단계(이미지 경로는 무시되고 텍스트만 사용됩니다.)',
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => RecipeStepDto)
+  steps?: RecipeStepDto[];
+}
+
+// 텍스트 기반 레시피/유해성 판별 응답 DTO
+export class RecipeTextModerationResultDto {
+  @ApiProperty({ description: '업로드 허용 여부 (isHarmful/레시피 여부 기준)' })
+  allowed: boolean;
+
+  @ApiProperty({ description: '실제로 따라 만들 수 있는 레시피인지 여부' })
+  isRecipe: boolean;
+
+  @ApiProperty({ description: '레시피 완성도/형식 점수 (0~1)', example: 0.8 })
+  recipeScore: number;
+
+  @ApiProperty({ description: '유해/부적절 컨텐츠 여부 (욕설, 성인, 폭력 등)', example: false })
+  isHarmful: boolean;
+
+  @ApiProperty({
+    description: '유해 판정 사유 목록 (예: 욕설 포함, 성인 컨텐츠 등)',
+    example: ['욕설이 포함되어 있습니다.'],
+    required: false,
+  })
+  harmfulReasons?: string[];
+
+  @ApiProperty({
+    description: '사용자에게 바로 보여줄 수 있는 짧은 한글 피드백 메시지',
+    example: '정상적인 레시피로 판단되었습니다.',
+    required: false,
+  })
+  shortFeedback?: string;
+}
+
+// 이미지 기반 레시피/유해성 판별 요청 DTO
+export class RecipeImageModerationDto {
+  @ApiProperty({
+    example: 'temp/u_123/20250101/thumbnail.webp',
+    description: '대표 썸네일 이미지 스토리지 경로 (presign path 기준)',
+  })
+  @IsString()
+  @MinLength(1)
+  thumbnailPath: string;
+
+  @ApiProperty({
+    type: [String],
+    required: false,
+    description: '조리 단계 이미지 스토리지 경로 목록 (없으면 빈 배열 또는 생략)',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  stepImagePaths?: string[];
+}
+
+// 개별 이미지 판별 결과 DTO
+export class RecipeImageModerationPerImageDto {
+  @ApiProperty({ description: '요청 시 전달된 이미지의 인덱스 (0부터 시작)', example: 0 })
+  index: number;
+
+  @ApiProperty({ description: '해당 이미지 스토리지 경로', example: 'temp/u_123/20250101/thumbnail.webp' })
+  path: string;
+
+  @ApiProperty({ description: '해당 이미지가 유해/부적절한지 여부', example: false })
+  isHarmful: boolean;
+
+  @ApiProperty({ description: '해당 이미지가 음식/레시피 관련 이미지처럼 보이는지 여부', example: true })
+  isFoodLike: boolean;
+
+  @ApiProperty({
+    description: '유해 판정 사유 (있을 경우)',
+    required: false,
+    type: [String],
+  })
+  reasons?: string[];
+}
+
+// 이미지 기반 레시피/유해성 판별 응답 DTO
+export class RecipeImageModerationResultDto {
+  @ApiProperty({ description: '업로드 허용 여부 (이미지 기준)', example: true })
+  allowed: boolean;
+
+  @ApiProperty({ description: '전체적으로 음식/레시피 관련 이미지로 보이는지 여부', example: true })
+  isFoodLike: boolean;
+
+  @ApiProperty({ description: '유해/부적절 이미지가 포함되어 있는지 여부', example: false })
+  isHarmful: boolean;
+
+  @ApiProperty({
+    description: '유해 판정 사유 (글로벌 요약)',
+    required: false,
+    type: [String],
+  })
+  harmfulReasons?: string[];
+
+  @ApiProperty({
+    description: '사용자에게 보여줄 짧은 한글 피드백',
+    required: false,
+    example: '정상적인 음식 사진으로 판단되었습니다.',
+  })
+  shortFeedback?: string;
+
+  @ApiProperty({
+    description: '이미지별 세부 판별 결과',
+    required: false,
+    type: [RecipeImageModerationPerImageDto],
+  })
+  perImage?: RecipeImageModerationPerImageDto[];
+}

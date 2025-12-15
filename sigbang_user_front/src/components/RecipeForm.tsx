@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { CreateRecipeDto, RecipeDetail } from '@/lib/api/recipes';
+import { CreateRecipeDto, RecipeDetail, moderateRecipeText, moderateRecipeImages } from '@/lib/api/recipes';
 import { useHotkeys } from '@/hooks/useHotkeys';
 
 const ImageUploader = dynamic(() => import('@/components/ImageUploader'), {
@@ -120,6 +120,7 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
   const [linkTitle, setLinkTitle] = useState(initial?.linkTitle ?? '');
   const [linkUrl, setLinkUrl] = useState(initial?.linkUrl ?? '');
   const [busy, setBusy] = useState(false);
+  const [busyLabel, setBusyLabel] = useState<string>('업로드 중...');
 
   useEffect(() => {
     // When switching to stage 3, ensure at least 3 steps exist for better UX
@@ -194,8 +195,32 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
       return;
     }
     setBusy(true);
+    setBusyLabel('유해한 컨텐츠 확인 중...');
     if (onBusyChange) onBusyChange(true);
     try {
+      // 0) 텍스트 기반 레시피/유해성 판별 (이미지 업로드 전에 빠르게 수행)
+      const moderation = await moderateRecipeText({
+        title: title.trim(),
+        description: description.trim(),
+        ingredients: ingredients.trim(),
+        steps: (steps || []).map((s) => ({
+          order: s.order,
+          description: s.description,
+        })),
+      });
+
+      if (!moderation.allowed) {
+        const msg =
+          moderation.shortFeedback ||
+          (moderation.isHarmful
+            ? '커뮤니티 가이드라인에 맞지 않는 내용이 포함되어 있어 업로드가 취소되었습니다.'
+            : '레시피 형식이 아니라고 판단되어 업로드가 취소되었습니다. 제목/재료/조리 단계를 더 구체적으로 작성해 주세요.');
+        alert(msg);
+        return;
+      }
+
+      setBusyLabel('이미지 업로드 중...');
+
       // Thumbnail handling
       // 1) If a new file was selected, upload it via presign
       // 2) If coming from import (external URL), download once and upload to get a temp path
@@ -229,6 +254,41 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
           stepsWithUploaded.push({ order: s.order, description: s.description, imagePath: imagePath ?? undefined });
         }
       }
+
+      // 1.5) 이미지 기반 유해성/레시피 관련성 판별 (OpenAI 비전)
+      const imagePathsForModeration: string[] = [];
+      if (finalThumbnailPath && !/^https?:/i.test(finalThumbnailPath)) {
+        imagePathsForModeration.push(finalThumbnailPath);
+      }
+      for (const s of stepsWithUploaded) {
+        if (s.imagePath && !/^https?:/i.test(s.imagePath)) {
+          imagePathsForModeration.push(s.imagePath);
+        }
+      }
+
+      if (imagePathsForModeration.length > 0) {
+        setBusyLabel('이미지 검토중...');
+        try {
+          const imgModeration = await moderateRecipeImages({
+            thumbnailPath: imagePathsForModeration[0],
+            stepImagePaths: imagePathsForModeration.slice(1),
+          });
+
+          if (!imgModeration.allowed) {
+            const msg =
+              imgModeration.shortFeedback ||
+              (imgModeration.isHarmful
+                ? '이미지에 커뮤니티 가이드라인에 맞지 않는 내용이 포함되어 있어 업로드가 취소되었습니다.'
+                : '레시피와 관련 없는 이미지로 판단되어 업로드가 취소되었습니다. 음식 사진이나 조리 과정을 보여주는 이미지를 사용해 주세요.');
+            alert(msg);
+            return;
+          }
+        } catch {
+          // 비전 검사가 실패해도 업로드 자체를 막지는 않고, 텍스트 기준으로만 진행
+        }
+      }
+
+      setBusyLabel('레시피 저장 중...');
 
       const dto: CreateRecipeDto = {
         title: title.trim(),
@@ -434,7 +494,7 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
             </svg>
-            <span>업로드 중...</span>
+            <span>{busyLabel}</span>
           </div>
         </div>
       )}

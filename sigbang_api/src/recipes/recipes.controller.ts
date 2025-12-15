@@ -39,6 +39,10 @@ import {
   CropRectDto,
   NormalizeIngredientsDto,
   NormalizedIngredientsResponseDto,
+  RecipeTextModerationDto,
+  RecipeTextModerationResultDto,
+  RecipeImageModerationDto,
+  RecipeImageModerationResultDto,
 } from './dto/recipes.dto';
 import { JwtAuthGuard } from '../common/guards/jwt.guard';
 import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt.guard';
@@ -113,6 +117,38 @@ export class RecipesController {
     @Body() body: NormalizeIngredientsDto,
   ): Promise<NormalizedIngredientsResponseDto> {
     return this.recipesService.normalizeIngredients(body.raw, body.locale ?? 'ko');
+  }
+
+  // AI: 텍스트 기반 레시피/유해성 판별
+  @Post('ai/moderate-text')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: '레시피 텍스트 기반 유해성/레시피 여부 판별',
+    description: '제목/설명/재료/조리 단계 텍스트를 기반으로, 레시피 여부와 유해/부적절 여부를 판단합니다.',
+  })
+  @ApiBody({ type: RecipeTextModerationDto })
+  @ApiResponse({ status: 201, description: '성공', type: RecipeTextModerationResultDto })
+  async moderateText(
+    @Body() body: RecipeTextModerationDto,
+  ): Promise<RecipeTextModerationResultDto> {
+    return this.recipesService.moderateRecipeText(body);
+  }
+
+  // AI: 이미지 기반 레시피/유해성 판별
+  @Post('ai/moderate-images')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: '레시피 이미지 기반 유해성/레시피 관련성 판별',
+    description: '썸네일 및 조리 단계 이미지가 음식/레시피 관련 이미지인지, 유해한 콘텐츠는 없는지 OpenAI 비전 모델로 판별합니다.',
+  })
+  @ApiBody({ type: RecipeImageModerationDto })
+  @ApiResponse({ status: 201, description: '성공', type: RecipeImageModerationResultDto })
+  async moderateImages(
+    @Body() body: RecipeImageModerationDto,
+  ): Promise<RecipeImageModerationResultDto> {
+    return this.recipesService.moderateRecipeImages(body);
   }
 
   // 1. 레시피 임시 저장 생성 (기존 임시 저장 전부 제거 후 새로 생성)
