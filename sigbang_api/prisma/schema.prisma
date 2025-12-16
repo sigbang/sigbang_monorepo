@@ -52,35 +52,37 @@ model RefreshToken {
 }
 
 model Recipe {
-  id             String              @id @default(uuid())
-  title          String
-  description    String
-  ingredients    String
-  altTitles      String[]            @default([])
-  thumbnailImage String?
-  linkTitle      String?
-  linkUrl        String?
-  cookingTime    Int?
-  servings       Int?
-  difficulty     Difficulty          @default(EASY)
-  status         RecipeStatus        @default(DRAFT)
-  isHidden       Boolean             @default(false)
-  viewCount      Int                 @default(0)
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
-  slug           String?             @unique
-  authorId       String?
-  comments       Comment[]
-  editorialBoost EditorialBoost?
-  likes          Like[]
-  counter        RecipeCounter?
-  events         RecipeEvent[]
-  slugHistories  RecipeSlugHistory[]
-  steps          RecipeStep[]
-  tags           RecipeTag[]
-  author         User?               @relation(fields: [authorId], references: [id])
-  reports        Report[]
-  saves          Save[]
+  id                String              @id @default(uuid())
+  title             String
+  description       String
+  ingredients       String
+  altTitles         String[]            @default([])
+  thumbnailImage    String?
+  linkTitle         String?
+  linkUrl           String?
+  cookingTime       Int?
+  servings          Int?
+  difficulty        Difficulty          @default(EASY)
+  status            RecipeStatus        @default(DRAFT)
+  isHidden          Boolean             @default(false)
+  viewCount         Int                 @default(0)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  slug              String?             @unique
+  authorId          String?
+  aiQualityScore    Float?              @db.DoublePrecision
+  aiQualityUpdatedAt DateTime?
+  comments          Comment[]
+  editorialBoost    EditorialBoost?
+  likes             Like[]
+  counter           RecipeCounter?
+  events            RecipeEvent[]
+  slugHistories     RecipeSlugHistory[]
+  steps             RecipeStep[]
+  tags              RecipeTag[]
+  author            User?               @relation(fields: [authorId], references: [id])
+  reports           Report[]
+  saves             Save[]
 
   @@map("recipes")
 }

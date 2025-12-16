@@ -195,11 +195,11 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
       return;
     }
     setBusy(true);
-    setBusyLabel('유해한 컨텐츠 확인 중...');
+    setBusyLabel('유해한 컨텐츠 확인 및 이미지 업로드 중...');
     if (onBusyChange) onBusyChange(true);
     try {
-      // 0) 텍스트 기반 레시피/유해성 판별 (이미지 업로드 전에 빠르게 수행)
-      const moderation = await moderateRecipeText({
+      // 0) 텍스트 기반 레시피/유해성 판별 (빠른 모델)과 이미지 업로드를 병렬로 수행
+      const textModerationPromise = moderateRecipeText({
         title: title.trim(),
         description: description.trim(),
         ingredients: ingredients.trim(),
@@ -208,6 +208,46 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
           description: s.description,
         })),
       });
+
+      const uploadPromise = (async () => {
+        // Thumbnail handling
+        // 1) If a new file was selected, upload it via presign
+        // 2) If coming from import (external URL), download once and upload to get a temp path
+        let finalThumbnailPathLocal = thumbnailPath;
+        if (thumbnailFile) {
+          const { uploadFile } = await import('@/lib/api/media');
+          finalThumbnailPathLocal = await uploadFile(thumbnailFile, { kind: 'thumbnail' });
+          setThumbPath(finalThumbnailPathLocal);
+        } else if (thumbnailPath && /^https?:/i.test(thumbnailPath)) {
+          try {
+            const res = await fetch(thumbnailPath);
+            const blob = await res.blob();
+            const contentType = blob.type || 'image/jpeg';
+            const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : contentType.includes('gif') ? 'gif' : contentType.includes('heic') ? 'heic' : contentType.includes('heif') ? 'heif' : 'jpg';
+            const file = new File([blob], `thumbnail.${ext}`, { type: contentType });
+            const { uploadFile } = await import('@/lib/api/media');
+            finalThumbnailPathLocal = await uploadFile(file, { kind: 'thumbnail' });
+            setThumbPath(finalThumbnailPathLocal);
+          } catch {
+            // keep original path if download fails
+          }
+        }
+
+        // Step images: keep existing imagePath, only upload new imageFile
+        const stepsWithUploadedLocal: { order: number; description: string; imagePath?: string | null }[] = [];
+        if (steps && steps.length) {
+          const { uploadFile } = await import('@/lib/api/media');
+          for (const s of steps) {
+            let imagePath = s.imagePath ?? undefined;
+            if (s.imageFile) imagePath = await uploadFile(s.imageFile as File);
+            stepsWithUploadedLocal.push({ order: s.order, description: s.description, imagePath: imagePath ?? undefined });
+          }
+        }
+
+        return { finalThumbnailPathLocal, stepsWithUploadedLocal };
+      })();
+
+      const [moderation, uploadResult] = await Promise.all([textModerationPromise, uploadPromise]);
 
       if (!moderation.allowed) {
         const msg =
@@ -219,59 +259,15 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
         return;
       }
 
-      setBusyLabel('이미지 업로드 중...');
+      const { finalThumbnailPathLocal, stepsWithUploadedLocal } = uploadResult;
 
-      // Thumbnail handling
-      // 1) If a new file was selected, upload it via presign
-      // 2) If coming from import (external URL), download once and upload to get a temp path
-      let finalThumbnailPath = thumbnailPath;
-      if (thumbnailFile) {
-        const { uploadFile } = await import('@/lib/api/media');
-        finalThumbnailPath = await uploadFile(thumbnailFile, { kind: 'thumbnail' });
-        setThumbPath(finalThumbnailPath);
-      } else if (thumbnailPath && /^https?:/i.test(thumbnailPath)) {
-        try {
-          const res = await fetch(thumbnailPath);
-          const blob = await res.blob();
-          const contentType = blob.type || 'image/jpeg';
-          const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : contentType.includes('gif') ? 'gif' : contentType.includes('heic') ? 'heic' : contentType.includes('heif') ? 'heif' : 'jpg';
-          const file = new File([blob], `thumbnail.${ext}`, { type: contentType });
-          const { uploadFile } = await import('@/lib/api/media');
-          finalThumbnailPath = await uploadFile(file, { kind: 'thumbnail' });
-          setThumbPath(finalThumbnailPath);
-        } catch {
-          // keep original path if download fails
-        }
-      }
-
-      // Step images: keep existing imagePath, only upload new imageFile
-      const stepsWithUploaded: { order: number; description: string; imagePath?: string | null }[] = [];
-      if (steps && steps.length) {
-        const { uploadFile } = await import('@/lib/api/media');
-        for (const s of steps) {
-          let imagePath = s.imagePath ?? undefined;
-          if (s.imageFile) imagePath = await uploadFile(s.imageFile as File);
-          stepsWithUploaded.push({ order: s.order, description: s.description, imagePath: imagePath ?? undefined });
-        }
-      }
-
-      // 1.5) 이미지 기반 유해성/레시피 관련성 판별 (OpenAI 비전)
-      const imagePathsForModeration: string[] = [];
+      // 1.5) 이미지 기반 유해성/레시피 관련성 판별 (OpenAI 비전, 썸네일 1장만)
+      let finalThumbnailPath = finalThumbnailPathLocal;
       if (finalThumbnailPath && !/^https?:/i.test(finalThumbnailPath)) {
-        imagePathsForModeration.push(finalThumbnailPath);
-      }
-      for (const s of stepsWithUploaded) {
-        if (s.imagePath && !/^https?:/i.test(s.imagePath)) {
-          imagePathsForModeration.push(s.imagePath);
-        }
-      }
-
-      if (imagePathsForModeration.length > 0) {
         setBusyLabel('이미지 검토중...');
         try {
           const imgModeration = await moderateRecipeImages({
-            thumbnailPath: imagePathsForModeration[0],
-            stepImagePaths: imagePathsForModeration.slice(1),
+            thumbnailPath: finalThumbnailPath,
           });
 
           if (!imgModeration.allowed) {
@@ -297,7 +293,7 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
         thumbnailPath: finalThumbnailPath,
         ...(thumbnailCrop ? { thumbnailCrop } : {}),
         cookingTime,
-        steps: stepsWithUploaded.filter((s) => s.description.trim()),
+        steps: stepsWithUploadedLocal.filter((s) => s.description.trim()),
         ...(linkTitle ? { linkTitle } : {}),
         ...(linkUrl ? { linkUrl } : {}),
       };

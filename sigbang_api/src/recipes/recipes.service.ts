@@ -78,6 +78,83 @@ export class RecipesService {
     return this._openai;
   }
 
+  // 사후 배치용: 레시피 텍스트 품질 평가 (0~1 점수)
+  private async evaluateRecipeQuality(recipe: {
+    title: string;
+    description?: string | null;
+    ingredients?: string | null;
+    steps?: { description: string }[] | null;
+  }): Promise<number> {
+    const doc = {
+      title: String(recipe.title || '').slice(0, 120),
+      description: String(recipe.description || '').slice(0, 1000),
+      ingredients: String(recipe.ingredients || '').slice(0, 2000),
+      steps: (recipe.steps || [])
+        .slice(0, 5)
+        .map((s, idx) => ({
+          order: idx + 1,
+          description: String(s.description || '').slice(0, 500),
+        })),
+    };
+
+    const systemPrompt =
+      '당신은 요리 레시피 플랫폼의 품질 평가자입니다. ' +
+      '입력으로 레시피 텍스트(제목/설명/재료/조리 단계)를 받으면, ' +
+      '1) 이것이 실제로 따라 만들 수 있는 레시피인지 여부(is_recipe)와 ' +
+      '2) 레시피 품질/완성도 점수(0~1, 0은 전혀 레시피 아님, 1은 매우 좋음)를 평가하세요. ' +
+      '반드시 아래 JSON 형식으로만 응답하세요.\n\n' +
+      '{\n  "is_recipe": boolean,\n  "recipe_score": number\n}';
+
+    const userPrompt =
+      '다음은 사용자가 작성한 레시피 데이터입니다. 레시피 여부와 품질 점수를 평가하세요.\n\n' +
+      JSON.stringify(doc, null, 2);
+
+    const model = this.configService.get<string>('OPENAI_RECIPE_MODEL') || 'gpt-5-nano';
+
+    const resp = await this.openai.chat.completions.create({
+      model,
+      response_format: { type: 'json_object' } as any,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+    });
+
+    const content: string = resp.choices?.[0]?.message?.content || '{}';
+    let parsed: any = {};
+    try {
+      parsed = JSON.parse(content);
+    } catch {
+      const m = content.match(/\{[\s\S]*\}$/);
+      parsed = m ? JSON.parse(m[0]) : {};
+    }
+
+    const isRecipe =
+      typeof parsed.is_recipe === 'boolean'
+        ? parsed.is_recipe
+        : typeof parsed.isRecipe === 'boolean'
+        ? parsed.isRecipe
+        : false;
+
+    const rawScore =
+      typeof parsed.recipe_score === 'number'
+        ? parsed.recipe_score
+        : typeof parsed.recipeScore === 'number'
+        ? parsed.recipeScore
+        : 0;
+
+    let score = Number.isFinite(rawScore) ? rawScore : 0;
+    score = Math.max(0, Math.min(1, score));
+
+    // 레시피가 아니라고 판단되면 강하게 낮춤
+    if (!isRecipe) {
+      score = Math.min(score, 0.2);
+    }
+
+    // 완전 0은 디버깅이 힘드니 0.1~1로 클램프
+    return Math.max(0.1, Math.min(1, score));
+  }
+
   // 인기 레시피 (최근 조회수/참여 기반)
   async getPopularRecipes(query: RecipeQueryDto, userId?: string) {
     const { cursor, limit = 10 } = (query as any) || {};
@@ -297,7 +374,7 @@ export class RecipesService {
     }
   }
 
-  // AI: 텍스트 기반 레시피/유해성 판별
+  // AI: 텍스트 기반 레시피/유해성 판별 (업로드 시점에는 omni-moderation만 사용)
   async moderateRecipeText(payload: RecipeTextModerationDto): Promise<RecipeTextModerationResultDto> {
     const title = String(payload.title || '').trim();
     if (!title) {
@@ -308,8 +385,10 @@ export class RecipesService {
       title: title.slice(0, 120),
       description: String(payload.description || '').slice(0, 1000),
       ingredients: String(payload.ingredients || '').slice(0, 2000),
+      // 레시피 여부 판별에는 앞의 몇 단계만 있어도 충분하므로, 토큰 절약을 위해 최대 3단계만 전송
       steps: Array.isArray(payload.steps)
         ? payload.steps
+            .slice(0, 3)
             .map((s: any, idx: number) => ({
               order: Number(s.order) || idx + 1,
               description: String(s.description || '').slice(0, 500),
@@ -318,103 +397,84 @@ export class RecipesService {
         : [],
     };
 
-    const systemPrompt =
-      '당신은 요리 레시피 SNS 플랫폼의 컨텐츠 검수 전문가입니다. ' +
-      '입력으로 레시피 후보 텍스트(제목/설명/재료/조리 단계)를 받으면, ' +
-      '1) 이것이 실제로 따라 만들 수 있는 레시피인지 여부, ' +
-      '2) 유해/부적절(욕설, 혐오, 성적, 극단적 폭력, 자해/자살 조장 등) 여부, ' +
-      '3) 레시피 품질/완성도 점수(0~1)를 평가합니다. ' +
-      '플랫폼은 안전한 요리 커뮤니티를 지향하며, 음식과 무관한 일반 잡담/일기/홍보 글은 레시피가 아닌 것으로 간주합니다. ' +
-      '반드시 아래 JSON 형식으로만, 추가 설명 없이 응답하세요.\n\n' +
-      '{\n' +
-      '  "is_recipe": boolean,\n' +
-      '  "recipe_score": number,\n' +
-      '  "is_harmful": boolean,\n' +
-      '  "harmful_reasons": string[],\n' +
-      '  "short_feedback": string\n' +
-      '}';
-
-    const userPrompt =
-      '다음은 사용자가 작성한 레시피 후보 데이터입니다. ' +
-      '이 텍스트가 실제로 따라 만들 수 있는 레시피인지, 그리고 유해/부적절한 내용이 있는지 평가하세요.\n\n' +
-      '레시피 데이터(JSON):\n```json\n' +
-      JSON.stringify(doc, null, 2) +
-      '\n```';
+    // 업로드 시점에는 omni-moderation-latest로 유해성만 동기 차단하고,
+    // 레시피 품질 점수(gpt-5-nano)는 사후 배치에서 계산해 노출 가중치에 반영한다.
+    const combinedText = [
+      doc.title,
+      doc.description,
+      doc.ingredients,
+      ...(doc.steps || []).map(s => s.description),
+    ]
+      .filter(Boolean)
+      .join('\n\n');
 
     try {
-      const model =
-        this.configService.get<string>('OPENAI_RECIPE_MODEL') ||
-        'gpt-5-nano';
+      const moderationModel =
+        this.configService.get<string>('OPENAI_MODERATION_MODEL') ||
+        'omni-moderation-latest';
 
-      const resp = await this.openai.chat.completions.create({
-        model,
-        // 일부 최신 모델(gpt-5-nano 등)은 temperature를 기본값(1) 외에 허용하지 않으므로 명시하지 않는다.
-        response_format: { type: 'json_object' } as any,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
+      const mod = await this.openai.moderations.create({
+        model: moderationModel,
+        input: combinedText || title,
       });
 
-      const content: string = resp.choices?.[0]?.message?.content || '{}';
-      let parsed: any;
-      try {
-        parsed = JSON.parse(content);
-      } catch {
-        // JSON 아닌 경우, 마지막 중괄호 기준으로 재시도
-        const m = content.match(/\{[\s\S]*\}$/);
-        parsed = m ? JSON.parse(m[0]) : {};
+      const res: any = mod?.results?.[0] ?? null;
+      const flagged: boolean = !!res?.flagged;
+      const categories: any = res?.categories ?? {};
+
+      const harmfulReasons: string[] = [];
+      if (categories?.hate) harmfulReasons.push('혐오 표현');
+      if (categories?.harassment) harmfulReasons.push('괴롭힘/모욕');
+      if (categories?.self_harm) harmfulReasons.push('자해/자살 조장');
+      if (categories?.sexual) harmfulReasons.push('성적 콘텐츠');
+      if (categories?.sexual_minors) harmfulReasons.push('미성년자 대상 성적 콘텐츠');
+      if (categories?.violence) harmfulReasons.push('폭력적인 콘텐츠');
+      if (categories?.hate_threatening || categories?.violence_graphic) {
+        harmfulReasons.push('극단적 폭력 또는 위협');
       }
 
-      const isRecipe =
-        typeof parsed.is_recipe === 'boolean'
-          ? parsed.is_recipe
-          : typeof parsed.isRecipe === 'boolean'
-          ? parsed.isRecipe
-          : false;
+      if (flagged) {
+        const result: RecipeTextModerationResultDto = {
+          allowed: false,
+          isRecipe: false,
+          recipeScore: 0,
+          isHarmful: true,
+          harmfulReasons: harmfulReasons.length ? harmfulReasons : ['유해 컨텐츠로 판단되었습니다.'],
+          shortFeedback: '커뮤니티 가이드라인에 맞지 않는 내용이 포함되어 있어 업로드할 수 없습니다.',
+        };
+        return result;
+      }
 
-      const isHarmful =
-        typeof parsed.is_harmful === 'boolean'
-          ? parsed.is_harmful
-          : typeof parsed.isHarmful === 'boolean'
-          ? parsed.isHarmful
-          : false;
-
-      const rawScore =
-        typeof parsed.recipe_score === 'number'
-          ? parsed.recipe_score
-          : typeof parsed.recipeScore === 'number'
-          ? parsed.recipeScore
-          : 0;
-      const recipeScore = Math.max(0, Math.min(1, Number.isFinite(rawScore) ? rawScore : 0));
-
-      const reasonsRaw = parsed.harmful_reasons ?? parsed.harmfulReasons;
-      const harmfulReasons: string[] = Array.isArray(reasonsRaw)
-        ? reasonsRaw.map((r: any) => String(r)).filter((s: string) => !!s)
-        : [];
-
-      const shortFeedbackSrc = parsed.short_feedback ?? parsed.shortFeedback;
-      const shortFeedback =
-        typeof shortFeedbackSrc === 'string'
-          ? shortFeedbackSrc.slice(0, 200)
-          : undefined;
-
-      // 기본 정책: 유해하거나(isHarmful) 레시피가 아니거나(isRecipe=false) 점수가 너무 낮으면(recipeScore<0.4) 차단
-      const allowed = !isHarmful && isRecipe && recipeScore >= 0.4;
-
-      const result: RecipeTextModerationResultDto = {
-        allowed,
-        isRecipe,
-        recipeScore,
-        isHarmful,
-        harmfulReasons: harmfulReasons.length ? harmfulReasons : undefined,
-        shortFeedback,
+      // omni-moderation에서 유해하지 않다고 판단된 경우:
+      // 업로드 시점에서는 레시피 여부/품질 점수를 세밀하게 보지 않고,
+      // 사후 배치에서 gpt-5-nano로 품질 점수를 계산해 피드 노출 가중치에 반영한다.
+      const safeResult: RecipeTextModerationResultDto = {
+        allowed: true,
+        isRecipe: true,
+        // 임시 기본값 (사후 품질 평가 이전까지는 중립값으로 취급)
+        recipeScore: 0.7,
+        isHarmful: false,
+        harmfulReasons: undefined,
+        shortFeedback: '정상적인 레시피 텍스트로 판단되었습니다.',
       };
 
-      return result;
+      return safeResult;
     } catch (error) {
-      this.logger.error(`레시피 텍스트 검증 실패: ${String((error as any)?.message || error)}`, (error as any)?.stack);
-      throw new BadRequestException('레시피 텍스트 검증에 실패했습니다.');
+      this.logger.error(
+        `레시피 텍스트 omni moderation 실패: ${String((error as any)?.message || error)}`,
+        (error as any)?.stack,
+      );
+      // moderation 호출 실패 시, 업로드를 완전히 막기보다는
+      // 안전한 기본값으로 통과시키고, 서버 로그로만 남긴다.
+      const fallback: RecipeTextModerationResultDto = {
+        allowed: true,
+        isRecipe: true,
+        recipeScore: 0.7,
+        isHarmful: false,
+        harmfulReasons: undefined,
+        shortFeedback: '일시적인 검수 오류로 기본 검증만 통과했습니다.',
+      };
+      return fallback;
     }
   }
 
@@ -814,8 +874,19 @@ export class RecipesService {
       const ageHours = (now - new Date(r.createdAt).getTime()) / (1000 * 60 * 60);
       const recency = Math.exp(-ageHours / 72);
       const season = seasonalBoost(r);
-      const baseScore = wFollow * (isFollow ? 1 : 0) + wTag * tagOverlap + wEng * eng + wRecency * recency + wSeason * season;
-      return { r, baseScore, eng, ageHours };
+      const baseScore =
+        wFollow * (isFollow ? 1 : 0) +
+        wTag * tagOverlap +
+        wEng * eng +
+        wRecency * recency +
+        wSeason * season;
+
+      // 품질 가중치: 0.3 ~ 1.0 사이로 클램프
+      const rawQ = typeof r.aiQualityScore === 'number' ? r.aiQualityScore : 0.7;
+      const quality = Math.max(0.3, Math.min(1, rawQ));
+      const finalScore = baseScore * quality;
+
+      return { r, baseScore: finalScore, eng, ageHours };
     });
 
     // 콜드스타트 혼합: 60% 트렌드(eng+recency), 40% 탐색(신규/저노출 주입)
@@ -961,14 +1032,14 @@ export class RecipesService {
     if (!q || !q.trim()) {
       const rows = await (this.prismaService as any).$queryRaw<any[]>`
         SELECT r.*,
-               COALESCE(rc."trendScore", 0) AS trend_score
+               COALESCE(rc."trendScore", 0) * GREATEST(0.3, LEAST(1.0, COALESCE(r."aiQualityScore", 0.7))) AS trend_score
         FROM recipes r
         LEFT JOIN recipe_counters rc ON rc."recipeId" = r.id
         WHERE r."status" = 'PUBLISHED' AND r."isHidden" = false
           AND r."authorId" IS NOT NULL
           AND EXISTS (SELECT 1 FROM users u WHERE u.id = r."authorId" AND u.status = 'ACTIVE')
-          AND (${afterScore as any}::numeric IS NULL OR (COALESCE(rc."trendScore",0), r.id) < (${afterScore as any}::numeric, ${afterId as any}::text))
-        ORDER BY COALESCE(rc."trendScore", 0) DESC, r.id DESC
+          AND (${afterScore as any}::numeric IS NULL OR (COALESCE(rc."trendScore",0) * GREATEST(0.3, LEAST(1.0, COALESCE(r."aiQualityScore", 0.7))), r.id) < (${afterScore as any}::numeric, ${afterId as any}::text))
+        ORDER BY trend_score DESC, r.id DESC
         LIMIT ${safeLimit + 1}
       `;
 
@@ -1078,7 +1149,8 @@ export class RecipesService {
                    ) THEN 0.08
                    ELSE 0
                  END AS alias_bonus,
-                 COALESCE(rc."trendScore", 0) AS trend_score
+                 COALESCE(rc."trendScore", 0) AS trend_score,
+                 GREATEST(0.3, LEAST(1.0, COALESCE(r."aiQualityScore", 0.7))) AS quality
           FROM recipes r
           LEFT JOIN recipe_counters rc ON rc."recipeId" = r.id
           WHERE r."status" = 'PUBLISHED' AND r."isHidden" = false
@@ -1091,9 +1163,9 @@ export class RecipesService {
               OR r.ingredients % ${qTrim as any}
             )
         )
-        SELECT *, (0.7 * text_score + 0.1 * alias_bonus + 0.3 * trend_score) AS total_score
+        SELECT *, (0.7 * text_score + 0.1 * alias_bonus + 0.3 * trend_score) * quality AS total_score
         FROM scored
-        WHERE (${afterScore as any}::numeric IS NULL OR (0.7 * text_score + 0.1 * alias_bonus + 0.3 * trend_score, id) < (${afterScore as any}::numeric, ${afterId as any}::text))
+        WHERE (${afterScore as any}::numeric IS NULL OR ((0.7 * text_score + 0.1 * alias_bonus + 0.3 * trend_score) * quality, id) < (${afterScore as any}::numeric, ${afterId as any}::text))
         ORDER BY total_score DESC, id DESC
         LIMIT ${safeLimit + 1}
       `;
@@ -1114,7 +1186,7 @@ export class RecipesService {
 
         const rows = await (this.prismaService as any).$queryRaw<any[]>`
           SELECT r.*,
-                 COALESCE(rc."trendScore", 0) AS trend_score
+                 COALESCE(rc."trendScore", 0) * GREATEST(0.3, LEAST(1.0, COALESCE(r."aiQualityScore", 0.7))) AS trend_score
           FROM recipes r
           LEFT JOIN recipe_counters rc ON rc."recipeId" = r.id
           WHERE r."status" = 'PUBLISHED' AND r."isHidden" = false
@@ -1124,7 +1196,7 @@ export class RecipesService {
               r.title ILIKE '%' || ${qTrim as any} || '%'
               OR r.ingredients ILIKE '%' || ${qTrim as any} || '%'
             )
-          ORDER BY COALESCE(rc."trendScore", 0) DESC, r.id DESC
+          ORDER BY trend_score DESC, r.id DESC
           LIMIT ${safeLimit + 1}
         `;
 
@@ -1994,7 +2066,17 @@ export class RecipesService {
       const isVeryNew = ageHours * 60 < 30; // 30분 이내
       // 단순 카테고리 페널티: 동일 태그 반복을 경감 (MVP: 상수 0)
       const diversityPenalty = 0;
-      return wNew * decay + wEng * engagement + wFollow * (isFollowing ? 1 : 0) + wRecencyBurst * (isVeryNew ? 1 : 0) + diversityPenalty;
+      let base =
+        wNew * decay +
+        wEng * engagement +
+        wFollow * (isFollowing ? 1 : 0) +
+        wRecencyBurst * (isVeryNew ? 1 : 0) +
+        diversityPenalty;
+
+      // 품질 가중치: 0.3 ~ 1.0 사이로 클램프 (너무 심한 디부스트 방지)
+      const rawQ = typeof r.aiQualityScore === 'number' ? r.aiQualityScore : 0.7;
+      const quality = Math.max(0.3, Math.min(1, rawQ));
+      return base * quality;
     }
 
     // 후보 정렬
