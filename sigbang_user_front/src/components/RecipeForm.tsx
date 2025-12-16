@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { CreateRecipeDto, RecipeDetail, moderateRecipeText, moderateRecipeImages } from '@/lib/api/recipes';
+import { CreateRecipeDto, RecipeDetail } from '@/lib/api/recipes';
 import { useHotkeys } from '@/hooks/useHotkeys';
 
 const ImageUploader = dynamic(() => import('@/components/ImageUploader'), {
@@ -195,97 +195,42 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
       return;
     }
     setBusy(true);
-    setBusyLabel('유해한 컨텐츠 확인 및 이미지 업로드 중...');
+    setBusyLabel('레시피 업로드 중...');
     if (onBusyChange) onBusyChange(true);
     try {
-      // 0) 텍스트 기반 레시피/유해성 판별 (빠른 모델)과 이미지 업로드를 병렬로 수행
-      const textModerationPromise = moderateRecipeText({
-        title: title.trim(),
-        description: description.trim(),
-        ingredients: ingredients.trim(),
-        steps: (steps || []).map((s) => ({
-          order: s.order,
-          description: s.description,
-        })),
-      });
-
-      const uploadPromise = (async () => {
-        // Thumbnail handling
-        // 1) If a new file was selected, upload it via presign
-        // 2) If coming from import (external URL), download once and upload to get a temp path
-        let finalThumbnailPathLocal = thumbnailPath;
-        if (thumbnailFile) {
-          const { uploadFile } = await import('@/lib/api/media');
-          finalThumbnailPathLocal = await uploadFile(thumbnailFile, { kind: 'thumbnail' });
-          setThumbPath(finalThumbnailPathLocal);
-        } else if (thumbnailPath && /^https?:/i.test(thumbnailPath)) {
-          try {
-            const res = await fetch(thumbnailPath);
-            const blob = await res.blob();
-            const contentType = blob.type || 'image/jpeg';
-            const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : contentType.includes('gif') ? 'gif' : contentType.includes('heic') ? 'heic' : contentType.includes('heif') ? 'heif' : 'jpg';
-            const file = new File([blob], `thumbnail.${ext}`, { type: contentType });
-            const { uploadFile } = await import('@/lib/api/media');
-            finalThumbnailPathLocal = await uploadFile(file, { kind: 'thumbnail' });
-            setThumbPath(finalThumbnailPathLocal);
-          } catch {
-            // keep original path if download fails
-          }
-        }
-
-        // Step images: keep existing imagePath, only upload new imageFile
-        const stepsWithUploadedLocal: { order: number; description: string; imagePath?: string | null }[] = [];
-        if (steps && steps.length) {
-          const { uploadFile } = await import('@/lib/api/media');
-          for (const s of steps) {
-            let imagePath = s.imagePath ?? undefined;
-            if (s.imageFile) imagePath = await uploadFile(s.imageFile as File);
-            stepsWithUploadedLocal.push({ order: s.order, description: s.description, imagePath: imagePath ?? undefined });
-          }
-        }
-
-        return { finalThumbnailPathLocal, stepsWithUploadedLocal };
-      })();
-
-      const [moderation, uploadResult] = await Promise.all([textModerationPromise, uploadPromise]);
-
-      if (!moderation.allowed) {
-        const msg =
-          moderation.shortFeedback ||
-          (moderation.isHarmful
-            ? '커뮤니티 가이드라인에 맞지 않는 내용이 포함되어 있어 업로드가 취소되었습니다.'
-            : '레시피 형식이 아니라고 판단되어 업로드가 취소되었습니다. 제목/재료/조리 단계를 더 구체적으로 작성해 주세요.');
-        alert(msg);
-        return;
-      }
-
-      const { finalThumbnailPathLocal, stepsWithUploadedLocal } = uploadResult;
-
-      // 1.5) 이미지 기반 유해성/레시피 관련성 판별 (OpenAI 비전, 썸네일 1장만)
-      let finalThumbnailPath = finalThumbnailPathLocal;
-      if (finalThumbnailPath && !/^https?:/i.test(finalThumbnailPath)) {
-        setBusyLabel('이미지 검토중...');
+      // 1) 썸네일 및 스텝 이미지 업로드
+      let finalThumbnailPath = thumbnailPath;
+      if (thumbnailFile) {
+        const { uploadFile } = await import('@/lib/api/media');
+        finalThumbnailPath = await uploadFile(thumbnailFile, { kind: 'thumbnail' });
+        setThumbPath(finalThumbnailPath);
+      } else if (thumbnailPath && /^https?:/i.test(thumbnailPath)) {
         try {
-          const imgModeration = await moderateRecipeImages({
-            thumbnailPath: finalThumbnailPath,
-          });
-
-          if (!imgModeration.allowed) {
-            const msg =
-              imgModeration.shortFeedback ||
-              (imgModeration.isHarmful
-                ? '이미지에 커뮤니티 가이드라인에 맞지 않는 내용이 포함되어 있어 업로드가 취소되었습니다.'
-                : '레시피와 관련 없는 이미지로 판단되어 업로드가 취소되었습니다. 음식 사진이나 조리 과정을 보여주는 이미지를 사용해 주세요.');
-            alert(msg);
-            return;
-          }
+          const res = await fetch(thumbnailPath);
+          const blob = await res.blob();
+          const contentType = blob.type || 'image/jpeg';
+          const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : contentType.includes('gif') ? 'gif' : contentType.includes('heic') ? 'heic' : contentType.includes('heif') ? 'heif' : 'jpg';
+          const file = new File([blob], `thumbnail.${ext}`, { type: contentType });
+          const { uploadFile } = await import('@/lib/api/media');
+          finalThumbnailPath = await uploadFile(file, { kind: 'thumbnail' });
+          setThumbPath(finalThumbnailPath);
         } catch {
-          // 비전 검사가 실패해도 업로드 자체를 막지는 않고, 텍스트 기준으로만 진행
+          // keep original path if download fails
         }
       }
 
-      setBusyLabel('레시피 저장 중...');
+      const stepsWithUploaded: { order: number; description: string; imagePath?: string | null }[] = [];
+      if (steps && steps.length) {
+        const { uploadFile } = await import('@/lib/api/media');
+        for (const s of steps) {
+          let imagePath = s.imagePath ?? undefined;
+          if (s.imageFile) imagePath = await uploadFile(s.imageFile as File);
+          stepsWithUploaded.push({ order: s.order, description: s.description, imagePath: imagePath ?? undefined });
+        }
+      }
 
+      // 2) 백엔드 업로드 API에서 텍스트/이미지 유해성 검증을 모두 수행
+      setBusyLabel('레시피 저장 중...');
       const dto: CreateRecipeDto = {
         title: title.trim(),
         description: description.trim(),
@@ -293,13 +238,22 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
         thumbnailPath: finalThumbnailPath,
         ...(thumbnailCrop ? { thumbnailCrop } : {}),
         cookingTime,
-        steps: stepsWithUploadedLocal.filter((s) => s.description.trim()),
+        steps: stepsWithUploaded.filter((s) => s.description.trim()),
         ...(linkTitle ? { linkTitle } : {}),
         ...(linkUrl ? { linkUrl } : {}),
       };
       await onSubmit(dto);
     } catch (e: unknown) {
-      alert(`처리 실패: ${getErrorMessage(e)}`);
+      const anyErr: any = e;
+      const respData = anyErr?.response?.data;
+      const code = respData?.code;
+      const msg = respData?.message;
+
+      if (code === 'TEXT_MODERATION_BLOCKED' || code === 'IMAGE_MODERATION_BLOCKED') {
+        alert(msg ?? '커뮤니티 가이드라인에 맞지 않는 내용이 포함되어 있어 업로드할 수 없습니다.');
+      } else {
+        alert(`처리 실패: ${getErrorMessage(e)}`);
+      }
     } finally {
       setBusy(false);
       if (onBusyChange) onBusyChange(false);
