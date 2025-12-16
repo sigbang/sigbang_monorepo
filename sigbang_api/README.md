@@ -204,7 +204,7 @@ SUPABASE_STORAGE_BUCKET="recipes"
 # OpenAI
 OPENAI_API_KEY="your_openai_api_key"
 # Optional: override default model for recipe generation
-OPENAI_RECIPE_MODEL="gpt-4o-mini"
+OPENAI_RECIPE_MODEL="gpt-5-nano"
 
 # Email (SES)
 SES_REGION="ap-northeast-2"

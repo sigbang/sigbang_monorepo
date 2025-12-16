@@ -60,7 +60,7 @@ export async function semanticSlugifyTitle(title: string): Promise<string> {
 	try {
 		const client = getOpenAI();
 		if (client) {
-			const model = (process.env.OPENAI_SLUG_MODEL as string) || (process.env.OPENAI_RECIPE_MODEL as string) || 'gpt-4o-mini';
+			const model = (process.env.OPENAI_SLUG_MODEL as string) || (process.env.OPENAI_RECIPE_MODEL as string) || 'gpt-5-nano';
 			const systemPrompt = `아래 텍스트는 요리 이름이다. 이 이름을 기반으로 의미 중심의 영어 슬러그(slug)를 생성한다.\n\n조건:\n- 음식 핵심 재료 또는 조리방식 포함\n- 한국어 로마자 표기는 쓰지 말고 의미 기반 영어로 변환\n- 3~6단어 사이\n- 단어는 소문자, -로 연결\n- "recipe" 같은 불필요한 단어 추가 금지\n- 가능하면 국가·스타일 정체성 반영 (korean, japanese, fusion 등)\n\n출력 형식:\nslug: {slug}`;
 			const userPrompt = `입력: ${t}\n출력 예:\n가지나물 냉국 → slug: eggplant-herb-cold-soup\n한식 불고기 덮밥 → slug: korean-bulgogi-rice-bowl\n만두 라면 → slug: dumpling-ramen\n대파 파스타 → slug: scallion-pasta-korean-style\n고추장 연어 덮밥 → slug: gochujang-salmon-rice-bowl`;
 

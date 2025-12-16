@@ -243,7 +243,7 @@ export class RecipesService {
 
     // OpenAI Responses API (vision) 호출
     try {
-      const model = this.configService.get<string>('OPENAI_RECIPE_MODEL') || 'gpt-4o-mini';
+      const model = this.configService.get<string>('OPENAI_RECIPE_MODEL') || 'gpt-5-nano';
       const response = await this.openai.chat.completions.create({
         model,
         temperature: 0.7,
@@ -344,7 +344,7 @@ export class RecipesService {
     try {
       const model =
         this.configService.get<string>('OPENAI_RECIPE_MODEL') ||
-        'gpt-4o-mini';
+        'gpt-5-nano';
 
       const resp = await this.openai.chat.completions.create({
         model,
@@ -484,7 +484,7 @@ export class RecipesService {
     try {
       const model =
         this.configService.get<string>('OPENAI_RECIPE_MODEL') ||
-        'gpt-4o-mini';
+        'gpt-5-nano';
 
       const resp = await this.openai.chat.completions.create({
         model,
@@ -620,7 +620,7 @@ export class RecipesService {
     try {
       const model =
         this.configService.get<string>('OPENAI_RECIPE_MODEL')
-        || 'gpt-4o-mini';
+        || 'gpt-5-nano';
 
       const resp = await this.openai.chat.completions.create({
         model,
