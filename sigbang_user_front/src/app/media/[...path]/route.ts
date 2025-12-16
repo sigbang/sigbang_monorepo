@@ -1,6 +1,6 @@
 export const runtime = 'edge';
 import { NextRequest } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { ENV } from '@/lib/env';
 
 function contentTypeFromPath(p: string) {
   const l = p.toLowerCase();
@@ -14,29 +14,33 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ pat
   const { path } = await params;
   const key = path.join('/');
 
-  // Supabase 스토리지에서 파일 다운로드
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const bucket = process.env.SUPABASE_BUCKET || 'images';
+  // 백엔드의 /media/:path 엔드포인트로 프록시하여 이미지 제공
+  const encodedKey = path.map(encodeURIComponent).join('/');
+  const target = `${ENV.API_BASE_URL}/media/${encodedKey}`;
 
-  if (!supabaseUrl || !serviceKey) {
-    return new Response('Storage not configured', { status: 500 });
-  }
+  const res = await fetch(target, {
+    method: 'GET',
+    cache: 'no-store',
+  });
 
-  const supabase = createClient(supabaseUrl, serviceKey);
-  const { data, error } = await supabase.storage.from(bucket).download(key);
-
-  if (error || !data) {
-    console.error('Supabase download error:', error);
+  if (!res.ok || !res.body) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[media route] backend media fetch failed', { status: res.status });
+    }
     return new Response('Not Found', { status: 404 });
   }
 
-  const arr = await data.arrayBuffer();
-  return new Response(arr, {
-    headers: {
-      'Content-Type': contentTypeFromPath(key),
-      'Cache-Control': 'public, max-age=31536000, immutable',
-    },
+  const headers = new Headers(res.headers);
+  if (!headers.has('Content-Type')) {
+    headers.set('Content-Type', contentTypeFromPath(key));
+  }
+  if (!headers.has('Cache-Control')) {
+    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  }
+
+  return new Response(res.body, {
+    status: res.status,
+    headers,
   });
 }
 

@@ -1,5 +1,4 @@
 import { api } from './client';
-import { createSupabaseClient } from '../../supabase';
 
 export async function presign(contentType: string, opts?: { kind?: string }) {
   const body: Record<string, unknown> = { contentType };
@@ -23,20 +22,14 @@ export async function uploadFile(file: File, opts?: { kind?: string }) {
   const contentType = file.type || 'application/octet-stream';
   const meta = await presign(contentType, opts);
 
-  // Supabase 서명 업로드
-  if (meta.bucket && meta.token) {
-    const supabase = createSupabaseClient();
-    if (!supabase) throw new Error('Supabase env not configured');
-    const storage = supabase.storage.from(meta.bucket);
-    const { error } = await storage.uploadToSignedUrl(meta.path, meta.token, file);
-    if (error) throw error as Error;
-    return meta.path; // 서버가 경로를 리턴하도록 설계됨
-  }
-
-  // Fallback: presigned PUT
+  // 백엔드가 발급한 presigned URL(또는 업로드 URL)로 직접 업로드
   const putUrl = meta.uploadUrl ?? meta.url;
   if (!putUrl) throw new Error('Presign response missing uploadUrl');
-  await fetch(putUrl, { method: 'PUT', headers: { 'Content-Type': contentType }, body: file });
+  await fetch(putUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': contentType },
+    body: file,
+  });
   return meta.path;
 }
 
