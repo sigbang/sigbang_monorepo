@@ -12,7 +12,8 @@ let __lastValidateCallAt = 0;
 api.interceptors.request.use(async (config) => {
   try {
     const now = Date.now();
-    if (now - __lastValidateCallAt > 60_000) {
+    // 최소 5분 간격으로만 추가 검증을 수행해 과도한 트래픽을 방지한다.
+    if (now - __lastValidateCallAt > 5 * 60_000) {
       __lastValidateCallAt = now;
       await fetch('/api/auth/validate', {
         method: 'POST',

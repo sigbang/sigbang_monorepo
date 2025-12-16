@@ -1,66 +1,28 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 
-const KEEPALIVE_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
-const NETWORK_CHECK_INTERVAL_MS = 30 * 1000; // 30 seconds
-
+/**
+ * Lightweight session keep-alive.
+ *
+ * 과거에는 visibility / online 이벤트와 주기적인 타이머로
+ * /api/auth/validate 를 자주 호출했지만, 관리 복잡도와 트래픽을 줄이기 위해
+ * 이제는 마운트 시 한 번만 best-effort 호출만 수행합니다.
+ *
+ * 실제 세션 상태 관리는 useSession(React Query)와 axios 인터셉터가 담당합니다.
+ */
 export function useSessionKeepAlive() {
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const networkCheckRef = useRef<NodeJS.Timeout | null>(null);
-
   useEffect(() => {
-    const performKeepAlive = async () => {
+    (async () => {
       try {
-        // Use the new validation endpoint for more efficient keep-alive
-        await fetch('/api/auth/validate', { 
+        await fetch('/api/auth/validate', {
           method: 'POST',
-          cache: 'no-store' 
+          cache: 'no-store',
         });
-      } catch {}
-    };
-
-    const onVisible = async () => {
-      if (document.visibilityState === 'visible') {
-        await performKeepAlive();
+      } catch {
+        // keep-alive 실패는 UI에 영향을 주지 않음
       }
-    };
-
-    const onOnline = async () => {
-      // When network comes back online, perform keep-alive
-      await performKeepAlive();
-    };
-
-    // Visibility change listener
-    document.addEventListener('visibilitychange', onVisible);
-    
-    // Network online listener
-    window.addEventListener('online', onOnline);
-
-    // Periodic keep-alive (only when tab is visible)
-    intervalRef.current = setInterval(async () => {
-      if (document.visibilityState === 'visible' && navigator.onLine) {
-        await performKeepAlive();
-      }
-    }, KEEPALIVE_INTERVAL_MS);
-
-    // Network status check
-    networkCheckRef.current = setInterval(async () => {
-      if (navigator.onLine && document.visibilityState === 'visible') {
-        await performKeepAlive();
-      }
-    }, NETWORK_CHECK_INTERVAL_MS);
-
-    // Initial keep-alive
-    performKeepAlive();
-
-    return () => {
-      document.removeEventListener('visibilitychange', onVisible);
-      window.removeEventListener('online', onOnline);
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      if (networkCheckRef.current) clearInterval(networkCheckRef.current);
-    };
+    })();
   }, []);
 }
-
 

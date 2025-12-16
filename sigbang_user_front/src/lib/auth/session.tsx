@@ -30,9 +30,12 @@ export function useSession(): { data: SessionData | null; status: SessionStatus 
         return null;
       }
     },
-    staleTime: 60_000,
-    refetchInterval: 60_000,
-    refetchOnWindowFocus: false,
+    // 세션 검증 결과는 비교적 오래 유효하므로 길게 캐시하고,
+    // 주기적인 폴링 대신 포커스/재연결 시점에만 재검증한다.
+    staleTime: 5 * 60_000,
+    refetchInterval: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
     retry: false,
   });
 
