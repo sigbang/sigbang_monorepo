@@ -1214,10 +1214,11 @@ export class RecipesService {
 
   // 레시피 생성 (즉시 공개)
   async create(userId: string, createRecipeDto: CreateRecipeDto) {
-    const { tags, steps, thumbnailPath, thumbnailCrop, ...recipeData } = createRecipeDto as any;
+    // source는 DB에 저장하지 않고, 검증 우회 플래그로만 사용한다.
+    const { tags, steps, thumbnailPath, thumbnailCrop, source, ...recipeData } =
+      createRecipeDto as any;
 
-    const isFoodsafetySource =
-      recipeData?.source === 'foodsafety' && true;
+    const isFoodsafetySource = source === 'foodsafety';
 
     if (!isFoodsafetySource) {
       // 0) 텍스트 유해성(omni-moderation) 선검사
