@@ -55,6 +55,7 @@ export type CreateRecipeDto = {
   linkUrl?: string;
   steps?: StepDto[];
   tags?: TagDto[];
+  source?: string;
 };
 
 function toServerDto(dto: CreateRecipeDto) {

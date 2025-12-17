@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import RecipeForm from '@/components/RecipeForm';
-import { createRecipe, RecipeDetail, aiNormalizeIngredients } from '@/lib/api/recipes';
+import { createRecipe, RecipeDetail } from '@/lib/api/recipes';
 import { toRecipeDetail } from '@/lib/external/foodsafety';
 
 type Item = {
@@ -33,20 +33,6 @@ export default function ImportFoodsafetyPage() {
     }
     const base = toRecipeDetail(selected);
     setInitial(base);
-
-    const raw = String(selected?.RCP_PARTS_DTLS ?? '').trim();
-    if (!raw) return;
-
-    (async () => {
-      try {
-        const normalized = await aiNormalizeIngredients({ raw, locale: 'ko' });
-        if (normalized && normalized.trim().length > 0) {
-          setInitial((prev) => (prev ? { ...prev, ingredients: normalized } : prev));
-        }
-      } catch {
-        // Keep base ingredients on failure
-      }
-    })();
   }, [selected]);
 
   const search = async () => {
@@ -93,7 +79,7 @@ export default function ImportFoodsafetyPage() {
         embedded
         onCancel={() => setSelected(null)}
         onSubmit={async (dto) => {
-          const { id } = await createRecipe(dto);
+          const { id } = await createRecipe({ ...dto, source: 'foodsafety' });
           alert(`레시피 업로드 완료: ${id}`);
           try {
             const resp = await fetch(`/api/proxy/recipes/${id}/slug`);

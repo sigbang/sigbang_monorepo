@@ -235,6 +235,15 @@ export class CreateRecipeDto {
   @ValidateNested({ each: true })
   @Type(() => RecipeStepDto)
   steps?: RecipeStepDto[];
+
+  @ApiProperty({
+    required: false,
+    description:
+      '레시피 소스 (예: foodsafety). 내부용 플래그로, 일반 업로드에는 사용하지 않습니다.',
+  })
+  @IsOptional()
+  @IsString()
+  source?: string;
 }
 
 // 레시피 수정 DTO

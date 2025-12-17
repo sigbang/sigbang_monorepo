@@ -200,7 +200,7 @@ export class RecipesService {
       },
     });
 
-    let candidates = await loadCandidates(sevenDaysAgo);
+    const candidates = await loadCandidates(sevenDaysAgo);
     if (candidates.length < Math.min(candidateTake / 2, limit * 5)) {
       const more = await loadCandidates(thirtyDaysAgo);
       const seen = new Set(candidates.map(r => r.id));
@@ -1216,60 +1216,65 @@ export class RecipesService {
   async create(userId: string, createRecipeDto: CreateRecipeDto) {
     const { tags, steps, thumbnailPath, thumbnailCrop, ...recipeData } = createRecipeDto as any;
 
-    // 0) 텍스트 유해성(omni-moderation) 선검사
-    try {
-      const textModeration = await this.moderateRecipeText({
-        title: recipeData.title,
-        description: recipeData.description,
-        ingredients: recipeData.ingredients,
-        steps: Array.isArray(steps)
-          ? (steps as Array<{ order: number; description?: string }>).map((s) => ({
-              order: s.order,
-              description: s.description ?? '',
-            }))
-          : [],
-      });
+    const isFoodsafetySource =
+      recipeData?.source === 'foodsafety' && true;
 
-      if (!textModeration.allowed) {
-        throw new BadRequestException({
-          code: 'TEXT_MODERATION_BLOCKED',
-          message:
-            textModeration.shortFeedback ||
-            (textModeration.isHarmful
-              ? '텍스트에 커뮤니티 가이드라인에 맞지 않는 내용이 포함되어 있어 업로드할 수 없습니다.'
-              : '레시피 형식이 아니거나 품질이 너무 낮아 업로드할 수 없습니다. 제목/재료/조리 단계를 더 구체적으로 작성해 주세요.'),
-        } as any);
-      }
-    } catch (e) {
-      if (e instanceof BadRequestException) {
-        throw e;
-      }
-      this.logger.error(`텍스트 moderation 선검사 실패: ${String((e as any)?.message || e)}`, (e as any)?.stack);
-      // 오류 시에는 업로드를 막지 않고 생성 로직을 계속 진행
-    }
-
-    // 0.5) 이미지 유해성(비전) 선검사: 썸네일 1장 기준
-    if (thumbnailPath) {
+    if (!isFoodsafetySource) {
+      // 0) 텍스트 유해성(omni-moderation) 선검사
       try {
-        const imageModeration = await this.moderateRecipeImages({
-          thumbnailPath,
+        const textModeration = await this.moderateRecipeText({
+          title: recipeData.title,
+          description: recipeData.description,
+          ingredients: recipeData.ingredients,
+          steps: Array.isArray(steps)
+            ? (steps as Array<{ order: number; description?: string }>).map((s) => ({
+                order: s.order,
+                description: s.description ?? '',
+              }))
+            : [],
         });
-        if (!imageModeration.allowed) {
+
+        if (!textModeration.allowed) {
           throw new BadRequestException({
-            code: 'IMAGE_MODERATION_BLOCKED',
+            code: 'TEXT_MODERATION_BLOCKED',
             message:
-              imageModeration.shortFeedback ||
-              (imageModeration.isHarmful
-                ? '이미지에 커뮤니티 가이드라인에 맞지 않는 내용이 포함되어 있어 업로드할 수 없습니다.'
-                : '레시피와 관련 없는 이미지로 판단되어 업로드할 수 없습니다. 음식 사진이나 조리 과정을 보여주는 이미지를 사용해 주세요.'),
+              textModeration.shortFeedback ||
+              (textModeration.isHarmful
+                ? '텍스트에 커뮤니티 가이드라인에 맞지 않는 내용이 포함되어 있어 업로드할 수 없습니다.'
+                : '레시피 형식이 아니거나 품질이 너무 낮아 업로드할 수 없습니다. 제목/재료/조리 단계를 더 구체적으로 작성해 주세요.'),
           } as any);
         }
       } catch (e) {
         if (e instanceof BadRequestException) {
           throw e;
         }
-        this.logger.error(`이미지 moderation 선검사 실패: ${String((e as any)?.message || e)}`, (e as any)?.stack);
+        this.logger.error(`텍스트 moderation 선검사 실패: ${String((e as any)?.message || e)}`, (e as any)?.stack);
         // 오류 시에는 업로드를 막지 않고 생성 로직을 계속 진행
+      }
+
+      // 0.5) 이미지 유해성(비전) 선검사: 썸네일 1장 기준
+      if (thumbnailPath) {
+        try {
+          const imageModeration = await this.moderateRecipeImages({
+            thumbnailPath,
+          });
+          if (!imageModeration.allowed) {
+            throw new BadRequestException({
+              code: 'IMAGE_MODERATION_BLOCKED',
+              message:
+                imageModeration.shortFeedback ||
+                (imageModeration.isHarmful
+                  ? '이미지에 커뮤니티 가이드라인에 맞지 않는 내용이 포함되어 있어 업로드할 수 없습니다.'
+                  : '레시피와 관련 없는 이미지로 판단되어 업로드할 수 없습니다. 음식 사진이나 조리 과정을 보여주는 이미지를 사용해 주세요.'),
+            } as any);
+          }
+        } catch (e) {
+          if (e instanceof BadRequestException) {
+            throw e;
+          }
+          this.logger.error(`이미지 moderation 선검사 실패: ${String((e as any)?.message || e)}`, (e as any)?.stack);
+          // 오류 시에는 업로드를 막지 않고 생성 로직을 계속 진행
+        }
       }
     }
 
