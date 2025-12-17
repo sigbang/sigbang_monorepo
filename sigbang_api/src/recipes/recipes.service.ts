@@ -684,7 +684,6 @@ export class RecipesService {
 
       const resp = await this.openai.chat.completions.create({
         model,
-        temperature: 0.2,
         messages: [
           { role: 'system', content: system },
           { role: 'user', content: user },
