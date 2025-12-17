@@ -39,6 +39,11 @@ const StepsEditor = dynamic(() => import('@/components/StepsEditor'), {
 
 type StepDraft = { order: number; description: string; imagePath?: string | null; imageFile?: File };
 
+type ErrorLike = {
+  response?: { data?: unknown };
+  message?: unknown;
+};
+
 type Props = {
   mode: 'create' | 'edit';
   initial?: RecipeDetail;
@@ -106,19 +111,29 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
 
   const [steps, setSteps] = useState<StepDraft[]>(
     initial?.steps && initial.steps.length > 0
-      ? initial.steps.map((s) => ({ 
-          order: s.order, 
-          description: s.description, 
-          imagePath: getStepImagePath(s.imagePath) 
+      ? initial.steps.map((s) => ({
+          order: s.order,
+          description: s.description,
+          imagePath: getStepImagePath(s.imagePath),
         }))
       : [
           { order: 1, description: '' },
           { order: 2, description: '' },
           { order: 3, description: '' },
-        ]
+        ],
   );
   const [linkTitle, setLinkTitle] = useState(initial?.linkTitle ?? '');
   const [linkUrl, setLinkUrl] = useState(initial?.linkUrl ?? '');
+  const [linkPreview, setLinkPreview] = useState<{
+    url: string;
+    finalUrl?: string;
+    title?: string;
+    description?: string;
+    image?: string;
+    siteName?: string;
+  } | null>(null);
+  const [linkPreviewLoading, setLinkPreviewLoading] = useState(false);
+  const [linkPreviewError, setLinkPreviewError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState<string>('업로드 중...');
 
@@ -131,6 +146,76 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
       });
     }
   }, [stage, steps.length]);
+
+  // Auto-fetch link preview when a valid external URL is entered
+  useEffect(() => {
+    const url = linkUrl.trim();
+    if (!url) {
+      setLinkPreview(null);
+      setLinkPreviewError(null);
+      setLinkPreviewLoading(false);
+      return;
+    }
+    if (!/^https?:\/\/.+/i.test(url)) {
+      setLinkPreview(null);
+      setLinkPreviewError(null);
+      setLinkPreviewLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLinkPreviewLoading(true);
+    setLinkPreviewError(null);
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/link-preview?url=${encodeURIComponent(url)}`, {
+          cache: 'no-store',
+        });
+        if (!res.ok) {
+          throw new Error(await res.text());
+        }
+        const json: unknown = await res.json();
+        const dataContainer = json && typeof json === 'object' && 'data' in json ? (json as { data?: unknown }).data : json;
+        const data =
+          (dataContainer ?? undefined) && typeof dataContainer === 'object'
+            ? (dataContainer as {
+                url?: string;
+                finalUrl?: string;
+                title?: string;
+                description?: string;
+                image?: string;
+                siteName?: string;
+              })
+            : undefined;
+
+        if (!cancelled && data) {
+          setLinkPreview({
+            url: String(data.url ?? url),
+            finalUrl: data.finalUrl ? String(data.finalUrl) : undefined,
+            title: data.title ? String(data.title) : undefined,
+            description: data.description ? String(data.description) : undefined,
+            image: data.image ? String(data.image) : undefined,
+            siteName: data.siteName ? String(data.siteName) : undefined,
+          });
+        }
+      } catch {
+        if (!cancelled) {
+          setLinkPreview(null);
+          setLinkPreviewError('링크 미리보기를 불러오지 못했습니다');
+        }
+      } finally {
+        if (!cancelled) {
+          setLinkPreviewLoading(false);
+        }
+      }
+    }, 600);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [linkUrl]);
 
   // Prefetch StepsEditor chunk while user is on stage 2 to minimize perceived delay
   useEffect(() => {
@@ -160,12 +245,15 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
 
   const getErrorMessage = (e: unknown) => {
     try {
-      const anyErr = e as any;
+      const anyErr = e as ErrorLike;
       const resp = anyErr?.response;
       const data = resp?.data;
-      const msgFromData = typeof data === 'string'
-        ? data
-        : (data && typeof data === 'object' && 'message' in data ? String(data.message) : undefined);
+      const msgFromData =
+        typeof data === 'string'
+          ? data
+          : data && typeof data === 'object' && 'message' in data
+          ? String((data as { message: unknown }).message)
+          : undefined;
       return msgFromData || (anyErr?.message ? String(anyErr.message) : String(e));
     } catch {
       return e instanceof Error ? e.message : String(e);
@@ -244,8 +332,8 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
       };
       await onSubmit(dto);
     } catch (e: unknown) {
-      const anyErr: any = e;
-      const respData = anyErr?.response?.data;
+      const anyErr = e as ErrorLike;
+      const respData = anyErr?.response?.data as { code?: string; message?: string } | undefined;
       const code = respData?.code;
       const msg = respData?.message;
 
@@ -370,6 +458,63 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
                   placeholder="https://..."
                   className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md text-sm"
                 />
+                {(linkPreview || linkPreviewLoading || linkPreviewError) && (
+                  <div className="mt-2">
+                    {linkPreviewLoading && (
+                      <div className="h-20 rounded-md bg-neutral-100 dark:bg-neutral-800 animate-pulse flex items-center justify-center text-xs text-neutral-500">
+                        링크 미리보기를 불러오는 중...
+                      </div>
+                    )}
+                    {!linkPreviewLoading && linkPreview && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const target = linkPreview.finalUrl || linkPreview.url || linkUrl;
+                          if (target) {
+                            window.open(target, '_blank', 'noopener,noreferrer');
+                          }
+                        }}
+                        className="w-full text-left border border-neutral-200 dark:border-neutral-700 rounded-md p-3 flex gap-3 hover:bg-neutral-50 dark:hover:bg-neutral-800/60 transition-colors"
+                      >
+                        {linkPreview.image ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={linkPreview.image}
+                            alt={linkPreview.title || linkPreview.siteName || '링크 미리보기'}
+                            className="w-14 h-14 rounded-md object-cover flex-shrink-0 bg-neutral-200"
+                          />
+                        ) : (
+                          <div className="w-14 h-14 rounded-md bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center text-neutral-500 text-xl">
+                            🔗
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs text-neutral-500 mb-1 line-clamp-1">
+                            {linkPreview.siteName ||
+                              (() => {
+                                try {
+                                  return new URL(linkPreview.finalUrl || linkPreview.url || linkUrl).hostname;
+                                } catch {
+                                  return '';
+                                }
+                              })()}
+                          </div>
+                          <div className="text-sm font-medium line-clamp-1">
+                            {linkPreview.title || linkTitle || linkUrl}
+                          </div>
+                          {linkPreview.description && (
+                            <div className="text-xs text-neutral-500 mt-0.5 line-clamp-2">
+                              {linkPreview.description}
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    )}
+                    {!linkPreviewLoading && !linkPreview && linkPreviewError && (
+                      <div className="text-xs text-red-500 mt-1">{linkPreviewError}</div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </>

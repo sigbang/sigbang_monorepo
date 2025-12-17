@@ -13,6 +13,15 @@ import { useSession } from '@/lib/auth/session';
 import { IconArrowLeft, IconBookmark, IconClock, IconHeart } from '@/components/icons';
 import { deleteRecipe, reportRecipe, RecipeDetail } from '@/lib/api/recipes';
 
+type LinkPreview = {
+  url: string;
+  finalUrl?: string;
+  title?: string;
+  description?: string;
+  image?: string;
+  siteName?: string;
+};
+
 export default function RecipeDetailClient({ id, initial }: { id: string; initial: RecipeDetail | null }) {
   const router = useRouter();
   const { data: recipe, status } = useRecipe(id, initial ?? undefined);
@@ -21,6 +30,10 @@ export default function RecipeDetailClient({ id, initial }: { id: string; initia
   const me = useMyProfile();
   const session = useSession();
 
+  const [linkPreview, setLinkPreview] = useState<LinkPreview | null>(null);
+  const [linkPreviewLoading, setLinkPreviewLoading] = useState(false);
+  const [linkPreviewError, setLinkPreviewError] = useState<string | null>(null);
+
   const imageUrl = useMemo(() => {
     const thumb = recipe?.thumbnailImage || recipe?.thumbnailUrl || recipe?.thumbnailPath;
     if (!thumb) return '';
@@ -28,6 +41,76 @@ export default function RecipeDetailClient({ id, initial }: { id: string; initia
     const clean = thumb.startsWith('/') ? thumb.slice(1) : thumb;
     return `/media/${clean.startsWith('media/') ? clean.slice('media/'.length) : clean}`;
   }, [recipe?.thumbnailImage, recipe?.thumbnailUrl, recipe?.thumbnailPath]);
+
+  useEffect(() => {
+    const url = (recipe?.linkUrl ?? '').trim();
+    if (!url) {
+      setLinkPreview(null);
+      setLinkPreviewError(null);
+      setLinkPreviewLoading(false);
+      return;
+    }
+    if (!/^https?:\/\/.+/i.test(url)) {
+      setLinkPreview(null);
+      setLinkPreviewError(null);
+      setLinkPreviewLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLinkPreviewLoading(true);
+    setLinkPreviewError(null);
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/link-preview?url=${encodeURIComponent(url)}`, {
+          cache: 'no-store',
+        });
+        if (!res.ok) {
+          throw new Error(await res.text());
+        }
+        const json: unknown = await res.json();
+        const dataContainer =
+          json && typeof json === 'object' && 'data' in json ? (json as { data?: unknown }).data : json;
+        const data =
+          dataContainer && typeof dataContainer === 'object'
+            ? (dataContainer as {
+                url?: string;
+                finalUrl?: string;
+                title?: string;
+                description?: string;
+                image?: string;
+                siteName?: string;
+              })
+            : undefined;
+
+        if (!cancelled && data) {
+          setLinkPreview({
+            url: String(data.url ?? url),
+            finalUrl: data.finalUrl ? String(data.finalUrl) : undefined,
+            title: data.title ? String(data.title) : undefined,
+            description: data.description ? String(data.description) : undefined,
+            image: data.image ? String(data.image) : undefined,
+            siteName: data.siteName ? String(data.siteName) : undefined,
+          });
+        }
+      } catch {
+        if (!cancelled) {
+          setLinkPreview(null);
+          setLinkPreviewError('링크 미리보기를 불러오지 못했습니다');
+        }
+      } finally {
+        if (!cancelled) {
+          setLinkPreviewLoading(false);
+        }
+      }
+    }, 500);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [recipe?.linkUrl]);
 
   return (
     <div className="min-h-screen">
@@ -147,9 +230,66 @@ export default function RecipeDetailClient({ id, initial }: { id: string; initia
 
               {recipe.linkUrl && (
                 <div className="mt-6 border-t border-[#eee] pt-4">
-                  <Link href={recipe.linkUrl} target="_blank" className="text-[18px] text-sky-700 underline">
-                    재료 구매 하러 가기{recipe.linkTitle ? ` - ${recipe.linkTitle}` : ''}
-                  </Link>
+                  {linkPreviewLoading && (
+                    <div className="h-24 rounded-lg border border-neutral-200 bg-neutral-50 animate-pulse flex items-center justify-center text-sm text-neutral-500">
+                      링크 미리보기를 불러오는 중...
+                    </div>
+                  )}
+                  {!linkPreviewLoading && linkPreview && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const target = linkPreview.finalUrl || linkPreview.url || recipe.linkUrl;
+                        if (target) {
+                          window.open(target, '_blank', 'noopener,noreferrer');
+                        }
+                      }}
+                      className="w-full text-left border border-neutral-200 rounded-lg p-3 flex gap-3 hover:bg-neutral-50 transition-colors"
+                    >
+                      {linkPreview.image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={linkPreview.image}
+                          alt={linkPreview.title || linkPreview.siteName || '링크 미리보기'}
+                          className="w-16 h-16 rounded-md object-cover flex-shrink-0 bg-neutral-200"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-md bg-neutral-100 flex items-center justify-center text-neutral-500 text-xl">
+                          🔗
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs text-neutral-500 mb-1 line-clamp-1">
+                          {linkPreview.siteName ||
+                            (() => {
+                              try {
+                                return new URL(linkPreview.finalUrl || linkPreview.url || recipe.linkUrl).hostname;
+                              } catch {
+                                return '';
+                              }
+                            })()}
+                        </div>
+                        <div className="text-sm font-medium line-clamp-1">
+                          {linkPreview.title || recipe.linkTitle || recipe.linkUrl}
+                        </div>
+                        {linkPreview.description && (
+                          <div className="text-xs text-neutral-500 mt-0.5 line-clamp-2">
+                            {linkPreview.description}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  )}
+                  {!linkPreviewLoading && !linkPreview && (
+                    <div>
+                      <Link href={recipe.linkUrl} target="_blank" className="text-[18px] text-sky-700 underline">
+                        재료 구매 하러 가기{recipe.linkTitle ? ` - ${recipe.linkTitle}` : ''}
+                      </Link>
+                      {linkPreviewError && (
+                        <div className="mt-1 text-xs text-red-500">{linkPreviewError}</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

@@ -249,4 +249,38 @@ ORDER BY 1 DESC, 2, 3, 4;
 - 피처 기반 랭킹(LightGBM/LogReg) 도입 후 API 리랭크
 - 서피스/포지션별 A/B 대시보드(CTR/저장률) 구축
 
+## 앞으로를 위한 제안 (간단 정리)
+- 이미 베이스가 잘 깔려 있어서, 다음 스텝은 “룰 기반 → 진짜 모델/CF 기반”으로 서서히 갈아타는 것이 좋겠습니다.
 
+1) 단계 1: 이벤트 로그 기반의 간단한 ML 랭커 도입
+recommendation_events + 기존 recipe_counters / 태그 / 저자 / 유저 활동 로그를 합쳐 offline에서 logistic regression / LightGBM 등의 랭킹 모델을 하나 학습.
+지금의 reco/train.py 를 “피처 생성 + 모델 학습 + user_recommendations 스코어 채우기”로 확장.
+reco_model_registry.meta 에 모델 타입/특징/피처 버전을 저장해서 롤백·A/B 용이하게.
+
+2) 단계 2: 협업 필터링 / embedding 기반 candidate 생성
+유저–레시피 implicit feedback(뷰/좋아요/저장/클릭)을 기반으로 MF/embedding 모델을 만들어서 candidate set을 뽑고,
+지금의 휴리스틱/ML 랭커는 re-ranker 역할로 쓰도록 2-stage 구조로 확장.
+3) 단계 3: 모니터링 & 실험 강화
+이미 문서에 있는 CTR/저장률 쿼리(docs/recommendation_curation_guide_ko.md)를 활용해, Metabase/BI에 정기 대시보드를 붙여 배치 모델별 실험 성능을 상시 모니터링.
+expId/expVariant 를 모델 버전과 매핑해서, 모델 교체가 CTR/저장률에 미치는 영향을 빠르게 확인.
+
+4) 단계 4: AGI 초개인화 방향
+장기적으로는
+유저 프로필/세션 컨텍스트/자연어 레시피 설명을 통합한 LLM·embedding 기반 유저/레시피 표현
+현재 구조(모델 레지스트리 + user_recommendations + realtime 랭커)를 유지한 채,
+“후단 re-ranker만 LLM/AGI로 교체” → “전단 candidate generation까지 AGI 화” 순으로 리스크를 나누어 도입하는 전략이 자연스럽습니다.
+
+## 정리
+- 현재 진행 상황은:
+- 로그/스키마/AB/노출·클릭 수집 → 정상적으로 설계·구현됨
+- GitHub Actions + train.py 로 배치 추천 결과 생성 파이프라인 존재
+- API/프론트가 이를 사용하고, 추가로 휴리스틱 개인화 랭커가 이미 동작 중
+- 부족한 점은:
+- train.py 가 아직 협업필터링/콘텐츠 기반 ML 모델이 아니라 단순 인기 Top-N이라는 것
+- recommendation_events 를 활용한 모델 학습·평가 코드가 아직 없음
+- 따라서, “MVP 간단 추천 모델 + 자동 파이프라인” 관점에서는 이미 잘 진행 중이고,
+
+협업필터링/ML·AGI 단계로 확장을 위한 기반도 충분히 준비된 상태라고 보셔도 됩니다.
+원하시면, 다음 단계용으로 “구체적인 피처 정의 + 최소 ML 파이프라인 스ケ치”를 더 자세히 적어드릴게요 (예: 어떤 SQL/피처로 첫 LightGBM 랭커를 만들지 등)
+
+---

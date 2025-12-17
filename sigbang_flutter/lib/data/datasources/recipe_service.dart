@@ -7,6 +7,8 @@ import '../../domain/entities/recipe.dart';
 import '../../domain/entities/recipe_query.dart';
 import '../models/recipe_model.dart';
 import '../models/paginated_recipes_model.dart';
+import '../models/link_preview_model.dart';
+import '../../core/config/env_config.dart';
 import 'api_client.dart';
 import 'analytics_service.dart';
 
@@ -18,7 +20,8 @@ class RecipeService {
     _analytics = AnalyticsService(_apiClient);
   }
 
-  Map<String, String?> _extractExperiment(Response response, {required String headerKey}) {
+  Map<String, String?> _extractExperiment(Response response,
+      {required String headerKey}) {
     try {
       final data = response.data is Map<String, dynamic>
           ? response.data as Map<String, dynamic>
@@ -50,8 +53,14 @@ class RecipeService {
       final data = response.data is Map<String, dynamic>
           ? response.data as Map<String, dynamic>
           : (response.data['data'] ?? response.data) as Map<String, dynamic>;
-      final list = (data['recipes'] ?? data['items'] ?? data['results'] ?? data['list']) as List<dynamic>? ?? const [];
-      final pageInfo = (data['pageInfo'] as Map<String, dynamic>?) ?? (data['pagination'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+      final list = (data['recipes'] ??
+              data['items'] ??
+              data['results'] ??
+              data['list']) as List<dynamic>? ??
+          const [];
+      final pageInfo = (data['pageInfo'] as Map<String, dynamic>?) ??
+          (data['pagination'] as Map<String, dynamic>?) ??
+          <String, dynamic>{};
       final cursor = (pageInfo['nextCursor'] ?? pageInfo['cursor'])?.toString();
       final exp = _extractExperiment(
         response,
@@ -83,6 +92,37 @@ class RecipeService {
         print('⚠️ Failed to log impressions ($surface): $e');
       }
     }
+  }
+
+  /// 외부 링크 미리보기 (Next.js /api/link-preview 사용)
+  Future<LinkPreview?> fetchLinkPreview(String url) async {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty || !trimmed.startsWith('http')) {
+      return null;
+    }
+
+    final endpoint =
+        '${EnvConfig.siteUrl}/api/link-preview?url=${Uri.encodeComponent(trimmed)}';
+
+    try {
+      final dio = Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
+      );
+      final response = await dio.get(endpoint);
+      if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
+        return LinkPreview.fromJson(response.data as Map<String, dynamic>);
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        // 미리보기 실패는 치명적이지 않으므로 로그만 남기고 무시
+        // ignore: avoid_print
+        print('Link preview fetch failed: $e');
+      }
+    }
+    return null;
   }
 
   Future<void> logClick({
