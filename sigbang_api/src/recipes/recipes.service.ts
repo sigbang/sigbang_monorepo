@@ -24,6 +24,9 @@ import {
 } from './dto/recipes.dto';
 import { ConfigService } from '@nestjs/config';
 import { generateSemanticRecipeSlug } from '../common/utils/slug.util';
+
+// 레시피 관련 OpenAI 모델은 코드 상수로 고정
+const OPENAI_RECIPE_MODEL = 'gpt-4o-mini';
 // sharp 로더: CJS/ESM 모두 호환되도록 런타임에서 안전하게 로드
 let _sharp: any | null = null;
 async function getSharp(): Promise<any> {
@@ -109,7 +112,7 @@ export class RecipesService {
       '다음은 사용자가 작성한 레시피 데이터입니다. 레시피 여부와 품질 점수를 평가하세요.\n\n' +
       JSON.stringify(doc, null, 2);
 
-    const model = this.configService.get<string>('OPENAI_RECIPE_MODEL') || 'gpt-5-nano';
+    const model = OPENAI_RECIPE_MODEL;
 
     const resp = await this.openai.chat.completions.create({
       model,
@@ -320,7 +323,7 @@ export class RecipesService {
 
     // OpenAI Responses API (vision) 호출
     try {
-      const model = this.configService.get<string>('OPENAI_RECIPE_MODEL') || 'gpt-5-nano';
+      const model = OPENAI_RECIPE_MODEL;
       const response = await this.openai.chat.completions.create({
         model,
         temperature: 0.7,
@@ -542,9 +545,7 @@ export class RecipesService {
     ];
 
     try {
-      const model =
-        this.configService.get<string>('OPENAI_RECIPE_MODEL') ||
-        'gpt-5-nano';
+      const model = OPENAI_RECIPE_MODEL;
 
       const resp = await this.openai.chat.completions.create({
         model,
@@ -678,12 +679,11 @@ export class RecipesService {
       : `다음 재료 정보를 보기 좋은 텍스트로 변환해줘.\n\n${raw}`;
 
     try {
-      const model =
-        this.configService.get<string>('OPENAI_RECIPE_MODEL')
-        || 'gpt-5-nano';
+      const model = 'gpt-4o-mini';        
 
       const resp = await this.openai.chat.completions.create({
         model,
+        temperature: 0.2,
         messages: [
           { role: 'system', content: system },
           { role: 'user', content: user },
@@ -2128,7 +2128,7 @@ export class RecipesService {
       const isVeryNew = ageHours * 60 < 30; // 30분 이내
       // 단순 카테고리 페널티: 동일 태그 반복을 경감 (MVP: 상수 0)
       const diversityPenalty = 0;
-      let base =
+      const base =
         wNew * decay +
         wEng * engagement +
         wFollow * (isFollowing ? 1 : 0) +
