@@ -20,7 +20,7 @@ export class LinkPreviewService {
   private readonly ttlMs = 6 * 60 * 60 * 1000; // 6시간 캐시
   private readonly logger = new Logger(LinkPreviewService.name);
 
-  async getPreview(rawUrl: string, depth = 0): Promise<LinkPreview> {
+  async getPreview(rawUrl: string): Promise<LinkPreview> {
     const url = rawUrl.trim();
     if (!url) {
       throw new BadRequestException('Missing url');
@@ -62,7 +62,17 @@ export class LinkPreviewService {
           'Accept-Language': 'ko-KR,ko;q=0.9',
           Referer: 'https://www.google.com/',
         },
-      });      
+      });
+
+      this.logger.log({
+        url,
+        fetchTarget: target.toString(),
+        status: res.status,
+        statusText: res.statusText,
+        redirected: res.redirected,
+        finalUrl: res.url,
+        contentType: res.headers.get('content-type') ?? null,
+      });
     } catch (e) {
       clearTimeout(timer);
       throw new BadRequestException('Upstream fetch failed');
@@ -72,6 +82,11 @@ export class LinkPreviewService {
 
     const finalUrl = res.url;
     const contentType = res.headers.get('content-type') ?? '';
+
+    this.logger.log({
+        finalUrl,
+        contentType
+      });
 
     // HTML이 아니면 최소 정보만
     if (!contentType.toLowerCase().includes('text/html')) {
@@ -83,34 +98,6 @@ export class LinkPreviewService {
     let html = await res.text();
     if (html.length > 200_000) {
       html = html.slice(0, 200_000);
-    }
-
-    // 쿠팡 브릿지 랜딩 페이지라면 redirectWebUrl을 파싱해서 한 번 더 시도
-    const coupangRedirectUrl =
-      depth < 2 ? this.extractCoupangRedirectUrl(html) : undefined;
-    if (coupangRedirectUrl) {
-      this.logger.log({
-        url,
-        finalUrl,
-        coupangRedirectUrl,
-      });
-
-      try {
-        const nested = await this.getPreview(coupangRedirectUrl, depth + 1);
-        // 원래 짧은 URL 키에도 결과를 캐시해 둔다
-        this.cache.set(cacheKey, {
-          preview: nested,
-          expiresAt: now + this.ttlMs,
-        });
-        return nested;
-      } catch (e) {
-        this.logger.warn(
-          `Failed to follow Coupang redirect for ${url}: ${String(
-            (e as Error).message ?? e,
-          )}`,
-        );
-        // 실패하면 그냥 현재 HTML 기준으로 계속 진행
-      }
     }
 
     const ogTitle = this.extractMeta(html, 'og:title');
@@ -139,6 +126,10 @@ export class LinkPreviewService {
           lowerHtml.includes("you don't have permission") ||
           lowerHtml.includes('you are not authorized') ||
           lowerHtml.includes('access to this resource is denied')));
+
+     this.logger.log({
+        looksAccessDenied
+      });
 
     if (looksAccessDenied) {
       title = undefined;
@@ -198,27 +189,5 @@ export class LinkPreviewService {
   private extractTitle(html: string): string | undefined {
     const match = html.match(/<title[^>]*>([^<]*)<\/title>/i);
     return match?.[1]?.trim() || undefined;
-  }
-
-  /**
-   * 쿠팡 마케팅 브릿지 랜딩 페이지 HTML에서 redirectWebUrl 값을 추출한다.
-   * 예시: var redirectWebUrl = 'https\\x3A\\x2F\\x2Fwww\\x2Ecoupang\\x2Ecom...';
-   */
-  private extractCoupangRedirectUrl(html: string): string | undefined {
-    if (!html.includes('redirectWebUrl')) return undefined;
-
-    const match = html.match(
-      /redirectWebUrl\s*=\s*'([^']+)'/,
-    );
-    if (!match) return undefined;
-
-    const raw = match[1];
-    // \xNN 시퀀스를 실제 문자로 디코딩 (예: \x3A -> ':', \x2F -> '/')
-    const decoded = raw.replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex: string) =>
-      String.fromCharCode(parseInt(hex, 16)),
-    );
-
-    // 혹시나 남아있는 역슬래시는 한 번 정리
-    return decoded.replace(/\\\//g, '/');
   }
 }
