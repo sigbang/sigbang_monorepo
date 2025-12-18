@@ -56,13 +56,13 @@ export class LinkPreviewService {
     try {
       res = await fetch(target.toString(), {
         headers: {
-          'User-Agent':
-            'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile Safari/604.1',
-          Accept: 'text/html',
-          'Accept-Language': 'ko-KR,ko;q=0.9',
-          Referer: 'https://www.google.com/',
+          // 명시적으로 서비스 기반 프리뷰 봇임을 알린다
+          'User-Agent': 'SigbangLinkPreview/1.0 (+https://sigbang.com/bot)',
+          Accept:
+            'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
         },
-      });      
+      });
     } catch (e) {
       clearTimeout(timer);
       throw new BadRequestException('Upstream fetch failed');
