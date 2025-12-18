@@ -19,13 +19,6 @@ const IngredientsEditor = dynamic(() => import('@/components/IngredientsEditor')
   ),
 });
 
-const DiscreteSlider = dynamic(() => import('@/components/DiscreteSlider'), {
-  ssr: false,
-  loading: () => (
-    <div className="h-6 w-full rounded bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
-  ),
-});
-
 const StepsEditor = dynamic(() => import('@/components/StepsEditor'), {
   ssr: false,
   loading: () => (
@@ -96,7 +89,7 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
   const [thumbnailPath, setThumbPath] = useState<string | undefined>(getThumbnailPath(initial));
   const [thumbnailFile, setThumbFile] = useState<File | undefined>(undefined);
   const [thumbnailCrop, setThumbCrop] = useState<{ x: number; y: number; width: number; height: number } | undefined>(undefined);
-  const [cookingTime, setCookingTime] = useState<number | undefined>(initial?.cookingTime ?? 30);
+  const [cookingTime] = useState<number | undefined>(initial?.cookingTime ?? 30);
   // Helper function to resolve step image paths
   const getStepImagePath = (imagePath?: string | null) => {
     if (!imagePath) return undefined;
@@ -138,8 +131,8 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
   const [busyLabel, setBusyLabel] = useState<string>('업로드 중...');
 
   useEffect(() => {
-    // When switching to stage 3, ensure at least 3 steps exist for better UX
-    if (stage === 3 && steps.length < 3) {
+    // When switching to final stage, ensure at least 3 steps exist for better UX
+    if (stage === 4 && steps.length < 3) {
       setSteps((prev) => {
         const toAdd = Array.from({ length: 3 - prev.length }, (_v, i) => ({ order: prev.length + i + 1, description: '' }));
         return [...prev, ...toAdd];
@@ -219,7 +212,7 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
 
   // Prefetch StepsEditor chunk while user is on stage 2 to minimize perceived delay
   useEffect(() => {
-    if (stage === 2) {
+    if (stage === 3) {
       import('@/components/StepsEditor');
     }
   }, [stage]);
@@ -238,8 +231,9 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
 
   const canProceed = (fromStage: number) => {
     if (fromStage === 1) return stage1Errors.length === 0;
-    if (fromStage === 2) return stage2Errors.length === 0;
-    if (fromStage === 3) return stage3Errors.length === 0;
+    // stage 2 (재료 입력만)에는 별도의 검증 없음
+    if (fromStage === 3) return stage2Errors.length === 0; // 재료 링크
+    // stage 4는 Next가 없고 제출 단계에서만 검증
     return true;
   };
 
@@ -263,11 +257,11 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
   const handleNext = () => {
     if (!canProceed(stage)) {
       if (stage === 1) setShowStage1Errors(true);
-      else if (stage === 2) setShowStage2Errors(true);
-      else setShowStage3Errors(true);
+      else if (stage === 3) setShowStage2Errors(true);
+      else if (stage === 4) setShowStage3Errors(true);
       return;
     }
-    if (stage < 3) setStage(stage + 1);
+    if (stage < 4) setStage(stage + 1);
   };
 
   const handlePrev = () => {
@@ -351,7 +345,7 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
   useHotkeys({
     'Ctrl+Enter': (e) => {
       e.preventDefault();
-      if (stage === 3) submit();
+      if (stage === 4) submit();
       else handleNext();
     },
     'Escape': (e) => {
@@ -361,7 +355,7 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
   });
 
   const card = (
-    <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-[820px] max-h-[90vh] overflow-hidden flex flex-col relative">
+    <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-[640px] max-h-[90vh] overflow-hidden flex flex-col relative">
       <div className="border-b border-neutral-200 dark:border-neutral-800 p-2">
         <div className="relative mb-2">
           <h1 id="recipe-form-title" className="text-xl font-semibold text-center">
@@ -432,34 +426,48 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
         {stage === 2 && (
           <>
             <IngredientsEditor value={ingredients} onChange={setIngr} />
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">조리시간</label>
-                <DiscreteSlider marks={[10, 30, 60]} value={cookingTime ?? 30} onChange={setCookingTime} />
-              </div>
-            </div>
+          </>
+        )}
+
+        {stage === 3 && (
+          <>
             <div>
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-medium">재료 링크 (선택) </h3>
+                <h3 className="text-sm font-medium">
+                  재료 링크 <span className="text-xs text-neutral-400">(선택)</span>
+                </h3>
                 {showStage2Errors && stage2Errors.find((e) => e.field === 'linkUrl') && (
                   <span className="text-xs text-red-600 dark:text-red-400">{stage2Errors.find((e) => e.field === 'linkUrl')!.message}</span>
                 )}
               </div>
               <div className="space-y-2">
-                <input
-                  value={linkTitle}
-                  onChange={(e) => setLinkTitle(e.target.value)}
-                  placeholder="재료 구매하러 가기"
-                  className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md text-sm"
-                />
-                <input
-                  value={linkUrl}
-                  onChange={(e) => setLinkUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md text-sm"
-                />
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300">링크</label>
+                  <input
+                    value={linkUrl}
+                    onChange={(e) => setLinkUrl(e.target.value)}
+                    placeholder="https://예시.com/product/123"
+                    className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300">설명</label>
+                  <input
+                    value={linkTitle}
+                    onChange={(e) => setLinkTitle(e.target.value)}
+                    placeholder="예: 양념장에 쓰는 고춧가루예요"
+                    className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md text-sm"
+                  />
+                </div>
+                <ul className="mt-1 space-y-0.5 text-[12px] text-neutral-500 dark:text-neutral-400">
+                  <li>· 재료 구매 링크를 추가 할 수 있어요.</li>
+                  <li>· URL 형태만 링크만 지원합니다.</li>
+                  <li>· 레시피와 관련된 재료/도구만 등록해 주세요.</li>
+                  <li>· 링크를 통한 혜택 및 책임은 작성자에게 귀속됩니다.</li>
+                </ul>
                 {(linkPreview || linkPreviewLoading || linkPreviewError) && (
-                  <div className="mt-2">
+                  <div className="mt-3">
+                    <label className="block mb-2 text-xs font-medium text-neutral-700 dark:text-neutral-300">미리보기</label>
                     {linkPreviewLoading && (
                       <div className="h-20 rounded-md bg-neutral-100 dark:bg-neutral-800 animate-pulse flex items-center justify-center text-xs text-neutral-500">
                         링크 미리보기를 불러오는 중...
@@ -520,7 +528,7 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
           </>
         )}
 
-        {stage === 3 && (
+        {stage === 4 && (
           <>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium">조리 순서</h3>
@@ -560,7 +568,7 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
           >
             {stage === 1 ? '취소' : '이전'}
           </button>
-          {stage < 3 ? (
+          {stage < 4 ? (
             <button
               type="button"
               onClick={handleNext}

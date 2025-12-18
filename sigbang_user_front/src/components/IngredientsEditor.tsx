@@ -33,7 +33,7 @@ export default function IngredientsEditor({ value, onChange }: IngredientsEditor
 
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between">
+      <div className="mt-3 mb-1 flex items-center justify-between">
         <label htmlFor="ingredients" className="block text-sm font-medium">
           재료
         </label>
@@ -54,10 +54,10 @@ export default function IngredientsEditor({ value, onChange }: IngredientsEditor
 계란 2개
 간장 1큰술
 참기름 약간`}
-        rows={8}
+        rows={14}
         className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md font-mono text-sm"
       />
-      <div className="mt-1 text-xs text-neutral-500">{lineCount}개 재료</div>
+      <div className="mt-1 mb-2 text-sm text-neutral-500">{lineCount}개 재료</div>
     </div>
   );
 }

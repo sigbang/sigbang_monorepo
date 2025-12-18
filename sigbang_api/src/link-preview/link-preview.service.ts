@@ -62,17 +62,7 @@ export class LinkPreviewService {
           'Accept-Language': 'ko-KR,ko;q=0.9',
           Referer: 'https://www.google.com/',
         },
-      });
-
-      this.logger.log({
-        url,
-        fetchTarget: target.toString(),
-        status: res.status,
-        statusText: res.statusText,
-        redirected: res.redirected,
-        finalUrl: res.url,
-        contentType: res.headers.get('content-type') ?? null,
-      });
+      });      
     } catch (e) {
       clearTimeout(timer);
       throw new BadRequestException('Upstream fetch failed');
@@ -82,13 +72,7 @@ export class LinkPreviewService {
 
     const finalUrl = res.url;
     const contentType = res.headers.get('content-type') ?? '';
-
-    this.logger.log({
-        finalUrl,
-        contentType
-      });
-
-    // HTML이 아니면 최소 정보만
+// HTML이 아니면 최소 정보만
     if (!contentType.toLowerCase().includes('text/html')) {
       const preview: LinkPreview = { url, finalUrl };
       this.cache.set(cacheKey, { preview, expiresAt: now + this.ttlMs });
@@ -127,10 +111,7 @@ export class LinkPreviewService {
           lowerHtml.includes('you are not authorized') ||
           lowerHtml.includes('access to this resource is denied')));
 
-     this.logger.log({
-        looksAccessDenied
-      });
-
+     
     if (looksAccessDenied) {
       title = undefined;
       description = undefined;
