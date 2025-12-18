@@ -228,8 +228,15 @@ export default function RecipeDetailClient({ id, initial }: { id: string; initia
                 </div>
               </div>
 
+              {recipe.ingredients && (
+                <section className="mt-6">
+                  <h2 className="text-[22px] font-semibold">재료</h2>
+                  <div className="mt-2 text-[18px] text-[#333] whitespace-pre-wrap">{recipe.ingredients}</div>
+                </section>
+              )}
+
               {recipe.linkUrl && (
-                <div className="mt-6 border-t border-[#eee] pt-4">
+                <div className="mt-6">
                   {linkPreviewLoading && (
                     <div className="h-24 rounded-lg border border-neutral-200 bg-neutral-50 animate-pulse flex items-center justify-center text-sm text-neutral-500">
                       링크 미리보기를 불러오는 중...
@@ -244,7 +251,7 @@ export default function RecipeDetailClient({ id, initial }: { id: string; initia
                           window.open(target, '_blank', 'noopener,noreferrer');
                         }
                       }}
-                      className="w-full text-left border border-neutral-200 rounded-lg p-3 flex gap-3 hover:bg-neutral-50 transition-colors"
+                      className="w-full text-left border border-neutral-200 rounded-lg p-3 flex gap-3 hover:bg-neutral-100 transition-colors cursor-pointer"
                     >
                       {linkPreview.image ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -283,25 +290,21 @@ export default function RecipeDetailClient({ id, initial }: { id: string; initia
                   {!linkPreviewLoading && !linkPreview && (
                     <div>
                       <Link href={recipe.linkUrl} target="_blank" className="text-[18px] text-sky-700 underline">
-                        재료 구매 하러 가기{recipe.linkTitle ? ` - ${recipe.linkTitle}` : ''}
+                        외부 링크 이동 {recipe.linkTitle ? ` - ${recipe.linkTitle}` : ''}
                       </Link>
                       {linkPreviewError && (
                         <div className="mt-1 text-xs text-red-500">{linkPreviewError}</div>
                       )}
                     </div>
                   )}
+                  <p className="mt-2 text-sm text-neutral-500">
+                    * 이 링크는 레시피 작성자가 등록한 외부 링크입니다. (광고)가 포함되어 있을 수 있으며 식방은 판매 및 제공에 관여하지 않습니다.
+                  </p>
                 </div>
-              )}
-
-              {recipe.ingredients && (
-                <section className="mt-6">
-                  <h2 className="text-[22px] font-semibold">재료</h2>
-                  <div className="mt-2 text-[18px] text-[#333] whitespace-pre-wrap">{recipe.ingredients}</div>
-                </section>
-              )}
+              )}              
 
               {recipe.steps && recipe.steps.length > 0 && (
-                <section className="mt-8">
+                <section className="mt-8 border-t border-[#eee] pt-4">
                   <h2 className="text-[22px] font-semibold">요리 순서</h2>
                   <ol className="mt-3 flex flex-col gap-12">
                     {recipe.steps.map((s) => {
