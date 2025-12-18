@@ -54,14 +54,24 @@ export class LinkPreviewService {
 
     let res: Response;
     try {
-      res = await fetch(target.toString(), {        
+      res = await fetch(target.toString(), {
         headers: {
-    'User-Agent':
-      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile Safari/604.1',
-    'Accept': 'text/html',
-    'Accept-Language': 'ko-KR,ko;q=0.9',
-    'Referer': 'https://www.google.com/',
-  },
+          'User-Agent':
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile Safari/604.1',
+          Accept: 'text/html',
+          'Accept-Language': 'ko-KR,ko;q=0.9',
+          Referer: 'https://www.google.com/',
+        },
+      });
+
+      this.logger.log({
+        url,
+        fetchTarget: target.toString(),
+        status: res.status,
+        statusText: res.statusText,
+        redirected: res.redirected,
+        finalUrl: res.url,
+        contentType: res.headers.get('content-type') ?? null,
       });
     } catch (e) {
       clearTimeout(timer);
@@ -91,17 +101,6 @@ export class LinkPreviewService {
     const ogSiteName = this.extractMeta(html, 'og:site_name');
     const metaDesc = this.extractNamedMeta(html, 'description');
     const titleTag = this.extractTitle(html);
-
-    this.logger.log({
-      url,
-      finalUrl,
-      ogTitle,
-      ogDesc,
-      ogImage,
-      ogSiteName,
-      metaDesc,
-      titleTag,
-    });
 
     const host = target.hostname;
 
