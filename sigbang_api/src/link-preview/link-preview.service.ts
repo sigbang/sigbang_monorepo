@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 
 export type LinkPreview = {
   url: string;
@@ -18,6 +18,7 @@ type CacheEntry = {
 export class LinkPreviewService {
   private readonly cache = new Map<string, CacheEntry>();
   private readonly ttlMs = 6 * 60 * 60 * 1000; // 6시간 캐시
+  private readonly logger = new Logger(LinkPreviewService.name);
 
   async getPreview(rawUrl: string): Promise<LinkPreview> {
     const url = rawUrl.trim();
@@ -53,9 +54,7 @@ export class LinkPreviewService {
 
     let res: Response;
     try {
-      res = await fetch(target.toString(), {
-        redirect: 'follow',
-        signal: controller.signal,
+      res = await fetch(target.toString(), {        
         headers: {
     'User-Agent':
       'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile Safari/604.1',
@@ -93,12 +92,23 @@ export class LinkPreviewService {
     const metaDesc = this.extractNamedMeta(html, 'description');
     const titleTag = this.extractTitle(html);
 
+    this.logger.log({
+      url,
+      finalUrl,
+      ogTitle,
+      ogDesc,
+      ogImage,
+      ogSiteName,
+      metaDesc,
+      titleTag,
+    });
+
     const host = target.hostname;
 
     let title = ogTitle || titleTag || undefined;
     let description = ogDesc || metaDesc || undefined;
     let image = ogImage || undefined;
-    let siteName = ogSiteName || host || undefined;
+    const siteName = ogSiteName || host || undefined;
 
     // Access Denied / 차단 페이지 감지
     const lowerTitle = (title ?? '').toLowerCase();
