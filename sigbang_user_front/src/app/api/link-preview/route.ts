@@ -1,51 +1,7 @@
-export const runtime = 'nodejs';
-
 import { NextRequest, NextResponse } from 'next/server';
+import { ENV } from '@/lib/env';
 
-type LinkPreview = {
-  url: string;
-  finalUrl?: string;
-  title?: string;
-  description?: string;
-  image?: string;
-  siteName?: string;
-};
-
-const MAX_HTML_BYTES = 200_000;
-
-function isSupportedProtocol(proto: string) {
-  return proto === 'http:' || proto === 'https:';
-}
-
-function isBlockedHost(host: string) {
-  const lower = host.toLowerCase();
-  if (lower === 'localhost' || lower === '127.0.0.1') return true;
-  if (lower.startsWith('10.') || lower.startsWith('192.168.') || lower.startsWith('172.16.')) return true;
-  return false;
-}
-
-function extractMeta(html: string, key: string): string | undefined {
-  const re = new RegExp(`<meta[^>]+property=["']${key}["'][^>]*>`, 'i');
-  const match = html.match(re);
-  if (!match) return undefined;
-  const tag = match[0];
-  const contentMatch = tag.match(/content=["']([^"']*)["']/i);
-  return contentMatch?.[1]?.trim() || undefined;
-}
-
-function extractNamedMeta(html: string, name: string): string | undefined {
-  const re = new RegExp(`<meta[^>]+name=["']${name}["'][^>]*>`, 'i');
-  const match = html.match(re);
-  if (!match) return undefined;
-  const tag = match[0];
-  const contentMatch = tag.match(/content=["']([^"']*)["']/i);
-  return contentMatch?.[1]?.trim() || undefined;
-}
-
-function extractTitle(html: string): string | undefined {
-  const match = html.match(/<title[^>]*>([^<]*)<\/title>/i);
-  return match?.[1]?.trim() || undefined;
-}
+export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -55,81 +11,21 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ message: 'Missing url' }, { status: 400 });
   }
 
-  let targetUrl: URL;
-  try {
-    targetUrl = new URL(rawUrl);
-  } catch {
-    return NextResponse.json({ message: 'Invalid url' }, { status: 400 });
-  }
+  const apiBase =
+    ENV.API_BASE_URL && /^https?:/i.test(ENV.API_BASE_URL)
+      ? ENV.API_BASE_URL
+      : 'https://api.sigbang.com';
 
-  if (!isSupportedProtocol(targetUrl.protocol)) {
-    return NextResponse.json({ message: 'Unsupported protocol' }, { status: 400 });
-  }
+  const backendUrl = `${apiBase}/link-preview?url=${encodeURIComponent(rawUrl)}`;
 
-  if (isBlockedHost(targetUrl.hostname)) {
-    return NextResponse.json({ message: 'Blocked host' }, { status: 400 });
-  }
+  const res = await fetch(backendUrl, { cache: 'no-store' });
 
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10000);
+  const body = await res.text();
 
-    const res = await fetch(targetUrl.toString(), {
-      redirect: 'follow',
-      signal: controller.signal,
-      headers: {
-        // 브라우저와 최대한 비슷한 UA/언어 헤더로 접근
-        'user-agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
-          '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'accept':
-          'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'accept-language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
-      },
-    });
-
-    clearTimeout(timer);
-
-    const finalUrl = res.url;
-    const contentType = res.headers.get('content-type') ?? '';
-
-    if (!contentType.toLowerCase().includes('text/html')) {
-      const fallback: LinkPreview = {
-        url: rawUrl,
-        finalUrl,
-      };
-      return NextResponse.json({ data: fallback }, { status: 200 });
-    }
-
-    let html = await res.text();
-    if (html.length > MAX_HTML_BYTES) {
-      html = html.slice(0, MAX_HTML_BYTES);
-    }
-
-    const ogTitle = extractMeta(html, 'og:title');
-    const ogDesc = extractMeta(html, 'og:description');
-    const ogImage = extractMeta(html, 'og:image');
-    const ogSiteName = extractMeta(html, 'og:site_name');
-
-    const metaDesc = extractNamedMeta(html, 'description');
-    const titleTag = extractTitle(html);
-
-    const preview: LinkPreview = {
-      url: rawUrl,
-      finalUrl,
-      title: ogTitle || titleTag || undefined,
-      description: ogDesc || metaDesc || undefined,
-      image: ogImage || undefined,
-      siteName: ogSiteName || undefined,
-    };
-
-    return NextResponse.json({ data: preview }, { status: 200 });
-  } catch (err: any) {
-    if (err?.name === 'AbortError') {
-      return NextResponse.json({ message: 'Timeout fetching url' }, { status: 504 });
-    }
-    return NextResponse.json({ message: 'Failed to fetch url', detail: String(err?.message || err) }, { status: 502 });
-  }
+  return new NextResponse(body, {
+    status: res.status,
+    headers: {
+      'content-type': res.headers.get('content-type') ?? 'application/json',
+    },
+  });
 }
-
-

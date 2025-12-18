@@ -17,6 +17,7 @@ import { TrendCronModule } from './jobs/trend-cron.module';
 import { CommonModule } from './common/common.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { EventsModule } from './events/events.module';
+import { LinkPreviewModule } from './link-preview/link-preview.module';
 
 @Module({
   imports: [
@@ -47,8 +48,9 @@ import { EventsModule } from './events/events.module';
     CommonModule,
     FeedbackModule,
     EventsModule,
+    LinkPreviewModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {} 
+export class AppModule {}
