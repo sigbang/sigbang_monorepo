@@ -83,6 +83,11 @@ export class LinkPreviewService {
     const finalUrl = res.url;
     const contentType = res.headers.get('content-type') ?? '';
 
+    this.logger.log({
+        finalUrl,
+        contentType
+      });
+
     // HTML이 아니면 최소 정보만
     if (!contentType.toLowerCase().includes('text/html')) {
       const preview: LinkPreview = { url, finalUrl };
@@ -121,6 +126,10 @@ export class LinkPreviewService {
           lowerHtml.includes("you don't have permission") ||
           lowerHtml.includes('you are not authorized') ||
           lowerHtml.includes('access to this resource is denied')));
+
+     this.logger.log({
+        looksAccessDenied
+      });
 
     if (looksAccessDenied) {
       title = undefined;
