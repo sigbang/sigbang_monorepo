@@ -49,6 +49,21 @@ resource "aws_autoscaling_policy" "api_cpu_target_scaling" {
   }
 }
 
+# Target tracking scaling policy for Web ASG (CPU based)
+resource "aws_autoscaling_policy" "web_cpu_target_scaling" {
+  name                   = "${var.web_project_name}-cpu-target-scaling"
+  autoscaling_group_name = aws_autoscaling_group.web_asg.name
+  policy_type            = "TargetTrackingScaling"
+
+  target_tracking_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ASGAverageCPUUtilization"
+    }
+    target_value     = 50
+    disable_scale_in = false
+  }
+}
+
 ##########################################
 # High CPU auto-recovery (Alarm -> EventBridge -> Lambda)
 ##########################################
@@ -68,6 +83,26 @@ resource "aws_cloudwatch_metric_alarm" "api_cpu_hot" {
 
   dimensions = {
     AutoScalingGroupName = aws_autoscaling_group.api_asg.name
+  }
+
+  alarm_actions = [aws_sns_topic.ops_alerts.arn]
+}
+
+# Additional alarm for prolonged high CPU on Web ASG (used to trigger Lambda)
+resource "aws_cloudwatch_metric_alarm" "web_cpu_hot" {
+  alarm_name          = "${var.web_project_name}-cpu-hot"
+  namespace           = "AWS/EC2"
+  metric_name         = "CPUUtilization"
+  statistic           = "Average"
+  period              = 60
+  evaluation_periods  = 10
+  threshold           = 80
+  comparison_operator = "GreaterThanThreshold"
+
+  alarm_description = "Web Auto Scaling Group average CPU > 80% for 10 minutes (potential saturation)"
+
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.web_asg.name
   }
 
   alarm_actions = [aws_sns_topic.ops_alerts.arn]
@@ -145,6 +180,27 @@ resource "aws_lambda_function" "terminate_hot_instance" {
   depends_on = [aws_iam_role_policy.lambda_terminate_hot_instance_policy]
 }
 
+resource "aws_lambda_function" "terminate_hot_web_instance" {
+  function_name = "${var.web_project_name}-terminate-hot-instance"
+  role          = aws_iam_role.lambda_terminate_hot_instance_role.arn
+  filename      = data.archive_file.terminate_hot_instance.output_path
+  handler       = "terminate_hot_instance.handler"
+  runtime       = "python3.11"
+  timeout       = 60
+  memory_size   = 128
+
+  environment {
+    variables = {
+      ASG_NAME       = aws_autoscaling_group.web_asg.name
+      CPU_THRESHOLD  = "95"   # per-instance CPU threshold for termination
+      LOOKBACK_MIN   = "10"   # minutes to look back for CPU stats
+      MIN_IN_SERVICE = "1"    # web ASG min_size is 1
+    }
+  }
+
+  depends_on = [aws_iam_role_policy.lambda_terminate_hot_instance_policy]
+}
+
 resource "aws_cloudwatch_event_rule" "cpu_hot_instance_rule" {
   name        = "${var.project_name}-cpu-hot-instance-rule"
   description = "Trigger Lambda to terminate hottest instance when API ASG CPU is hot for a prolonged period"
@@ -161,10 +217,32 @@ resource "aws_cloudwatch_event_rule" "cpu_hot_instance_rule" {
   })
 }
 
+resource "aws_cloudwatch_event_rule" "web_cpu_hot_instance_rule" {
+  name        = "${var.web_project_name}-cpu-hot-instance-rule"
+  description = "Trigger Lambda to terminate hottest instance when Web ASG CPU is hot for a prolonged period"
+
+  event_pattern = jsonencode({
+    "source" : ["aws.cloudwatch"],
+    "detail-type" : ["CloudWatch Alarm State Change"],
+    "detail" : {
+      "alarmName" : [aws_cloudwatch_metric_alarm.web_cpu_hot.alarm_name],
+      "state" : {
+        "value" : ["ALARM"]
+      }
+    }
+  })
+}
+
 resource "aws_cloudwatch_event_target" "cpu_hot_instance_target" {
   rule      = aws_cloudwatch_event_rule.cpu_hot_instance_rule.name
   target_id = "lambda-terminate-hot-instance"
   arn       = aws_lambda_function.terminate_hot_instance.arn
+}
+
+resource "aws_cloudwatch_event_target" "web_cpu_hot_instance_target" {
+  rule      = aws_cloudwatch_event_rule.web_cpu_hot_instance_rule.name
+  target_id = "lambda-terminate-hot-web-instance"
+  arn       = aws_lambda_function.terminate_hot_web_instance.arn
 }
 
 resource "aws_lambda_permission" "terminate_hot_instance_eventbridge" {
@@ -173,6 +251,14 @@ resource "aws_lambda_permission" "terminate_hot_instance_eventbridge" {
   function_name = aws_lambda_function.terminate_hot_instance.arn
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.cpu_hot_instance_rule.arn
+}
+
+resource "aws_lambda_permission" "terminate_hot_web_instance_eventbridge" {
+  statement_id  = "AllowExecutionFromEventBridgeTerminateHotWebInstance"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.terminate_hot_web_instance.arn
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.web_cpu_hot_instance_rule.arn
 }
 
 # API ASG average CPU > 70% for 3 minutes
@@ -190,6 +276,26 @@ resource "aws_cloudwatch_metric_alarm" "api_cpu_high" {
 
   dimensions = {
     AutoScalingGroupName = aws_autoscaling_group.api_asg.name
+  }
+
+  alarm_actions = [aws_sns_topic.ops_alerts.arn]
+}
+
+# Web ASG average CPU > 70% for 3 minutes
+resource "aws_cloudwatch_metric_alarm" "web_cpu_high" {
+  alarm_name          = "${var.web_project_name}-cpu-high"
+  namespace           = "AWS/EC2"
+  metric_name         = "CPUUtilization"
+  statistic           = "Average"
+  period              = 60
+  evaluation_periods  = 3
+  threshold           = 70
+  comparison_operator = "GreaterThanThreshold"
+
+  alarm_description = "Web Auto Scaling Group average CPU > 70% for 3 minutes"
+
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.web_asg.name
   }
 
   alarm_actions = [aws_sns_topic.ops_alerts.arn]
@@ -213,6 +319,63 @@ resource "aws_cloudwatch_metric_alarm" "api_alb_5xx_high" {
   }
 
   alarm_actions = [aws_sns_topic.ops_alerts.arn]
+}
+
+##########################################
+# GuardDuty Detector + Alerts
+##########################################
+
+# Enable GuardDuty for this account/region
+resource "aws_guardduty_detector" "main" {
+  enable = true
+}
+
+# Forward medium+ severity GuardDuty findings to ops_alerts SNS
+resource "aws_cloudwatch_event_rule" "guardduty_findings" {
+  name        = "${var.project_name}-guardduty-findings"
+  description = "Forward medium and high severity GuardDuty findings to SNS ops alerts"
+
+  event_pattern = jsonencode({
+    "source" : ["aws.guardduty"],
+    "detail-type" : ["GuardDuty Finding"],
+    "detail" : {
+      "severity" : [
+        {
+          "numeric" : [">=", 4]
+        }
+      ]
+    }
+  })
+}
+
+resource "aws_cloudwatch_event_target" "guardduty_to_sns" {
+  rule      = aws_cloudwatch_event_rule.guardduty_findings.name
+  target_id = "sns-ops-alerts"
+  arn       = aws_sns_topic.ops_alerts.arn
+}
+
+# Allow EventBridge (CloudWatch Events) to publish to the ops alerts SNS topic
+resource "aws_sns_topic_policy" "ops_alerts_eventbridge" {
+  arn = aws_sns_topic.ops_alerts.arn
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Principal = {
+          Service = "events.amazonaws.com"
+        },
+        Action   = "sns:Publish",
+        Resource = aws_sns_topic.ops_alerts.arn,
+        Condition = {
+          ArnEquals = {
+            "aws:SourceArn" = aws_cloudwatch_event_rule.guardduty_findings.arn
+          }
+        }
+      }
+    ]
+  })
 }
 
 

@@ -37,7 +37,7 @@ elif command -v yum >/dev/null 2>&1; then
   rpm -Uvh /tmp/amazon-cloudwatch-agent.rpm
 fi
 
-# Configure CloudWatch Agent to ship userdata logs
+# Configure CloudWatch Agent to ship userdata logs and Docker container logs
 cat >/opt/aws/amazon-cloudwatch-agent/bin/sigbang-web-config.json <<'EOF'
 {
   "logs": {
@@ -48,6 +48,11 @@ cat >/opt/aws/amazon-cloudwatch-agent/bin/sigbang-web-config.json <<'EOF'
             "file_path": "/var/log/userdata-web.log",
             "log_group_name": "/sigbang/web/userdata",
             "log_stream_name": "{instance_id}"
+          },
+          {
+            "file_path": "/var/lib/docker/containers/*/*.log",
+            "log_group_name": "/sigbang/web/app",
+            "log_stream_name": "{instance_id}/docker"
           }
         ]
       }

@@ -53,28 +53,6 @@ resource "aws_security_group" "alb_sg" {
 # SG Rules (모두 분리)
 ###########################################
 
-resource "aws_security_group_rule" "api_ssh" {
-  count             = var.manage_sg_rules ? 1 : 0
-  type              = "ingress"
-  description       = "SSH from my IP"
-  protocol          = "tcp"
-  from_port         = 22
-  to_port           = 22
-  cidr_blocks       = [var.my_ip_cidr]
-  security_group_id = aws_security_group.api_sg.id
-}
-
-resource "aws_security_group_rule" "api_ssh_eic" {
-  count             = var.manage_sg_rules ? 1 : 0
-  type              = "ingress"
-  description       = "SSH for EC2 Instance Connect"
-  protocol          = "tcp"
-  from_port         = 22
-  to_port           = 22
-  cidr_blocks       = ["0.0.0.0/0"]
-  security_group_id = aws_security_group.api_sg.id
-}
-
 resource "aws_security_group_rule" "api_http" {
   count             = var.manage_sg_rules ? 1 : 0
   type              = "ingress"

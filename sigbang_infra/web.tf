@@ -13,30 +13,6 @@ resource "aws_security_group" "web_sg" {
   }
 }
 
-# SSH from my IP (optional, toggled by manage_sg_rules)
-resource "aws_security_group_rule" "web_ssh" {
-  count             = var.manage_sg_rules ? 1 : 0
-  type              = "ingress"
-  description       = "SSH from my IP"
-  protocol          = "tcp"
-  from_port         = 22
-  to_port           = 22
-  cidr_blocks       = [var.my_ip_cidr]
-  security_group_id = aws_security_group.web_sg.id
-}
-
-# EC2 Instance Connect (optional, toggled by manage_sg_rules)
-resource "aws_security_group_rule" "web_ssh_eic" {
-  count             = var.manage_sg_rules ? 1 : 0
-  type              = "ingress"
-  description       = "SSH for EC2 Instance Connect"
-  protocol          = "tcp"
-  from_port         = 22
-  to_port           = 22
-  cidr_blocks       = ["0.0.0.0/0"]
-  security_group_id = aws_security_group.web_sg.id
-}
-
 # Allow ALB -> web:3000
 resource "aws_security_group_rule" "web_from_alb_3000" {
   type                     = "ingress"
