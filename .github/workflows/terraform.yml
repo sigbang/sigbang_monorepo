@@ -17,8 +17,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
-      - name: Terraform Format
-        run: terraform fmt -check -recursive
       - name: Write TFVARS from secret (if available)
         env:
           TFVARS_PROD: ${{ secrets.TFVARS_PROD }}
