@@ -100,7 +100,7 @@ jobs:
                 "IMAGE='${IMAGE}'",
                 "EXPOSE_PORT=${EXPOSE_PORT}",
                 "CONTAINER_NAME='${CONTAINER_NAME}'",
-                "echo '[deploy-web-ssm] Starting deploy of $IMAGE' >> /var/log/userdata-web.log || true",
+                "echo '[deploy-web-ssm] Starting deploy of $IMAGE' | sudo tee -a /var/log/userdata-web.log >/dev/null || true",
                 "if echo \\"$IMAGE\\" | grep -q '^ghcr.io/' && [ -n '${GHCR_USERNAME}' ] && [ -n '${GHCR_TOKEN}' ]; then echo '${GHCR_TOKEN}' | sudo docker login ghcr.io -u '${GHCR_USERNAME}' --password-stdin || true; fi",
                 "sudo docker system prune -af || true",
                 "sudo docker pull \\"$IMAGE\\"",
@@ -109,7 +109,7 @@ jobs:
                 "[ -f /home/ubuntu/web.env ] && ENV_FILE_ARG='--env-file /home/ubuntu/web.env' || ENV_FILE_ARG=''",
                 "sudo docker run --pull=always -d --name \\"$CONTAINER_NAME\\" --restart=always $ENV_FILE_ARG -p $EXPOSE_PORT:3000 \\"$IMAGE\\"",
                 "sleep 3",
-                "echo '[deploy-web-ssm] Started $CONTAINER_NAME with $IMAGE' >> /var/log/userdata-web.log || true",
+                "echo '[deploy-web-ssm] Started $CONTAINER_NAME with $IMAGE' | sudo tee -a /var/log/userdata-web.log >/dev/null || true",
                 "curl -fsS http://localhost:$EXPOSE_PORT/robots.txt >/dev/null",
                 "sudo docker ps -a | sed -n '1p;/$CONTAINER_NAME/p'",
                 "sudo docker inspect -f 'Image={{.Config.Image}} State={{.State.Status}}' $CONTAINER_NAME"
