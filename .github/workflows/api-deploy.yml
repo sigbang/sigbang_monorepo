@@ -112,20 +112,15 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-2
-
-      - name: Deploy API via EC2 Instance Connect (SSH)
+      - name: Deploy API via SSM RunCommand (no SSH)
         env:
           IMAGE: ${{ steps.resolve.outputs.image }}
           AWS_REGION: ap-northeast-2
-          # From Terraform: Name tag is "${var.project_name}-api" -> "sigbang-api-api"
           TARGET_NAME_TAG: sigbang-api-api
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           CONTAINER_NAME: sigbang-api
           EXPOSE_PORT: "3000"
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
         run: |
           set -eo pipefail
           echo "Resolving API instance by tag Name=${TARGET_NAME_TAG}"
@@ -136,55 +131,39 @@ jobs:
             echo "No running instance found with Name=${TARGET_NAME_TAG}"
             exit 1
           fi
-          AZ=$(aws ec2 describe-instances --instance-ids "$IID" \
-            --query "Reservations[0].Instances[0].Placement.AvailabilityZone" --output text --region "$AWS_REGION")
-          PUBIP=$(aws ec2 describe-instances --instance-ids "$IID" \
-            --query "Reservations[0].Instances[0].PublicIpAddress" --output text --region "$AWS_REGION")
-          echo "Target: $IID ($AZ) public-ip=$PUBIP"
-
-          # EC2 Instance Connect: push one-time SSH key
-          ssh-keygen -t ed25519 -N "" -f id_ed25519
-          aws ec2-instance-connect send-ssh-public-key \
-            --instance-id "$IID" --availability-zone "$AZ" \
-            --instance-os-user ubuntu --ssh-public-key file://id_ed25519.pub \
-            --region "$AWS_REGION" >/dev/null
-
-          # Remote replacement of API container only (DB schema is managed via db-push-prod job)
-          ssh -o ServerAliveInterval=10 -o ServerAliveCountMax=12 -o StrictHostKeyChecking=no -i id_ed25519 ubuntu@"$PUBIP" bash -lc "
-            set -eo pipefail
-            # Ensure git is available (for potential future use)
-            command -v git >/dev/null || (sudo apt-get update -y && sudo apt-get install -y git curl)
-
-            IMAGE='${IMAGE}'
-            EXPOSE_PORT=${EXPOSE_PORT}
-            CONTAINER_NAME='${CONTAINER_NAME}'
-            if echo \"\$IMAGE\" | grep -q '^ghcr.io/' && [ -n '${GHCR_USERNAME}' ] && [ -n '${GHCR_TOKEN}' ]; then
-              echo '${GHCR_TOKEN}' | sudo docker login ghcr.io -u '${GHCR_USERNAME}' --password-stdin || true
-            fi
-            ENV_FILE='/home/ubuntu/.env'
-            # Clean up unused Docker data to reduce disk usage before pulling
-            sudo docker system prune -af || true
-            sudo docker pull \"\$IMAGE\"
-            sudo docker ps --filter \"publish=\$EXPOSE_PORT\" -q | xargs -r sudo docker rm -f || true
-            sudo docker rm -f \"\$CONTAINER_NAME\" || true
-            [ -f \"\$ENV_FILE\" ] && ENV_FILE_ARG='--env-file '\$ENV_FILE'' || ENV_FILE_ARG=''
-            sudo docker run --pull=always -d --name \"\$CONTAINER_NAME\" --restart=always \$ENV_FILE_ARG -p \$EXPOSE_PORT:3000 \"\$IMAGE\"
-            # Wait for the container to become healthy (API can take a bit to start)
-            HEALTH_OK=0
-            for i in {1..20}; do
-              if curl -fsS \"http://localhost:\$EXPOSE_PORT/health\" >/dev/null; then
-                HEALTH_OK=1
-                break
-              fi
-              echo \"Health check failed (\$i/20), retrying in 3s...\"
-              sleep 3
-            done
-            if [ \"\$HEALTH_OK\" -ne 1 ]; then
-              echo \"Health check failed after retries. Showing recent container logs:\"
-              sudo docker logs \"\$CONTAINER_NAME\" || true
-              exit 1
-            fi
-            sudo docker ps -a | sed -n '1p;/sigbang-api/p'
-            sudo docker inspect -f 'Image={{.Config.Image}} State={{.State.Status}}' sigbang-api
-          "
+          echo "Target instance: $IID"
+          cat >ssm-deploy-api.json <<EOF
+          {
+            "DocumentName": "AWS-RunShellScript",
+            "Comment": "Deploy sigbang-api container via SSM",
+            "InstanceIds": ["$IID"],
+            "Parameters": {
+              "commands": [
+                "set -euo pipefail",
+                "IMAGE='${IMAGE}'",
+                "EXPOSE_PORT=${EXPOSE_PORT}",
+                "CONTAINER_NAME='${CONTAINER_NAME}'",
+                "ENV_FILE='/home/ubuntu/.env'",
+                "if echo \\"$IMAGE\\" | grep -q '^ghcr.io/' && [ -n '${GHCR_USERNAME}' ] && [ -n '${GHCR_TOKEN}' ]; then echo '${GHCR_TOKEN}' | sudo docker login ghcr.io -u '${GHCR_USERNAME}' --password-stdin || true; fi",
+                "sudo docker system prune -af || true",
+                "sudo docker pull \\"$IMAGE\\"",
+                "sudo docker ps --filter \\"publish=$EXPOSE_PORT\\" -q | xargs -r sudo docker rm -f || true",
+                "sudo docker rm -f \\"$CONTAINER_NAME\\" || true",
+                "[ -f \\"$ENV_FILE\\" ] && ENV_FILE_ARG='--env-file $ENV_FILE' || ENV_FILE_ARG=''",
+                "sudo docker run --pull=always -d --name \\"$CONTAINER_NAME\\" --restart=always $ENV_FILE_ARG -p $EXPOSE_PORT:3000 \\"$IMAGE\\"",
+                "HEALTH_OK=0",
+                "for i in {1..20}; do if curl -fsS http://localhost:$EXPOSE_PORT/health >/dev/null; then HEALTH_OK=1; break; fi; echo 'Health check failed ('\$i'/20), retrying in 3s...'; sleep 3; done",
+                "if [ \\"$HEALTH_OK\\" -ne 1 ]; then echo 'Health check failed after retries. Showing recent container logs:'; sudo docker logs \\"$CONTAINER_NAME\\" || true; exit 1; fi",
+                "sudo docker ps -a | sed -n '1p;/$CONTAINER_NAME/p'",
+                "sudo docker inspect -f 'Image={{.Config.Image}} State={{.State.Status}}' $CONTAINER_NAME"
+              ]
+            }
+          }
+          EOF
+          CMD_ID=$(aws ssm send-command \
+            --cli-input-json file://ssm-deploy-api.json \
+            --region "$AWS_REGION" \
+            --query "Command.CommandId" \
+            --output text)
+          echo "SSM command sent. CommandId=$CMD_ID"
 
