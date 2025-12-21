@@ -35,7 +35,7 @@ export default function LoginPage() {
                 <Image src="/logo.png" alt="식방" width={52} height={52} />
               </Link>
               <div className="h-6 md:h-8" />
-              <h1 className="text-[28px] md:text-[32px] font-bold text-left">나만의 레시피를 발견하세요.</h1>
+              <h1 className="text-[28px] md:text-[32px] font-bold text-left">나만의 추천 레시피를 발견하세요.</h1>
               <h2 className="text-[16px] md:text-[18px] text-left">세상의 모든 레시피 식방</h2>
               <div className="h-4 md:h-6" />
               <div className="w-full max-w-[420px] rounded-2xl bg-[#f6f6f6] p-6">
