@@ -7,7 +7,6 @@ exec > >(tee -a /var/log/userdata-web.log) 2>&1
 WEB_SITE_URL="${web_site_url}"
 WEB_API_BASE_URL="${web_api_base_url}"
 WEB_SUPABASE_URL="${web_supabase_url}"
-WEB_SUPABASE_ANON_KEY="${web_supabase_anon_key}"
 WEB_GOOGLE_CLIENT_ID="${web_google_client_id}"
 AWS_REGION="${region}"
 DOCKER_IMAGE="${docker_image}"
@@ -73,7 +72,6 @@ cat > "$ENV_FILE" <<EOF
 NEXT_PUBLIC_SITE_URL=$WEB_SITE_URL
 NEXT_PUBLIC_API_BASE_URL=$WEB_API_BASE_URL
 NEXT_PUBLIC_SUPABASE_URL=$WEB_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY=$WEB_SUPABASE_ANON_KEY
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=$WEB_GOOGLE_CLIENT_ID
 EOF
 chown ubuntu:ubuntu "$ENV_FILE" || true

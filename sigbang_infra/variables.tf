@@ -79,12 +79,6 @@ variable "web_supabase_url" {
   description = "Supabase URL for frontend"
 }
 
-variable "web_supabase_anon_key" {
-  type        = string
-  sensitive   = true
-  description = "Supabase anon key for frontend"
-}
-
 variable "web_google_client_id" {
   type        = string
   description = "Google OAuth Client ID for frontend (NEXT_PUBLIC_GOOGLE_CLIENT_ID)"
@@ -248,22 +242,6 @@ variable "ghcr_token" {
   type        = string
   sensitive   = true
   description = "GitHub PAT with read:packages (optional)"
-}
-
-##########################################
-# Docker Hub credentials (optional)
-##########################################
-variable "dockerhub_username" {
-  type        = string
-  default     = ""
-  description = "Docker Hub username (optional)"
-}
-
-variable "dockerhub_token" {
-  type        = string
-  sensitive   = true
-  default     = ""
-  description = "Docker Hub access token or PAT (optional)"
 }
 
 ##########################################
