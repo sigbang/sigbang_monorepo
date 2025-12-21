@@ -206,7 +206,7 @@ export class RecipesService {
     const candidates = await loadCandidates(sevenDaysAgo);
     if (candidates.length < Math.min(candidateTake / 2, limit * 5)) {
       const more = await loadCandidates(thirtyDaysAgo);
-      const seen = new Set(candidates.map(r => r.id));
+      const seen = new Set(candidates.map((r) => r.id));
       for (const m of more) {
         if (!seen.has(m.id)) {
           candidates.push(m);
@@ -214,39 +214,98 @@ export class RecipesService {
       }
     }
 
+    // 전체 참여 수준 기반 콜드스타트 여부 판단
+    const totalEngagement = candidates.reduce(
+      (sum, r: any) =>
+        sum +
+        (r.viewCount || 0) +
+        (r._count?.likes || 0) +
+        (r._count?.comments || 0) +
+        (r._count?.saves || 0),
+      0,
+    );
+    const coldThreshold =
+      Number(this.configService.get('POPULAR_COLDSTART_THRESHOLD')) || 10;
+    const isColdStartPopular = totalEngagement < coldThreshold;
+
     // 트렌드 점수: 시간감쇠(환경변수, 기본 24h), 조회/참여 혼합
     const tauHours = Number(this.configService.get('POPULAR_TAU_HOURS')) || 24;
-    const wView = 0.6, wLike = 1.0, wComment = 2.0, wSave = 1.5;
+    const wView = 0.6,
+      wLike = 1.0,
+      wComment = 2.0,
+      wSave = 1.5;
     function trendScore(r: any): number {
-      const ageH = (now - new Date(r.createdAt).getTime()) / (1000 * 60 * 60);
+      const ageH =
+        (now - new Date(r.createdAt).getTime()) / (1000 * 60 * 60);
       const decay = Math.exp(-ageH / tauHours);
       const views = Math.log(1 + (r.viewCount || 0));
-      const eng = Math.log(1 + wLike * (r._count?.likes || 0) + wComment * (r._count?.comments || 0) + wSave * (r._count?.saves || 0));
+      const eng = Math.log(
+        1 +
+          wLike * (r._count?.likes || 0) +
+          wComment * (r._count?.comments || 0) +
+          wSave * (r._count?.saves || 0),
+      );
       return decay * (wView * views + eng);
     }
 
-    // 6시간 단위 시드 셔플: 점수 버킷 내 순서 다양화 (KST 기준)
-    const nowDate = new Date();
-    const hourKst = (nowDate.getUTCHours() + 9) % 24;
-    const slot = Math.floor(hourKst / 6); // 0..3
-    const daySeed = userId
-      ? `u:${userId}:${slot}`
-      : `d:${nowDate.toISOString().slice(0, 10)}:${slot}`;
-    function hashStr(s: string): number { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h >>> 0; }
+    function hashStr(s: string): number {
+      let h = 0;
+      for (let i = 0; i < s.length; i++)
+        h = (h * 31 + s.charCodeAt(i)) | 0;
+      return h >>> 0;
+    }
 
-    const scored = candidates.map(r => ({ r, s: trendScore(r) }));
-    scored.sort((a, b) => {
-      const ba = Math.round(a.s * 10);
-      const bb = Math.round(b.s * 10);
-      if (bb !== ba) return bb - ba;
-      const ha = hashStr(a.r.id + daySeed);
-      const hb = hashStr(b.r.id + daySeed);
-      return ha - hb;
-    });
+    let main: any[];
+
+    if (isColdStartPopular) {
+      // 콜드스타트(참여 데이터 거의 없음)일 때:
+      // 짧은 시간 슬롯(30분) 기반 시드로 셔플해서,
+      // 운영 환경에서도 주기적으로 순서가 달라지도록 함.
+      const nowDate = new Date();
+      const slotMinutes = 30;
+      const slot = Math.floor(
+        nowDate.getTime() / (1000 * 60 * slotMinutes),
+      );
+      const coldSeed = userId ? `pu:${userId}:${slot}` : `pd:${slot}`;
+
+      const shuffled = [...candidates].sort((a, b) => {
+        const ha = hashStr(a.id + coldSeed);
+        const hb = hashStr(b.id + coldSeed);
+        if (ha !== hb) return ha - hb;
+        // 해시가 우연히 같은 경우에는 최신순으로 가볍게 정렬
+        return (
+          new Date(b.createdAt).getTime() -
+          new Date(a.createdAt).getTime()
+        );
+      });
+
+      main = shuffled;
+    } else {
+      // 6시간 단위 시드 셔플: 점수 버킷 내 순서 다양화 (KST 기준)
+      const nowDate = new Date();
+      const hourKst = (nowDate.getUTCHours() + 9) % 24;
+      const slot = Math.floor(hourKst / 6); // 0..3
+      const daySeed = userId
+        ? `u:${userId}:${slot}`
+        : `d:${nowDate.toISOString().slice(0, 10)}:${slot}`;
+
+      const scored = candidates.map((r) => ({ r, s: trendScore(r) }));
+      scored.sort((a, b) => {
+        const ba = Math.round(a.s * 10);
+        const bb = Math.round(b.s * 10);
+        if (bb !== ba) return bb - ba;
+        const ha = hashStr(a.r.id + daySeed);
+        const hb = hashStr(b.r.id + daySeed);
+        return ha - hb;
+      });
+
+      main = scored.map((x) => x.r);
+    }
 
     // 신규/저노출 보장: 매 10개당 1개 시도(24h내, 조회<5)
-    const isVeryNew = (r: any) => (now - new Date(r.createdAt).getTime()) < 24 * 3600 * 1000 && (r.viewCount || 0) < 5;
-    const main = scored.map(x => x.r);
+    const isVeryNew = (r: any) =>
+      (now - new Date(r.createdAt).getTime()) < 24 * 3600 * 1000 &&
+      (r.viewCount || 0) < 5;
     const veryNew = main.filter(r => isVeryNew(r));
 
     const result: any[] = [];
@@ -843,6 +902,19 @@ export class RecipesService {
       `getRecommendedRecipes candidates loaded=${candidates.length} in ${Date.now() - tCandidates}ms`,
     );
 
+    // 전체 참여 수준 기반 콜드스타트 여부 판단
+    const totalEngagement = candidates.reduce(
+      (sum, r: any) =>
+        sum +
+        (r.viewCount || 0) +
+        (r._count?.likes || 0) +
+        (r._count?.comments || 0) +
+        (r._count?.saves || 0),
+      0,
+    );
+    const recoColdThreshold =
+      Number(this.configService.get('RECO_COLDSTART_THRESHOLD')) || 10;
+
     const tagSet = new Set(preferredTagNames);
     const wFollow = 1.0;
     const wTag = 0.8;
@@ -864,6 +936,7 @@ export class RecipesService {
     }
 
     const sparseUser = !userId || (followingAuthorIds.length === 0 && preferredTagNames.length === 0);
+    const isColdReco = totalEngagement < recoColdThreshold;
 
     // 베이스 스코어 계산
     const scored = candidates.map(r => {
@@ -891,10 +964,42 @@ export class RecipesService {
     // 콜드스타트 혼합: 60% 트렌드(eng+recency), 40% 탐색(신규/저노출 주입)
     let ranked: any[] = [];
     if (sparseUser) {
-      const trend = scored
-        .map(x => ({ r: x.r, s: 0.6 * (x.eng + Math.exp(-x.ageHours / 48)) + 0.4 * x.baseScore }))
-        .sort((a, b) => b.s - a.s)
-        .map(x => x.r);
+      // sparseUser + 전체 참여도도 낮은 콜드스타트 상황에서는
+      // 짧은 시간 슬롯 기반 시드로 트렌드 리스트를 섞어서
+      // 운영 초기에도 추천 피드가 주기적으로 달라지도록 한다.
+      let trend: any[];
+      if (isColdReco) {
+        function hashStrReco(s: string): number {
+          let h = 0;
+          for (let i = 0; i < s.length; i++)
+            h = (h * 31 + s.charCodeAt(i)) | 0;
+          return h >>> 0;
+        }
+        const nowDate = new Date();
+        const slotMinutes = 30;
+        const slot = Math.floor(
+          nowDate.getTime() / (1000 * 60 * slotMinutes),
+        );
+        const seed = userId ? `rr:${userId}:${slot}` : `ra:${slot}`;
+
+        trend = [...scored]
+          .sort((a, b) => {
+            const ha = hashStrReco(a.r.id + seed);
+            const hb = hashStrReco(b.r.id + seed);
+            if (ha !== hb) return ha - hb;
+            // 해시가 같을 경우에는 최신순으로 약하게 정렬
+            return (
+              new Date(b.r.createdAt).getTime() -
+              new Date(a.r.createdAt).getTime()
+            );
+          })
+          .map(x => x.r);
+      } else {
+        trend = scored
+          .map(x => ({ r: x.r, s: 0.6 * (x.eng + Math.exp(-x.ageHours / 48)) + 0.4 * x.baseScore }))
+          .sort((a, b) => b.s - a.s)
+          .map(x => x.r);
+      }
 
       const explore = candidates
         .filter(r => (now - new Date(r.createdAt).getTime()) < 24 * 3600 * 1000 && ((r.viewCount || 0) < 5))
