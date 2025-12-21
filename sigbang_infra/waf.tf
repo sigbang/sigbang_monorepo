@@ -101,7 +101,7 @@ resource "aws_wafv2_web_acl" "api_waf" {
     priority = 40
 
     action {
-      count {}
+      block {}
     }
 
     statement {
@@ -124,7 +124,7 @@ resource "aws_wafv2_web_acl" "api_waf" {
     priority = 50
 
     action {
-      count {}
+      block {}
     }
 
     statement {
@@ -192,7 +192,7 @@ resource "aws_wafv2_web_acl" "api_waf" {
     priority = 60
 
     action {
-      count {}
+      block {}
     }
 
     statement {
