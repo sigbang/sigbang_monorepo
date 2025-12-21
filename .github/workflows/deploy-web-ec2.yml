@@ -7,6 +7,9 @@ on:
       - "sigbang_user_front/**"
       - ".github/workflows/deploy-web-ec2.yml"
       - "sigbang_infra/**"
+  # NOTE:
+  # - push: 브랜치에 머지되면 Docker 이미지만 빌드/푸시합니다 (자동).
+  # - workflow_dispatch: 사람이 수동으로 실행했을 때만 프로덕션 배포가 진행됩니다.
   workflow_dispatch:
 
 permissions:
@@ -43,6 +46,11 @@ jobs:
 
   deploy-web-ssm:
     needs: build-and-push
+    # 프로덕션 배포는 수동(workflow_dispatch)으로 실행될 때만 수행되도록 제한
+    if: github.event_name == 'workflow_dispatch'
+    # GitHub UI에서 production 환경에 Required reviewers 를 걸어두면
+    # 배포 전에 사람 승인 단계를 추가할 수 있습니다.
+    environment: production
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
