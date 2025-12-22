@@ -97,7 +97,7 @@ jobs:
             "Parameters": {
             "commands": [
                 "touch /tmp/ssm-deploy-web-test && echo 'hello-from-ssm' > /tmp/ssm-deploy-web-test.txt",
-                "set -euo pipefail",
+                "set -eu",
                 "IMAGE='${IMAGE}'",
                 "EXPOSE_PORT=${EXPOSE_PORT}",
                 "CONTAINER_NAME='${CONTAINER_NAME}'",
