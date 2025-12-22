@@ -151,12 +151,31 @@ resource "aws_iam_role_policy" "lambda_terminate_hot_instance_policy" {
           "autoscaling:DescribeAutoScalingGroups",
           "autoscaling:TerminateInstanceInAutoScalingGroup",
           "ec2:DescribeInstances",
-          "cloudwatch:GetMetricStatistics"
+          "cloudwatch:GetMetricStatistics",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "sns:Publish"
         ],
         Resource = "*"
       }
     ]
   })
+}
+
+resource "aws_dynamodb_table" "lambda_terminate_hot_rate_limit" {
+  name         = "${var.project_name}-terminate-hot-rate-limit"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "asg_name"
+
+  attribute {
+    name = "asg_name"
+    type = "S"
+  }
+
+  tags = {
+    Name = "${var.project_name}-terminate-hot-rate-limit"
+  }
 }
 
 resource "aws_lambda_function" "terminate_hot_instance" {
@@ -170,10 +189,14 @@ resource "aws_lambda_function" "terminate_hot_instance" {
 
   environment {
     variables = {
-      ASG_NAME       = aws_autoscaling_group.api_asg.name
-      CPU_THRESHOLD  = "95"   # per-instance CPU threshold for termination
-      LOOKBACK_MIN   = "10"   # minutes to look back for CPU stats
-      MIN_IN_SERVICE = "2"    # require at least this many healthy instances before terminating one
+      ASG_NAME                    = aws_autoscaling_group.api_asg.name
+      CPU_THRESHOLD               = "95"   # per-instance CPU threshold for termination
+      LOOKBACK_MIN                = "10"   # minutes to look back for CPU stats
+      MIN_IN_SERVICE              = "2"    # require at least this many healthy instances before terminating one
+      RATE_LIMIT_TABLE            = aws_dynamodb_table.lambda_terminate_hot_rate_limit.name
+      RATE_LIMIT_MAX_TERMINATIONS = "3"    # max terminations allowed within window
+      RATE_LIMIT_WINDOW_MIN       = "30"   # sliding window in minutes for rate limiting
+      OPS_ALERT_TOPIC_ARN         = aws_sns_topic.ops_alerts.arn
     }
   }
 
@@ -191,10 +214,14 @@ resource "aws_lambda_function" "terminate_hot_web_instance" {
 
   environment {
     variables = {
-      ASG_NAME       = aws_autoscaling_group.web_asg.name
-      CPU_THRESHOLD  = "95"   # per-instance CPU threshold for termination
-      LOOKBACK_MIN   = "10"   # minutes to look back for CPU stats
-      MIN_IN_SERVICE = "1"    # web ASG min_size is 1
+      ASG_NAME                    = aws_autoscaling_group.web_asg.name
+      CPU_THRESHOLD               = "95"   # per-instance CPU threshold for termination
+      LOOKBACK_MIN                = "10"   # minutes to look back for CPU stats
+      MIN_IN_SERVICE              = "1"    # web ASG min_size is 1
+      RATE_LIMIT_TABLE            = aws_dynamodb_table.lambda_terminate_hot_rate_limit.name
+      RATE_LIMIT_MAX_TERMINATIONS = "3"
+      RATE_LIMIT_WINDOW_MIN       = "30"
+      OPS_ALERT_TOPIC_ARN         = aws_sns_topic.ops_alerts.arn
     }
   }
 
@@ -212,6 +239,9 @@ resource "aws_cloudwatch_event_rule" "cpu_hot_instance_rule" {
       "alarmName" : [aws_cloudwatch_metric_alarm.api_cpu_hot.alarm_name],
       "state" : {
         "value" : ["ALARM"]
+      },
+      "previousState" : {
+        "value" : ["OK"]
       }
     }
   })
@@ -228,6 +258,9 @@ resource "aws_cloudwatch_event_rule" "web_cpu_hot_instance_rule" {
       "alarmName" : [aws_cloudwatch_metric_alarm.web_cpu_hot.alarm_name],
       "state" : {
         "value" : ["ALARM"]
+      },
+      "previousState" : {
+        "value" : ["OK"]
       }
     }
   })
@@ -315,6 +348,48 @@ resource "aws_cloudwatch_metric_alarm" "api_alb_5xx_high" {
   alarm_description = "ALB Target 5xx count > 20 over 5 minutes"
 
   dimensions = {
+    LoadBalancer = aws_lb.api_alb.arn_suffix
+  }
+
+  alarm_actions = [aws_sns_topic.ops_alerts.arn]
+}
+
+# ALB Target UnHealthyHostCount >= 1 for 10 minutes (indicates persistent healthcheck failure)
+resource "aws_cloudwatch_metric_alarm" "api_tg_unhealthy_persistent" {
+  alarm_name          = "${var.project_name}-tg-unhealthy-persistent"
+  namespace           = "AWS/ApplicationELB"
+  metric_name         = "UnHealthyHostCount"
+  statistic           = "Average"
+  period              = 60
+  evaluation_periods  = 10
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+
+  alarm_description = "API Target Group UnHealthyHostCount >= 1 for 10 minutes (persistent unhealthy targets)"
+
+  dimensions = {
+    TargetGroup = aws_lb_target_group.api_tg.arn_suffix
+    LoadBalancer = aws_lb.api_alb.arn_suffix
+  }
+
+  alarm_actions = [aws_sns_topic.ops_alerts.arn]
+}
+
+# Web ALB Target UnHealthyHostCount >= 1 for 10 minutes (persistent healthcheck failure on web targets)
+resource "aws_cloudwatch_metric_alarm" "web_tg_unhealthy_persistent" {
+  alarm_name          = "${var.web_project_name}-tg-unhealthy-persistent"
+  namespace           = "AWS/ApplicationELB"
+  metric_name         = "UnHealthyHostCount"
+  statistic           = "Average"
+  period              = 60
+  evaluation_periods  = 10
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+
+  alarm_description = "Web Target Group UnHealthyHostCount >= 1 for 10 minutes (persistent unhealthy web targets)"
+
+  dimensions = {
+    TargetGroup = aws_lb_target_group.web_tg.arn_suffix
     LoadBalancer = aws_lb.api_alb.arn_suffix
   }
 
