@@ -43,7 +43,10 @@ export async function middleware(req: NextRequest) {
   }
 
   const a = m[1];
-  const api = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.API_BASE_URL || 'https://api.sigbang.com';
+  const api =
+    process.env.API_BASE_URL ||
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    'https://api.sigbang.com';
 
   // Skip known static segments
   const reserved = new Set(['new', 'import', 'edit', 'sitemap.xml']);
