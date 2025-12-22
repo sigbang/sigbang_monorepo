@@ -95,12 +95,14 @@ resource "aws_launch_template" "web_lt" {
   }
 
   user_data = base64encode(templatefile("${path.module}/scripts/userdata-web.sh", {
-    docker_image     = var.web_image
-    region           = var.aws_region
-    web_site_url     = var.web_site_url
-    web_api_base_url = var.web_api_base_url
-    web_supabase_url = var.web_supabase_url
-    web_google_client_id  = var.web_google_client_id
+    docker_image        = var.web_image
+    region              = var.aws_region
+    web_site_url        = var.web_site_url
+    web_api_base_url    = var.web_api_base_url
+    web_supabase_url    = var.web_supabase_url
+    web_google_client_id = var.web_google_client_id
+    ghcr_username       = try(var.ghcr_username, "")
+    ghcr_token          = try(var.ghcr_token, "")
   }))
 
   lifecycle {

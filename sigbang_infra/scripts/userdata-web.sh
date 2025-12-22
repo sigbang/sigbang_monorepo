@@ -10,6 +10,9 @@ WEB_SUPABASE_URL="${web_supabase_url}"
 WEB_GOOGLE_CLIENT_ID="${web_google_client_id}"
 AWS_REGION="${region}"
 DOCKER_IMAGE="${docker_image}"
+# Optional registry credentials injected by TF (for private GHCR)
+GHCR_USERNAME_TF="${ghcr_username}"
+GHCR_TOKEN_TF="${ghcr_token}"
 
 retry() { local n=0; until "$@"; do n=$((n+1)); [ $n -ge 5 ] && return 1; sleep 5; done; }
 
@@ -75,6 +78,24 @@ NEXT_PUBLIC_SUPABASE_URL=$WEB_SUPABASE_URL
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=$WEB_GOOGLE_CLIENT_ID
 EOF
 chown ubuntu:ubuntu "$ENV_FILE" || true
+
+# Login to container registry when credentials are available
+# Detect registry host from image (e.g., ghcr.io/owner/repo:tag)
+REGISTRY_HOST="$(echo "$DOCKER_IMAGE" | awk -F/ '{print $1}')"
+
+GHCR_USER="${GHCR_USERNAME_TF}"
+GHCR_PASS="${GHCR_TOKEN_TF}"
+
+case "$REGISTRY_HOST" in
+  ghcr.io)
+    if [ -n "$GHCR_USER" ] && [ -n "$GHCR_PASS" ]; then
+      echo "$GHCR_PASS" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+    fi
+    ;;
+  *)
+    : # no-op for other registries or public images
+    ;;
+esac
 
 # Pull & run container
 retry docker pull "$DOCKER_IMAGE"
