@@ -86,8 +86,9 @@ chown ubuntu:ubuntu "$ENV_FILE" || true
 # Detect registry host from image (e.g., ghcr.io/owner/repo:tag)
 REGISTRY_HOST="$(echo "$DOCKER_IMAGE" | awk -F/ '{print $1}')"
 
-GHCR_USER="${GHCR_USERNAME_TF}"
-GHCR_PASS="${GHCR_TOKEN_TF}"
+# Use TF-injected GHCR creds (if present)
+GHCR_USER="$GHCR_USERNAME_TF"
+GHCR_PASS="$GHCR_TOKEN_TF"
 
 case "$REGISTRY_HOST" in
   ghcr.io)
