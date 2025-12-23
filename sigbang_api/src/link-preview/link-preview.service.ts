@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import { isIP } from 'net';
 
 export type LinkPreview = {
   url: string;
@@ -137,10 +138,37 @@ export class LinkPreviewService {
   }
 
   private isBlockedHost(host: string) {
-    const lower = host.toLowerCase();
+    const lower = host.toLowerCase().trim();
+    if (!lower) return true;
 
-    if (lower === 'localhost' || lower === '127.0.0.1' || lower === '::1') return true;
-    if (lower.startsWith('10.') || lower.startsWith('192.168.') || lower.startsWith('172.16.')) return true;
+    // 직접 IP 가 들어온 경우 RFC1918/loopback/link-local/메타데이터 대역 차단
+    const ipVersion = isIP(lower);
+    if (ipVersion === 4) {
+      const [a, b, c, d] = lower.split('.').map((v) => Number(v));
+
+      // 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+      if (a === 10) return true;
+      if (a === 172 && b >= 16 && b <= 31) return true;
+      if (a === 192 && b === 168) return true;
+
+      // loopback 127.0.0.0/8
+      if (a === 127) return true;
+
+      // 링크 로컬 및 AWS 메타데이터 169.254.0.0/16
+      if (a === 169 && b === 254) return true;
+
+      // 0.0.0.0/8 등 비정상 대역
+      if (a === 0) return true;
+    } else if (ipVersion === 6) {
+      // IPv6 loopback / link-local / ULA
+      if (lower === '::1') return true;
+      if (lower.startsWith('fe80:')) return true; // link-local
+      if (lower.startsWith('fc') || lower.startsWith('fd')) return true; // unique local
+    }
+
+    // 호스트명이 내부/로컬을 가리키는 경우 차단
+    if (lower === 'localhost') return true;
+    if (lower.endsWith('.local') || lower.endsWith('.internal')) return true;
 
     return false;
   }
