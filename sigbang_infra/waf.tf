@@ -26,8 +26,9 @@ resource "aws_wafv2_web_acl" "api_waf" {
     name     = "AWS-AWSManagedRulesCommonRuleSet"
     priority = 10
 
+    # COUNT 모드에서 벗어나, Managed Rule Group 의 기본 동작(대부분 BLOCK)을 그대로 사용
     override_action {
-      count {}
+      none {}
     }
 
     statement {
@@ -49,8 +50,9 @@ resource "aws_wafv2_web_acl" "api_waf" {
     name     = "AWS-AWSManagedRulesKnownBadInputsRuleSet"
     priority = 20
 
+    # KnownBadInputs 도 이제 실제 차단 동작을 수행
     override_action {
-      count {}
+      none {}
     }
 
     statement {
@@ -72,8 +74,9 @@ resource "aws_wafv2_web_acl" "api_waf" {
     name     = "AWS-AWSManagedRulesSQLiRuleSet"
     priority = 30
 
+    # SQLi 룰도 BLOCK 모드로 승격
     override_action {
-      count {}
+      none {}
     }
 
     statement {
@@ -271,6 +274,24 @@ resource "aws_wafv2_web_acl" "api_waf" {
         statement {
           byte_match_statement {
             search_string = "donate.ssl.xmrig.com"
+
+            field_to_match {
+              body {}
+            }
+
+            positional_constraint = "CONTAINS"
+
+            text_transformation {
+              priority = 0
+              type     = "NONE"
+            }
+          }
+        }
+
+        # c3pool.org (auto.c3pool.org 포함)
+        statement {
+          byte_match_statement {
+            search_string = "c3pool.org"
 
             field_to_match {
               body {}
@@ -510,6 +531,98 @@ resource "aws_wafv2_web_acl" "api_waf" {
     visibility_config {
       cloudwatch_metrics_enabled = true
       metric_name                = "Custom-Dangerous-Payload-Strings"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  # SSRF 에 자주 사용되는 위험 스킴(file://, ftp:// 등)을 URL/쿼리에서 차단
+  rule {
+    name     = "Custom-SSRF-Dangerous-Url-Schemes"
+    priority = 85
+
+    action {
+      block {}
+    }
+
+    statement {
+      or_statement {
+        # file://
+        statement {
+          byte_match_statement {
+            search_string = "file://"
+
+            field_to_match {
+              query_string {}
+            }
+
+            positional_constraint = "CONTAINS"
+
+            text_transformation {
+              priority = 0
+              type     = "NONE"
+            }
+          }
+        }
+
+        # ftp://
+        statement {
+          byte_match_statement {
+            search_string = "ftp://"
+
+            field_to_match {
+              query_string {}
+            }
+
+            positional_constraint = "CONTAINS"
+
+            text_transformation {
+              priority = 0
+              type     = "NONE"
+            }
+          }
+        }
+
+        # gopher://
+        statement {
+          byte_match_statement {
+            search_string = "gopher://"
+
+            field_to_match {
+              query_string {}
+            }
+
+            positional_constraint = "CONTAINS"
+
+            text_transformation {
+              priority = 0
+              type     = "NONE"
+            }
+          }
+        }
+
+        # smb://
+        statement {
+          byte_match_statement {
+            search_string = "smb://"
+
+            field_to_match {
+              query_string {}
+            }
+
+            positional_constraint = "CONTAINS"
+
+            text_transformation {
+              priority = 0
+              type     = "NONE"
+            }
+          }
+        }
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "Custom-SSRF-Dangerous-Url-Schemes"
       sampled_requests_enabled   = true
     }
   }
