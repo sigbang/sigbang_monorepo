@@ -45,6 +45,7 @@ resource "aws_route53_resolver_firewall_rule_group_association" "default_vpc_ass
   firewall_rule_group_id = aws_route53_resolver_firewall_rule_group.default_dns_fw.id
   vpc_id                 = data.aws_vpc.default.id
   name                   = "${var.project_name}-dns-firewall-assoc"
+  priority               = 500
 }
 
 ###########################################
@@ -116,6 +117,17 @@ resource "aws_security_group_rule" "api_egress_https" {
   protocol          = "tcp"
   from_port         = 443
   to_port           = 443
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.api_sg.id
+}
+
+resource "aws_security_group_rule" "api_egress_db" {
+  count             = var.manage_sg_rules ? 1 : 0
+  type              = "egress"
+  description       = "Allow outbound Postgres (Supabase)"
+  protocol          = "tcp"
+  from_port         = 5432
+  to_port           = 5432
   cidr_blocks       = ["0.0.0.0/0"]
   security_group_id = aws_security_group.api_sg.id
 }
