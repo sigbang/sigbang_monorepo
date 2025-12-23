@@ -14,6 +14,40 @@ data "aws_subnets" "default" {
 }
 
 ###########################################
+# Route53 Resolver DNS Firewall (암호화폐 마이닝 풀 차단)
+###########################################
+
+resource "aws_route53_resolver_firewall_domain_list" "crypto_mining_blocklist" {
+  name    = "${var.project_name}-crypto-mining-blocklist"
+  domains = [
+    "c3pool.org",
+    "auto.c3pool.org",
+    "supportxmr.com",
+    "xmrig.com",
+    "pool.minexmr.com",
+  ]
+}
+
+resource "aws_route53_resolver_firewall_rule_group" "default_dns_fw" {
+  name = "${var.project_name}-dns-firewall"
+}
+
+resource "aws_route53_resolver_firewall_rule" "block_crypto_mining" {
+  name                    = "block-crypto-mining-domains"
+  priority                = 10
+  action                  = "BLOCK"
+  firewall_rule_group_id  = aws_route53_resolver_firewall_rule_group.default_dns_fw.id
+  firewall_domain_list_id = aws_route53_resolver_firewall_domain_list.crypto_mining_blocklist.id
+  block_response          = "NODATA"
+}
+
+resource "aws_route53_resolver_firewall_rule_group_association" "default_vpc_assoc" {
+  firewall_rule_group_id = aws_route53_resolver_firewall_rule_group.default_dns_fw.id
+  vpc_id                 = data.aws_vpc.default.id
+  name                   = "${var.project_name}-dns-firewall-assoc"
+}
+
+###########################################
 # Security Group (본체)
 ###########################################
 
@@ -64,13 +98,46 @@ resource "aws_security_group_rule" "api_http" {
   security_group_id = aws_security_group.api_sg.id
 }
 
-resource "aws_security_group_rule" "api_egress" {
+resource "aws_security_group_rule" "api_egress_http" {
   count             = var.manage_sg_rules ? 1 : 0
   type              = "egress"
-  description       = "Allow outbound"
-  protocol          = "-1"
-  from_port         = 0
-  to_port           = 0
+  description       = "Allow outbound HTTP"
+  protocol          = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.api_sg.id
+}
+
+resource "aws_security_group_rule" "api_egress_https" {
+  count             = var.manage_sg_rules ? 1 : 0
+  type              = "egress"
+  description       = "Allow outbound HTTPS"
+  protocol          = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.api_sg.id
+}
+
+resource "aws_security_group_rule" "api_egress_dns_udp" {
+  count             = var.manage_sg_rules ? 1 : 0
+  type              = "egress"
+  description       = "Allow outbound DNS (UDP)"
+  protocol          = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.api_sg.id
+}
+
+resource "aws_security_group_rule" "api_egress_dns_tcp" {
+  count             = var.manage_sg_rules ? 1 : 0
+  type              = "egress"
+  description       = "Allow outbound DNS (TCP fallback)"
+  protocol          = "tcp"
+  from_port         = 53
+  to_port           = 53
   cidr_blocks       = ["0.0.0.0/0"]
   security_group_id = aws_security_group.api_sg.id
 }

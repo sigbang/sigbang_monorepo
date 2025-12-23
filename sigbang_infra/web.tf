@@ -24,13 +24,43 @@ resource "aws_security_group_rule" "web_from_alb_3000" {
   source_security_group_id = aws_security_group.alb_sg.id
 }
 
-# Egress all
-resource "aws_security_group_rule" "web_egress" {
+# Egress: 최소 허용 (HTTP/HTTPS + DNS)
+resource "aws_security_group_rule" "web_egress_http" {
   type              = "egress"
-  description       = "Allow outbound"
-  protocol          = "-1"
-  from_port         = 0
-  to_port           = 0
+  description       = "Allow outbound HTTP"
+  protocol          = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.web_sg.id
+}
+
+resource "aws_security_group_rule" "web_egress_https" {
+  type              = "egress"
+  description       = "Allow outbound HTTPS"
+  protocol          = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.web_sg.id
+}
+
+resource "aws_security_group_rule" "web_egress_dns_udp" {
+  type              = "egress"
+  description       = "Allow outbound DNS (UDP)"
+  protocol          = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.web_sg.id
+}
+
+resource "aws_security_group_rule" "web_egress_dns_tcp" {
+  type              = "egress"
+  description       = "Allow outbound DNS (TCP fallback)"
+  protocol          = "tcp"
+  from_port         = 53
+  to_port           = 53
   cidr_blocks       = ["0.0.0.0/0"]
   security_group_id = aws_security_group.web_sg.id
 }
