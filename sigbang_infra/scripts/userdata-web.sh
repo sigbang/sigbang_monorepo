@@ -101,9 +101,17 @@ case "$REGISTRY_HOST" in
     ;;
 esac
 
-# Pull & run container
+# Pull & run container (with basic hardening)
 retry docker pull "$DOCKER_IMAGE"
 docker rm -f sigbang-web || true
-docker run -d --name sigbang-web --restart=always --env-file "$ENV_FILE" -p 3000:3000 "$DOCKER_IMAGE"
+docker run -d \
+  --name sigbang-web \
+  --restart=always \
+  --env-file "$ENV_FILE" \
+  -p 3000:3000 \
+  --security-opt no-new-privileges \
+  --cap-drop ALL \
+  --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+  "$DOCKER_IMAGE"
 
 

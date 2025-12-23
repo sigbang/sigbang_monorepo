@@ -114,7 +114,7 @@ jobs:
                 "sudo docker ps --filter \\"publish=$EXPOSE_PORT\\" -q | xargs -r sudo docker rm -f || true",
                 "sudo docker rm -f \\"$CONTAINER_NAME\\" || true",
                 "[ -f /home/ubuntu/web.env ] && ENV_FILE_ARG='--env-file /home/ubuntu/web.env' || ENV_FILE_ARG=''",
-                "sudo docker run --pull=always -d --name \\"$CONTAINER_NAME\\" --restart=always $ENV_FILE_ARG -p $EXPOSE_PORT:3000 \\"$IMAGE\\"",
+                "sudo docker run --pull=always -d --name \\"$CONTAINER_NAME\\" --restart=always $ENV_FILE_ARG -p $EXPOSE_PORT:3000 --security-opt no-new-privileges --cap-drop ALL --tmpfs /tmp:rw,noexec,nosuid,size=64m \\"$IMAGE\\"",
                 "sleep 3",
                 "echo '[deploy-web-ssm] Started $CONTAINER_NAME with $IMAGE' | sudo tee -a /var/log/userdata-web.log >/dev/null",
                 "curl -fsS http://localhost:$EXPOSE_PORT/robots.txt >/dev/null",
