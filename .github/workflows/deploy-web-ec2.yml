@@ -32,7 +32,13 @@ jobs:
           cache: npm
       - run: npm install --no-audit --no-fund
       - name: Build Docker image
-        run: docker build -t ghcr.io/${{ github.repository_owner }}/sigbang_user_front:${{ github.sha }} .
+        env:
+          WEB_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+        run: |
+          docker build \
+            --build-arg GOOGLE_CLIENT_ID=$WEB_GOOGLE_CLIENT_ID \
+            --build-arg NEXT_PUBLIC_GOOGLE_CLIENT_ID=$WEB_GOOGLE_CLIENT_ID \
+            -t ghcr.io/${{ github.repository_owner }}/sigbang_user_front:${{ github.sha }} .
       - name: Login to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       - name: Push Docker image
