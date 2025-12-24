@@ -125,20 +125,19 @@ jobs:
           EXPOSE_PORT: "3000"
         run: |
           set -eo pipefail
-          echo "Resolving API instance by tag Name=${TARGET_NAME_TAG}"
-          IID=$(aws ec2 describe-instances \
-            --filters "Name=tag:Name,Values=${TARGET_NAME_TAG}" "Name=instance-state-name,Values=running" \
-            --query "Reservations[].Instances[].InstanceId" --output text --region "$AWS_REGION")
-          if [ -z "$IID" ]; then
-            echo "No running instance found with Name=${TARGET_NAME_TAG}"
-            exit 1
-          fi
-          echo "Target instance: $IID"
+          echo "Deploying to ALL instances with tag Name=${TARGET_NAME_TAG} (rolling via SSM)"
           cat >ssm-deploy-api.json <<EOF
           {
             "DocumentName": "AWS-RunShellScript",
             "Comment": "Deploy sigbang-api container via SSM",
-            "InstanceIds": ["$IID"],
+            "Targets": [
+              {
+                "Key": "tag:Name",
+                "Values": ["${TARGET_NAME_TAG}"]
+              }
+            ],
+            "MaxConcurrency": "1",
+            "MaxErrors": "0",
             "Parameters": {
               "commands": [
                 "set -euo pipefail",
@@ -148,7 +147,7 @@ jobs:
                 "ENV_FILE='/home/ubuntu/.env'",
                 "AWS_REGION='${AWS_REGION}'",
                 "SSM_PREFIX='${SSM_PREFIX}'",
-                "echo '[deploy-api-ssm] Refreshing env from SSM /'$SSM_PREFIX | sudo tee -a /var/log/userdata.log >/dev/null || true",
+                "echo \"[deploy-api-ssm] Refreshing env from SSM /$SSM_PREFIX\" | sudo tee -a /var/log/userdata.log >/dev/null || true",
                 "sudo rm -f \\"$ENV_FILE\\" || true",
                 "sudo touch \\"$ENV_FILE\\"",
                 "aws ssm get-parameters-by-path --path \\"/$SSM_PREFIX\\" --with-decryption --recursive --region \\"$AWS_REGION\\" | jq -r '.Parameters // [] | .[] | [.Name, .Value] | @tsv' | while IFS=$'\\t' read -r name value; do key=$(basename \\"$name\\"); printf '%s=%s\\n' \\"$key\\" \\"$value\\" | sudo tee -a \\"$ENV_FILE\\" >/dev/null; done",
