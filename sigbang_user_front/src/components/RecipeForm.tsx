@@ -222,7 +222,11 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
   if (!thumbnailPath && !thumbnailFile) stage1Errors.push({ field: 'thumbnail', message: '대표 이미지 필요' });
 
   const stage2Errors: { field: string; message: string }[] = [];
-  if (linkUrl && !/^https?:\/\/.+/.test(linkUrl)) stage2Errors.push({ field: 'linkUrl', message: '링크 URL 형식 오류' });
+  if (linkUrl) {
+    const url = linkUrl.trim();
+    if (!/^https:\/\//i.test(url)) stage2Errors.push({ field: 'linkUrl', message: 'https:// 로 시작하는 링크만 등록할 수 있어요' });
+    if (/^(javascript|data|file|blob|intent|market):/i.test(url)) stage2Errors.push({ field: 'linkUrl', message: '지원하지 않는 링크 형식이에요' });
+  }
 
   const stage3Errors: { field: string; message: string }[] = [];
   if (steps.length === 0 || !steps[0].description.trim()) stage3Errors.push({ field: 'steps', message: '첫 단계 설명 필요' });
@@ -474,16 +478,7 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
                       </div>
                     )}
                     {!linkPreviewLoading && linkPreview && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const target = linkPreview.finalUrl || linkPreview.url || linkUrl;
-                          if (target) {
-                            window.open(target, '_blank', 'noopener,noreferrer');
-                          }
-                        }}
-                        className="w-full text-left border border-neutral-200 dark:border-neutral-700 rounded-md p-3 flex gap-3 hover:bg-neutral-50 dark:hover:bg-neutral-800/60 transition-colors"
-                      >
+                      <div className="w-full text-left border border-neutral-200 dark:border-neutral-700 rounded-md p-3 flex gap-3 bg-white dark:bg-neutral-900">
                         {linkPreview.image ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -516,10 +511,25 @@ export default function RecipeForm({ mode, initial, onSubmit, onCancel, embedded
                             </div>
                           )}
                         </div>
-                      </button>
+                      </div>
                     )}
                     {!linkPreviewLoading && !linkPreview && linkPreviewError && (
                       <div className="text-xs text-red-500 mt-1">{linkPreviewError}</div>
+                    )}
+                    {linkUrl && /^https:\/\//i.test(linkUrl.trim()) && (
+                      <div className="mt-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const target = (linkPreview?.finalUrl || linkPreview?.url || linkUrl || '').trim();
+                            if (!target) return;
+                            window.open(target, '_blank', 'noopener,noreferrer');
+                          }}
+                          className="w-full rounded-md bg-black text-white px-4 py-2.5 text-sm font-semibold hover:bg-black/85 transition-colors"
+                        >
+                          외부 구매처로 이동
+                        </button>
+                      </div>
                     )}
                   </div>
                 )}

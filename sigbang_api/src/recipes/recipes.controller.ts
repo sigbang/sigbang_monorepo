@@ -50,7 +50,10 @@ import { DegradeGuard } from '../common/guards/degrade.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
 import { AiGenerateRecipeDto, AiRecipeGenerateResponseDto } from './dto/recipes.dto';
 import type { Response } from 'express';
+import type { Request } from 'express';
 import { createHash } from 'crypto';
+import { RecordExternalLinkEventDto } from './dto/external-link-events.dto';
+import { Req } from '@nestjs/common';
 
 @ApiTags('레시피')
 @Controller('recipes')
@@ -614,5 +617,24 @@ export class RecipesController {
   @ApiResponse({ status: 404, description: '레시피를 찾을 수 없음' })
   async remove(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string, @CurrentUser() user: any) {
     return this.recipesService.remove(id, user.id);
+  }
+
+  // 외부 링크 이벤트 로깅 (렌더/클릭)
+  @Post(':id/external-link-events')
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({ summary: '레시피 외부 링크 이벤트 기록 (렌더/클릭)' })
+  @ApiParam({ name: 'id', description: '레시피 ID(UUID)' })
+  @ApiBody({ type: RecordExternalLinkEventDto })
+  @ApiResponse({ status: 201, description: '기록 성공' })
+  async recordExternalLinkEvent(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @CurrentUser() user: any,
+    @Body() body: RecordExternalLinkEventDto,
+    @Req() req: Request,
+  ) {
+    const ua = (req.headers['user-agent'] as string | undefined) ?? undefined;
+    const xff = (req.headers['x-forwarded-for'] as string | undefined) ?? undefined;
+    const ip = (xff ? xff.split(',')[0].trim() : req.ip) || undefined;
+    return this.recipesService.recordExternalLinkEvent(id, user?.id, body, { ip, userAgent: ua });
   }
 }

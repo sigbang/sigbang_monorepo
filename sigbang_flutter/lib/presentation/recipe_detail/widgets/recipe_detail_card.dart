@@ -172,6 +172,7 @@ class _LinkPreviewSection extends StatefulWidget {
 
 class _LinkPreviewSectionState extends State<_LinkPreviewSection> {
   Future<LinkPreview?>? _future;
+  bool _renderedLogged = false;
 
   @override
   void initState() {
@@ -179,6 +180,7 @@ class _LinkPreviewSectionState extends State<_LinkPreviewSection> {
     final url = widget.recipe.linkUrl;
     if (url != null && url.trim().isNotEmpty) {
       _future = _fetchLinkPreview(url);
+      _logEvent(type: 'RENDERED', url: url.trim());
     }
   }
 
@@ -216,6 +218,38 @@ class _LinkPreviewSectionState extends State<_LinkPreviewSection> {
     await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
   }
 
+  Future<void> _logEvent({
+    required String type,
+    required String url,
+    String? finalUrl,
+  }) async {
+    if (type == 'RENDERED') {
+      if (_renderedLogged) return;
+      _renderedLogged = true;
+    }
+
+    final endpoint =
+        '${EnvConfig.baseUrl}/recipes/${widget.recipe.id}/external-link-events';
+    try {
+      final dio = Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 5),
+          receiveTimeout: const Duration(seconds: 5),
+          headers: {'Content-Type': 'application/json'},
+        ),
+      );
+      await dio.post(endpoint, data: {
+        'type': type,
+        'actionType': type == 'CLICKED' ? 'click' : null,
+        'isAutoRedirect': false,
+        'url': url,
+        'finalUrl': finalUrl,
+      });
+    } catch (_) {
+      // ignore
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final baseUrl = widget.recipe.linkUrl;
@@ -235,103 +269,137 @@ class _LinkPreviewSectionState extends State<_LinkPreviewSection> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return ListTile(
-              leading: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  Theme.of(context).colorScheme.primary,
-                ),
-              ),
-              title: Text(
-                widget.recipe.linkTitle ?? '링크 미리보기를 불러오는 중...',
-                style: Theme.of(context).textTheme.titleMedium,
+            return Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      widget.recipe.linkTitle ?? '링크 미리보기를 불러오는 중...',
+                      style: Theme.of(context).textTheme.titleMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
             );
           }
 
           final preview = snapshot.data;
 
-          if (preview == null) {
-            // Fallback: 기존 단순 링크 타일
-            return ListTile(
-              leading: Icon(
-                Icons.link,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              title: Text(
-                widget.recipe.linkTitle ?? '자료 구입하러 가기',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w600),
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => _openUrl(baseUrl),
-            );
-          }
+          final targetUrl = preview?.finalUrl ??
+              ((preview != null && preview.url.isNotEmpty)
+                  ? preview.url
+                  : baseUrl);
 
-          final targetUrl = preview.finalUrl ??
-              (preview.url.isNotEmpty ? preview.url : baseUrl);
-
-          return ListTile(
-            onTap: () => _openUrl(targetUrl),
-            leading: preview.image != null && preview.image!.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      preview.image!,
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
-                    ),
-                  )
-                : Icon(
-                    Icons.link,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-            title: Text(
-              preview.title ?? widget.recipe.linkTitle ?? '자료 구입하러 가기',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w600),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Column(
+          // P0: preview is NOT clickable; CTA button only
+          return Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (preview.siteName != null &&
-                    preview.siteName!.trim().isNotEmpty)
-                  Text(
-                    preview.siteName!,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurfaceVariant,
-                        ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    (preview?.image != null && preview!.image!.isNotEmpty)
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              preview.image!,
+                              width: 48,
+                              height: 48,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : Icon(
+                            Icons.link,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            preview?.title ??
+                                widget.recipe.linkTitle ??
+                                '자료 구입하러 가기',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if ((preview?.siteName ?? '').trim().isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                preview!.siteName!,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                              ),
+                            ),
+                          if ((preview?.description ?? '').trim().isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                preview!.description!,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      await _logEvent(
+                        type: 'CLICKED',
+                        url: baseUrl.trim(),
+                        finalUrl: preview?.finalUrl ?? preview?.url,
+                      );
+                      await _openUrl(targetUrl);
+                    },
+                    child: const Text('외부 구매처로 이동'),
                   ),
-                if (preview.description != null &&
-                    preview.description!.trim().isNotEmpty)
-                  Text(
-                    preview.description!,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurfaceVariant,
-                        ),
-                  ),
+                ),
               ],
             ),
-            trailing: const Icon(Icons.chevron_right),
           );
         },
       ),
+    );
+  }
+}

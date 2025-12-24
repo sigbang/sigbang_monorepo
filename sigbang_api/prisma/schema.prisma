@@ -30,6 +30,7 @@ model User {
   reports            Report[]
   saves              Save[]
   lifecycleEvents    UserLifecycleEvent[]
+  externalLinkEvents ExternalLinkEvent[]
 
   @@map("users")
 }
@@ -60,6 +61,14 @@ model Recipe {
   thumbnailImage    String?
   linkTitle         String?
   linkUrl           String?
+  linkFinalUrl      String?
+  linkHost          String?
+  linkSafetyGrade   LinkSafetyGrade?
+  linkCheckedAt     DateTime?
+  linkRedirectCount Int?
+  linkHttpStatus    Int?
+  linkThreatTypes   String[]            @default([])
+  linkDisabled      Boolean             @default(false)
   cookingTime       Int?
   servings          Int?
   difficulty        Difficulty          @default(EASY)
@@ -77,6 +86,7 @@ model Recipe {
   likes             Like[]
   counter           RecipeCounter?
   events            RecipeEvent[]
+  externalLinkEvents ExternalLinkEvent[]
   slugHistories     RecipeSlugHistory[]
   steps             RecipeStep[]
   tags              RecipeTag[]
@@ -322,6 +332,17 @@ enum RecipeStatus {
   PUBLISHED
 }
 
+enum LinkSafetyGrade {
+  SAFE
+  UNKNOWN
+  BLOCK
+}
+
+enum ExternalLinkEventType {
+  RENDERED
+  CLICKED
+}
+
 enum UserStatus {
   ACTIVE
   SUSPENDED
@@ -367,4 +388,25 @@ enum ActorType {
   USER
   ADMIN
   SYSTEM
+}
+
+model ExternalLinkEvent {
+  id             String                @id @default(uuid())
+  recipeId       String
+  userId         String?
+  type           ExternalLinkEventType
+  actionType     String?
+  isAutoRedirect Boolean               @default(false)
+  url            String?
+  finalUrl       String?
+  userAgent      String?
+  ip             String?
+  createdAt      DateTime              @default(now())
+
+  recipe         Recipe                @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  user           User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([recipeId, createdAt])
+  @@index([userId, createdAt])
+  @@map("external_link_events")
 }

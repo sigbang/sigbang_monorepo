@@ -11,7 +11,7 @@ import { useMyProfile } from '@/lib/hooks/users';
 import { useRecipe, useToggleLike, useToggleSave } from '@/lib/hooks/recipes';
 import { useSession } from '@/lib/auth/session';
 import { IconArrowLeft, IconBookmark, IconClock, IconHeart } from '@/components/icons';
-import { deleteRecipe, reportRecipe, RecipeDetail } from '@/lib/api/recipes';
+import { deleteRecipe, logRecipeExternalLinkEvent, reportRecipe, RecipeDetail } from '@/lib/api/recipes';
 
 type LinkPreview = {
   url: string;
@@ -33,6 +33,7 @@ export default function RecipeDetailClient({ id, initial }: { id: string; initia
   const [linkPreview, setLinkPreview] = useState<LinkPreview | null>(null);
   const [linkPreviewLoading, setLinkPreviewLoading] = useState(false);
   const [linkPreviewError, setLinkPreviewError] = useState<string | null>(null);
+  const externalLinkRenderedLoggedRef = useRef(false);
 
   const imageUrl = useMemo(() => {
     const thumb = recipe?.thumbnailImage || recipe?.thumbnailUrl || recipe?.thumbnailPath;
@@ -111,6 +112,20 @@ export default function RecipeDetailClient({ id, initial }: { id: string; initia
       clearTimeout(timer);
     };
   }, [recipe?.linkUrl]);
+
+  // Log: link rendered (P0)
+  useEffect(() => {
+    if (!recipe?.id) return;
+    const url = (recipe?.linkUrl ?? '').trim();
+    if (!url) return;
+    if (externalLinkRenderedLoggedRef.current) return;
+    externalLinkRenderedLoggedRef.current = true;
+    void logRecipeExternalLinkEvent(recipe.id, {
+      type: 'RENDERED',
+      url,
+      isAutoRedirect: false,
+    }).catch(() => {});
+  }, [recipe?.id, recipe?.linkUrl]);
 
   return (
     <div className="min-h-screen">
@@ -243,16 +258,7 @@ export default function RecipeDetailClient({ id, initial }: { id: string; initia
                     </div>
                   )}
                   {!linkPreviewLoading && linkPreview && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const target = linkPreview.finalUrl || linkPreview.url || recipe.linkUrl;
-                        if (target) {
-                          window.open(target, '_blank', 'noopener,noreferrer');
-                        }
-                      }}
-                      className="w-full text-left border border-neutral-200 rounded-lg p-3 flex gap-3 hover:bg-neutral-100 transition-colors cursor-pointer"
-                    >
+                    <div className="w-full text-left border border-neutral-200 rounded-lg p-3 flex gap-3 bg-white">
                       {linkPreview.image ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -285,18 +291,32 @@ export default function RecipeDetailClient({ id, initial }: { id: string; initia
                           </div>
                         )}
                       </div>
-                    </button>
-                  )}
-                  {!linkPreviewLoading && !linkPreview && (
-                    <div>
-                      <Link href={recipe.linkUrl} target="_blank" className="text-[18px] text-sky-700 underline">
-                        외부 링크 이동 {recipe.linkTitle ? ` - ${recipe.linkTitle}` : ''}
-                      </Link>
-                      {linkPreviewError && (
-                        <div className="mt-1 text-xs text-red-500">{linkPreviewError}</div>
-                      )}
                     </div>
                   )}
+                  {!linkPreviewLoading && !linkPreview && linkPreviewError && (
+                    <div className="mt-1 text-xs text-red-500">{linkPreviewError}</div>
+                  )}
+
+                  <div className="mt-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const target = (linkPreview?.finalUrl || linkPreview?.url || recipe.linkUrl || '').trim();
+                        if (!target) return;
+                        void logRecipeExternalLinkEvent(recipe.id, {
+                          type: 'CLICKED',
+                          actionType: 'click',
+                          isAutoRedirect: false,
+                          url: recipe.linkUrl,
+                          finalUrl: linkPreview?.finalUrl || linkPreview?.url,
+                        }).catch(() => {});
+                        window.open(target, '_blank', 'noopener,noreferrer');
+                      }}
+                      className="w-full rounded-lg bg-black text-white px-4 py-3 text-[16px] font-semibold hover:bg-black/85 transition-colors"
+                    >
+                      외부 구매처로 이동
+                    </button>
+                  </div>
                   <p className="mt-2 text-sm text-neutral-500">
                     * 이 링크는 레시피 작성자가 등록한 외부 링크입니다. (광고)가 포함되어 있을 수 있으며 식방은 판매 및 제공에 관여하지 않습니다.
                   </p>

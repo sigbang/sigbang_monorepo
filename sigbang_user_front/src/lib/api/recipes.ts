@@ -292,6 +292,25 @@ export async function reportRecipe(id: string, reason?: string) {
   await api.post(`/recipes/${id}/reports`, { reason });
 }
 
+export type ExternalLinkEventPayload = {
+  type: 'RENDERED' | 'CLICKED';
+  actionType?: string;
+  isAutoRedirect?: boolean;
+  url?: string;
+  finalUrl?: string;
+};
+
+export async function logRecipeExternalLinkEvent(
+  recipeId: string,
+  payload: ExternalLinkEventPayload,
+) {
+  const { data } = await api.post(
+    `/recipes/${recipeId}/external-link-events`,
+    payload,
+  );
+  return unwrap<{ success: boolean }>(data);
+}
+
 // Search API
 export type SearchParams = {
   q: string;

@@ -24,6 +24,8 @@ import {
 } from './dto/recipes.dto';
 import { ConfigService } from '@nestjs/config';
 import { generateSemanticRecipeSlug } from '../common/utils/slug.util';
+import { ExternalLinkService } from '../common/services/external-link.service';
+import { RecordExternalLinkEventDto } from './dto/external-link-events.dto';
 
 // 레시피 관련 OpenAI 모델은 코드 상수로 고정
 const OPENAI_RECIPE_MODEL = 'gpt-4o-mini';
@@ -54,6 +56,7 @@ export class RecipesService {
     private prismaService: PrismaService,
     private supabaseService: SupabaseService,
     private configService: ConfigService,
+    private externalLinkService: ExternalLinkService,
   ) {}
 
   private readonly logger = new Logger(RecipesService.name);
@@ -1383,6 +1386,49 @@ export class RecipesService {
       }
     }
 
+    // 0.8) 외부 링크 검증 + Safe Browsing 차단 (P0)
+    try {
+      const linkUrlRaw = typeof recipeData.linkUrl === 'string' ? recipeData.linkUrl.trim() : '';
+      const linkTitleRaw = typeof recipeData.linkTitle === 'string' ? recipeData.linkTitle.trim() : '';
+      if (!linkUrlRaw) {
+        recipeData.linkUrl = undefined;
+        recipeData.linkTitle = linkTitleRaw || undefined;
+        // clear derived fields
+        (recipeData as any).linkFinalUrl = undefined;
+        (recipeData as any).linkHost = undefined;
+        (recipeData as any).linkSafetyGrade = undefined;
+        (recipeData as any).linkCheckedAt = undefined;
+        (recipeData as any).linkRedirectCount = undefined;
+        (recipeData as any).linkHttpStatus = undefined;
+        (recipeData as any).linkThreatTypes = [];
+        (recipeData as any).linkDisabled = false;
+      } else {
+        const validated = await this.externalLinkService.validateAndClassify(linkUrlRaw);
+        if (validated.safetyGrade === 'BLOCK') {
+          throw new BadRequestException({
+            code: 'LINK_BLOCKED',
+            message: '악성/위험 링크로 판단되어 등록할 수 없습니다.',
+          } as any);
+        }
+        recipeData.linkUrl = validated.inputUrl;
+        recipeData.linkTitle = linkTitleRaw || undefined;
+        (recipeData as any).linkFinalUrl = validated.finalUrl;
+        (recipeData as any).linkHost = validated.host;
+        (recipeData as any).linkSafetyGrade = validated.safetyGrade;
+        (recipeData as any).linkCheckedAt = validated.checkedAt;
+        (recipeData as any).linkRedirectCount = validated.redirectCount;
+        (recipeData as any).linkHttpStatus = validated.httpStatus;
+        (recipeData as any).linkThreatTypes = validated.threatTypes;
+        (recipeData as any).linkDisabled = false;
+      }
+    } catch (e) {
+      if (e instanceof BadRequestException) throw e;
+      throw new BadRequestException({
+        code: 'LINK_VALIDATION_FAILED',
+        message: '외부 링크 검증에 실패했습니다. 다른 링크를 입력해 주세요.',
+      } as any);
+    }
+
     // Supabase 버킷명
     const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipes';    
 
@@ -1502,6 +1548,56 @@ export class RecipesService {
     }
 
     const { tags, steps, thumbnailPath, thumbnailCrop, ...recipeData } = updateRecipeDto as any;
+
+    // 외부 링크 검증 + Safe Browsing 차단 (P0)
+    try {
+      const hasLinkUrlPatch = 'linkUrl' in (updateRecipeDto as any);
+      const hasLinkTitlePatch = 'linkTitle' in (updateRecipeDto as any);
+      if (hasLinkUrlPatch || hasLinkTitlePatch) {
+        const linkUrlRaw = typeof recipeData.linkUrl === 'string' ? recipeData.linkUrl.trim() : '';
+        const linkTitleRaw = typeof recipeData.linkTitle === 'string' ? recipeData.linkTitle.trim() : '';
+
+        if (hasLinkUrlPatch && !linkUrlRaw) {
+          recipeData.linkUrl = null;
+          recipeData.linkTitle = linkTitleRaw || null;
+          (recipeData as any).linkFinalUrl = null;
+          (recipeData as any).linkHost = null;
+          (recipeData as any).linkSafetyGrade = null;
+          (recipeData as any).linkCheckedAt = null;
+          (recipeData as any).linkRedirectCount = null;
+          (recipeData as any).linkHttpStatus = null;
+          (recipeData as any).linkThreatTypes = [];
+          (recipeData as any).linkDisabled = false;
+        } else if (hasLinkUrlPatch && linkUrlRaw) {
+          const validated = await this.externalLinkService.validateAndClassify(linkUrlRaw);
+          if (validated.safetyGrade === 'BLOCK') {
+            throw new BadRequestException({
+              code: 'LINK_BLOCKED',
+              message: '악성/위험 링크로 판단되어 등록할 수 없습니다.',
+            } as any);
+          }
+          recipeData.linkUrl = validated.inputUrl;
+          recipeData.linkTitle = linkTitleRaw || null;
+          (recipeData as any).linkFinalUrl = validated.finalUrl;
+          (recipeData as any).linkHost = validated.host;
+          (recipeData as any).linkSafetyGrade = validated.safetyGrade;
+          (recipeData as any).linkCheckedAt = validated.checkedAt;
+          (recipeData as any).linkRedirectCount = validated.redirectCount;
+          (recipeData as any).linkHttpStatus = validated.httpStatus;
+          (recipeData as any).linkThreatTypes = validated.threatTypes;
+          (recipeData as any).linkDisabled = false;
+        } else if (!hasLinkUrlPatch && hasLinkTitlePatch) {
+          // title-only patch (keep url as-is)
+          recipeData.linkTitle = linkTitleRaw || null;
+        }
+      }
+    } catch (e) {
+      if (e instanceof BadRequestException) throw e;
+      throw new BadRequestException({
+        code: 'LINK_VALIDATION_FAILED',
+        message: '외부 링크 검증에 실패했습니다. 다른 링크를 입력해 주세요.',
+      } as any);
+    }
 
     // Supabase 버킷명
     const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipes';
@@ -1644,6 +1740,48 @@ export class RecipesService {
     const { tags, steps, thumbnailPath, thumbnailCrop, ...recipeData } = createRecipeDto as any;
 
     try {
+      // 외부 링크 검증 + Safe Browsing 차단 (P0)
+      try {
+        const linkUrlRaw = typeof recipeData.linkUrl === 'string' ? recipeData.linkUrl.trim() : '';
+        const linkTitleRaw = typeof recipeData.linkTitle === 'string' ? recipeData.linkTitle.trim() : '';
+        if (!linkUrlRaw) {
+          recipeData.linkUrl = undefined;
+          recipeData.linkTitle = linkTitleRaw || undefined;
+          (recipeData as any).linkFinalUrl = undefined;
+          (recipeData as any).linkHost = undefined;
+          (recipeData as any).linkSafetyGrade = undefined;
+          (recipeData as any).linkCheckedAt = undefined;
+          (recipeData as any).linkRedirectCount = undefined;
+          (recipeData as any).linkHttpStatus = undefined;
+          (recipeData as any).linkThreatTypes = [];
+          (recipeData as any).linkDisabled = false;
+        } else {
+          const validated = await this.externalLinkService.validateAndClassify(linkUrlRaw);
+          if (validated.safetyGrade === 'BLOCK') {
+            throw new BadRequestException({
+              code: 'LINK_BLOCKED',
+              message: '악성/위험 링크로 판단되어 등록할 수 없습니다.',
+            } as any);
+          }
+          recipeData.linkUrl = validated.inputUrl;
+          recipeData.linkTitle = linkTitleRaw || undefined;
+          (recipeData as any).linkFinalUrl = validated.finalUrl;
+          (recipeData as any).linkHost = validated.host;
+          (recipeData as any).linkSafetyGrade = validated.safetyGrade;
+          (recipeData as any).linkCheckedAt = validated.checkedAt;
+          (recipeData as any).linkRedirectCount = validated.redirectCount;
+          (recipeData as any).linkHttpStatus = validated.httpStatus;
+          (recipeData as any).linkThreatTypes = validated.threatTypes;
+          (recipeData as any).linkDisabled = false;
+        }
+      } catch (e) {
+        if (e instanceof BadRequestException) throw e;
+        throw new BadRequestException({
+          code: 'LINK_VALIDATION_FAILED',
+          message: '외부 링크 검증에 실패했습니다. 다른 링크를 입력해 주세요.',
+        } as any);
+      }
+
       // 사용자의 기존 임시 저장 전체 삭제 후 새로 생성
       await this.prismaService.recipe.deleteMany({
         where: {
@@ -1770,6 +1908,55 @@ export class RecipesService {
     const { tags, steps, thumbnailPath, thumbnailCrop, ...recipeData } = updateRecipeDto as any;
 
     try {
+      // 외부 링크 검증 + Safe Browsing 차단 (P0)
+      try {
+        const hasLinkUrlPatch = 'linkUrl' in (updateRecipeDto as any);
+        const hasLinkTitlePatch = 'linkTitle' in (updateRecipeDto as any);
+        if (hasLinkUrlPatch || hasLinkTitlePatch) {
+          const linkUrlRaw = typeof recipeData.linkUrl === 'string' ? recipeData.linkUrl.trim() : '';
+          const linkTitleRaw = typeof recipeData.linkTitle === 'string' ? recipeData.linkTitle.trim() : '';
+
+          if (hasLinkUrlPatch && !linkUrlRaw) {
+            recipeData.linkUrl = null;
+            recipeData.linkTitle = linkTitleRaw || null;
+            (recipeData as any).linkFinalUrl = null;
+            (recipeData as any).linkHost = null;
+            (recipeData as any).linkSafetyGrade = null;
+            (recipeData as any).linkCheckedAt = null;
+            (recipeData as any).linkRedirectCount = null;
+            (recipeData as any).linkHttpStatus = null;
+            (recipeData as any).linkThreatTypes = [];
+            (recipeData as any).linkDisabled = false;
+          } else if (hasLinkUrlPatch && linkUrlRaw) {
+            const validated = await this.externalLinkService.validateAndClassify(linkUrlRaw);
+            if (validated.safetyGrade === 'BLOCK') {
+              throw new BadRequestException({
+                code: 'LINK_BLOCKED',
+                message: '악성/위험 링크로 판단되어 등록할 수 없습니다.',
+              } as any);
+            }
+            recipeData.linkUrl = validated.inputUrl;
+            recipeData.linkTitle = linkTitleRaw || null;
+            (recipeData as any).linkFinalUrl = validated.finalUrl;
+            (recipeData as any).linkHost = validated.host;
+            (recipeData as any).linkSafetyGrade = validated.safetyGrade;
+            (recipeData as any).linkCheckedAt = validated.checkedAt;
+            (recipeData as any).linkRedirectCount = validated.redirectCount;
+            (recipeData as any).linkHttpStatus = validated.httpStatus;
+            (recipeData as any).linkThreatTypes = validated.threatTypes;
+            (recipeData as any).linkDisabled = false;
+          } else if (!hasLinkUrlPatch && hasLinkTitlePatch) {
+            recipeData.linkTitle = linkTitleRaw || null;
+          }
+        }
+      } catch (e) {
+        if (e instanceof BadRequestException) throw e;
+        throw new BadRequestException({
+          code: 'LINK_VALIDATION_FAILED',
+          message: '외부 링크 검증에 실패했습니다. 다른 링크를 입력해 주세요.',
+        } as any);
+      }
+
       // 썸네일 업데이트 처리 (temp 이동 또는 경로 정규화)
       const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'recipes';
       const isTempPath = (p?: string) => !!p && p.startsWith(`temp/${userId}/`);
@@ -1892,6 +2079,30 @@ export class RecipesService {
     }
 
     try {
+      // 공개 시점에도 외부 링크 재검증(서버 정책/위험도 변경 대비) (P0)
+      if (recipe.linkUrl && recipe.linkUrl.trim()) {
+        const validated = await this.externalLinkService.validateAndClassify(recipe.linkUrl.trim());
+        if (validated.safetyGrade === 'BLOCK') {
+          throw new BadRequestException({
+            code: 'LINK_BLOCKED',
+            message: '악성/위험 링크로 판단되어 공개할 수 없습니다. 링크를 제거하거나 변경해 주세요.',
+          } as any);
+        }
+        await this.prismaService.recipe.update({
+          where: { id },
+          data: {
+            linkFinalUrl: validated.finalUrl as any,
+            linkHost: validated.host as any,
+            linkSafetyGrade: validated.safetyGrade as any,
+            linkCheckedAt: validated.checkedAt as any,
+            linkRedirectCount: validated.redirectCount as any,
+            linkHttpStatus: validated.httpStatus as any,
+            linkThreatTypes: validated.threatTypes as any,
+            linkDisabled: false,
+          } as any,
+        });
+      }
+
       const publishedRecipe = await this.prismaService.recipe.update({
         where: { id },
         data: {
@@ -1912,6 +2123,48 @@ export class RecipesService {
     } catch (error) {
       throw new BadRequestException('레시피 공개에 실패했습니다.');
     }
+  }
+
+  async recordExternalLinkEvent(
+    recipeId: string,
+    userId: string | undefined,
+    body: RecordExternalLinkEventDto,
+    meta?: { ip?: string; userAgent?: string },
+  ) {
+    const exists = await this.prismaService.recipe.findUnique({
+      where: { id: recipeId },
+      select: { id: true },
+    });
+    if (!exists) {
+      throw new NotFoundException('레시피를 찾을 수 없습니다.');
+    }
+
+    const type = body.type;
+    const actionType =
+      type === 'CLICKED'
+        ? 'click'
+        : typeof body.actionType === 'string' && body.actionType.trim()
+          ? body.actionType.trim()
+          : undefined;
+
+    // P0: auto redirect is always false (server guard)
+    const isAutoRedirect = false;
+
+    await (this.prismaService as any).externalLinkEvent.create({
+      data: {
+        recipeId,
+        ...(userId ? { userId } : {}),
+        type,
+        actionType,
+        isAutoRedirect,
+        url: body.url ? body.url.trim().slice(0, 2048) : undefined,
+        finalUrl: body.finalUrl ? body.finalUrl.trim().slice(0, 2048) : undefined,
+        ip: meta?.ip ? String(meta.ip).slice(0, 128) : undefined,
+        userAgent: meta?.userAgent ? String(meta.userAgent).slice(0, 512) : undefined,
+      },
+    });
+
+    return { success: true };
   }
 
   // 4. 내 임시 저장 목록 조회
