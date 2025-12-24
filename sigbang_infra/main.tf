@@ -213,6 +213,7 @@ locals {
     jwt_expires_in            = var.jwt_expires_in
     openai_api_key            = var.openai_api_key
     openai_recipe_model       = var.openai_recipe_model
+    safe_browsing_api_key     = var.safe_browsing_api_key
     public_base_url           = var.public_base_url
     throttle_ttl              = var.throttle_ttl
     throttle_limit            = var.throttle_limit
@@ -239,6 +240,7 @@ resource "aws_ssm_parameter" "env_vars" {
     JWT_EXPIRES_IN            = var.jwt_expires_in
     OPENAI_API_KEY            = var.openai_api_key
     OPENAI_RECIPE_MODEL       = var.openai_recipe_model
+    SAFE_BROWSING_API_KEY     = var.safe_browsing_api_key
     PUBLIC_BASE_URL           = var.public_base_url
     THROTTLE_TTL              = var.throttle_ttl
     THROTTLE_LIMIT            = var.throttle_limit

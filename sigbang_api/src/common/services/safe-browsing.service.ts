@@ -25,7 +25,7 @@ export class SafeBrowsingService {
    * Uses Safe Browsing API v4 threatMatches:find.
    */
   async findThreatTypes(url: string): Promise<string[]> {
-    const apiKey = 'AIzaSyCtHhvwqMziq2Rvd8-BvM8mld0o2A0lgYI';
+    const apiKey = this.configService.get<string>('SAFE_BROWSING_API_KEY')?.trim();
     if (!apiKey) {
       this.logger.warn(`safebrowing key empty`);
       return [];

@@ -117,6 +117,8 @@ jobs:
           IMAGE: ${{ steps.resolve.outputs.image }}
           AWS_REGION: ap-northeast-2
           TARGET_NAME_TAG: sigbang-api-api
+          # Must match Terraform var.ssm_prefix (used by userdata.sh and SSM Parameter Store path)
+          SSM_PREFIX: sigbang-api/production
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           CONTAINER_NAME: sigbang-api
@@ -144,6 +146,13 @@ jobs:
                 "EXPOSE_PORT=${EXPOSE_PORT}",
                 "CONTAINER_NAME='${CONTAINER_NAME}'",
                 "ENV_FILE='/home/ubuntu/.env'",
+                "AWS_REGION='${AWS_REGION}'",
+                "SSM_PREFIX='${SSM_PREFIX}'",
+                "echo '[deploy-api-ssm] Refreshing env from SSM /'$SSM_PREFIX | sudo tee -a /var/log/userdata.log >/dev/null || true",
+                "sudo rm -f \\"$ENV_FILE\\" || true",
+                "sudo touch \\"$ENV_FILE\\"",
+                "aws ssm get-parameters-by-path --path \\"/$SSM_PREFIX\\" --with-decryption --recursive --region \\"$AWS_REGION\\" | jq -r '.Parameters // [] | .[] | [.Name, .Value] | @tsv' | while IFS=$'\\t' read -r name value; do key=$(basename \\"$name\\"); printf '%s=%s\\n' \\"$key\\" \\"$value\\" | sudo tee -a \\"$ENV_FILE\\" >/dev/null; done",
+                "sudo chown ubuntu:ubuntu \\"$ENV_FILE\\" || true",
                 "if echo \\"$IMAGE\\" | grep -q '^ghcr.io/' && [ -n '${GHCR_USERNAME}' ] && [ -n '${GHCR_TOKEN}' ]; then echo '${GHCR_TOKEN}' | sudo docker login ghcr.io -u '${GHCR_USERNAME}' --password-stdin || true; fi",
                 "sudo docker system prune -af || true",
                 "sudo docker pull \\"$IMAGE\\"",

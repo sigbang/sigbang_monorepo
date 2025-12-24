@@ -149,6 +149,12 @@ variable "openai_recipe_model" {
   type = string
 }
 
+# Google Safe Browsing
+variable "safe_browsing_api_key" {
+  type      = string
+  sensitive = true
+}
+
 # Admin
 variable "admin_job_secret" {
   type      = string
