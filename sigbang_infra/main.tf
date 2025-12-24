@@ -583,7 +583,8 @@ resource "aws_route53_record" "root_spf" {
   type    = "TXT"
   ttl     = 600
   records = [
-    "v=spf1 include:_spf.google.com include:amazonses.com ~all"
+    "v=spf1 include:_spf.google.com include:amazonses.com ~all",
+    "google-site-verification=L4qixGSZmQg0kM0NndsmDpYLL5r_Tv2sCwCL2j6IWKo"
   ]
 }
 
